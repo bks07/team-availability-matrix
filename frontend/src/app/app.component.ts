@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, HostListener, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from './services/auth.service';
 import { MatrixService } from './services/matrix.service';
@@ -80,7 +80,7 @@ import { AuthResponse, AvailabilityStatus, User } from './models/api.models';
       <section class="toolbar-card" *ngIf="currentUser">
         <div>
           <p class="toolbar-title">Signed in as {{ currentUser.displayName }}</p>
-          <p class="toolbar-subtitle">You can edit only your own column. Hover your column to change a status.</p>
+          <p class="toolbar-subtitle">You can edit only your own column. Click a cell to change its status.</p>
         </div>
         <div class="toolbar-actions">
           <label class="period-label">
@@ -119,25 +119,26 @@ import { AuthResponse, AvailabilityStatus, User } from './models/api.models';
                   <div
                     class="cell-wrapper"
                     [class.editable]="canEdit(employee.id)"
-                    (mouseenter)="onCellEnter(employee.id, day)"
-                    (mouseleave)="hoveredKey = null"
                   >
                     <span
                       class="status-pill"
                       [class.status-w]="statusFor(employee.id, day) === 'W'"
                       [class.status-v]="statusFor(employee.id, day) === 'V'"
                       [class.status-a]="statusFor(employee.id, day) === 'A'"
+                      (click)="openPopup(employee.id, day, $event)"
                     >
                       {{ pendingKey === cellKey(employee.id, day) ? '…' : statusFor(employee.id, day) }}
                     </span>
 
                     <div
                       class="status-overlay"
-                      *ngIf="canEdit(employee.id) && hoveredKey === cellKey(employee.id, day)"
+                      *ngIf="canEdit(employee.id) && openKey === cellKey(employee.id, day)"
+                      (click)="$event.stopPropagation()"
                     >
                       <button class="overlay-btn status-w" (click)="setOwnStatus(day, 'W')">W</button>
                       <button class="overlay-btn status-v" (click)="setOwnStatus(day, 'V')">V</button>
                       <button class="overlay-btn status-a" (click)="setOwnStatus(day, 'A')">A</button>
+                      <button class="overlay-btn close-btn" (click)="openKey = null" title="Close">✕</button>
                     </div>
                   </div>
                 </td>
@@ -397,6 +398,12 @@ import { AuthResponse, AvailabilityStatus, User } from './models/api.models';
         filter: brightness(0.92);
       }
 
+      .close-btn {
+        background: #f1f5f9;
+        color: #64748b;
+        margin-left: 0.15rem;
+      }
+
       .status-w {
         background: #dcfce7;
         color: #166534;
@@ -423,6 +430,7 @@ import { AuthResponse, AvailabilityStatus, User } from './models/api.models';
 export class AppComponent implements OnInit {
   private readonly authService = inject(AuthService);
   private readonly matrixService = inject(MatrixService);
+  private readonly cdr = inject(ChangeDetectorRef);
 
   authMode: 'login' | 'register' = 'login';
   authSubmitting = false;
@@ -436,7 +444,7 @@ export class AppComponent implements OnInit {
   employees: User[] = [];
 
   currentUser: User | null = null;
-  hoveredKey: string | null = null;
+  openKey: string | null = null;
   pendingKey: string | null = null;
   private entryMap = new Map<string, AvailabilityStatus>();
 
@@ -466,6 +474,23 @@ export class AppComponent implements OnInit {
     const date = new Date(dateStr + 'T00:00:00');
     const dow = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()];
     return `${dow} ${dateStr}`;
+  }
+
+  @HostListener('document:click')
+  onDocumentClick(): void {
+    if (this.openKey) {
+      this.openKey = null;
+      this.cdr.markForCheck();
+    }
+  }
+
+  openPopup(employeeId: number, date: string, event: MouseEvent): void {
+    if (!this.canEdit(employeeId)) {
+      return;
+    }
+    event.stopPropagation();
+    const key = this.cellKey(employeeId, date);
+    this.openKey = this.openKey === key ? null : key;
   }
 
   async applyPeriod(): Promise<void> {
@@ -534,20 +559,13 @@ export class AppComponent implements OnInit {
     }
   }
 
-  onCellEnter(employeeId: number, date: string): void {
-    const key = this.cellKey(employeeId, date);
-    if (this.canEdit(employeeId) && this.pendingKey !== key) {
-      this.hoveredKey = key;
-    }
-  }
-
   async setOwnStatus(date: string, status: AvailabilityStatus): Promise<void> {
     if (!this.currentUser) {
       return;
     }
 
     const key = this.cellKey(this.currentUser.id, date);
-    this.hoveredKey = null;
+    this.openKey = null;
     this.pendingKey = key;
     this.clearMessages();
 
@@ -590,7 +608,7 @@ export class AppComponent implements OnInit {
     this.filteredDays = [];
     this.employees = [];
     this.entryMap = new Map();
-    this.hoveredKey = null;
+    this.openKey = null;
     this.pendingKey = null;
     this.clearMessages();
     this.authForm = { displayName: '', email: '', password: '' };
