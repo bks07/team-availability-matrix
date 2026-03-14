@@ -1,0 +1,614 @@
+use std::{env, net::SocketAddr, str::FromStr};
+
+use argon2::{
+    password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
+    Argon2,
+};
+use axum::{
+    extract::{Path, Query, State},
+    http::{HeaderMap, Method, StatusCode},
+    response::{IntoResponse, Response},
+    routing::{get, post, put},
+    Json, Router,
+};
+use chrono::{Datelike, Duration, NaiveDate, Utc};
+use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
+use rand_core::OsRng;
+use serde::{Deserialize, Serialize};
+use sqlx::{
+    sqlite::{SqliteConnectOptions, SqlitePoolOptions},
+    FromRow, SqlitePool,
+};
+use tower_http::cors::CorsLayer;
+use tracing::info;
+
+#[derive(Clone)]
+struct AppState {
+    db: SqlitePool,
+    jwt_secret: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ErrorResponse {
+    error: String,
+}
+
+#[derive(Debug)]
+struct ApiError {
+    status: StatusCode,
+    message: String,
+}
+
+impl ApiError {
+    fn new(status: StatusCode, message: impl Into<String>) -> Self {
+        Self {
+            status,
+            message: message.into(),
+        }
+    }
+}
+
+impl IntoResponse for ApiError {
+    fn into_response(self) -> Response {
+        (self.status, Json(ErrorResponse { error: self.message })).into_response()
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RegisterRequest {
+    display_name: String,
+    email: String,
+    password: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct LoginRequest {
+    email: String,
+    password: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct UpdateStatusRequest {
+    status: StatusValue,
+}
+
+#[derive(Debug, Deserialize)]
+struct YearQuery {
+    year: Option<i32>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AuthResponse {
+    token: String,
+    user: PublicUser,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PublicUser {
+    id: i64,
+    email: String,
+    display_name: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AvailabilityEntry {
+    user_id: i64,
+    date: String,
+    status: StatusValue,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct MatrixResponse {
+    year: i32,
+    days: Vec<String>,
+    employees: Vec<PublicUser>,
+    entries: Vec<AvailabilityEntry>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq)]
+enum StatusValue {
+    #[serde(rename = "W")]
+    Working,
+    #[serde(rename = "V")]
+    Vacation,
+    #[serde(rename = "A")]
+    Absence,
+}
+
+impl StatusValue {
+    fn as_db_value(self) -> &'static str {
+        match self {
+            Self::Working => "W",
+            Self::Vacation => "V",
+            Self::Absence => "A",
+        }
+    }
+
+    fn from_db_value(value: &str) -> Result<Self, ApiError> {
+        match value {
+            "W" => Ok(Self::Working),
+            "V" => Ok(Self::Vacation),
+            "A" => Ok(Self::Absence),
+            _ => Err(ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Stored availability status is invalid",
+            )),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct Claims {
+    sub: i64,
+    exp: usize,
+}
+
+#[derive(Debug, FromRow)]
+struct UserRecord {
+    id: i64,
+    email: String,
+    display_name: String,
+    password_hash: String,
+}
+
+#[derive(Debug, FromRow)]
+struct EmployeeRow {
+    id: i64,
+    email: String,
+    display_name: String,
+}
+
+#[derive(Debug, FromRow)]
+struct StatusRow {
+    user_id: i64,
+    status_date: String,
+    status: String,
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    dotenvy::dotenv().ok();
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "availability_matrix=info,tower_http=info".into()),
+        )
+        .init();
+
+    tokio::fs::create_dir_all("data").await?;
+
+    let database_url = env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite://data/app.db".to_string());
+    let connect_options = SqliteConnectOptions::from_str(&database_url)?
+        .create_if_missing(true)
+        .foreign_keys(true);
+
+    let db = SqlitePoolOptions::new()
+        .max_connections(5)
+        .connect_with(connect_options)
+        .await?;
+
+    initialize_database(&db).await?;
+
+    let frontend_origin = env::var("FRONTEND_ORIGIN").unwrap_or_else(|_| "http://localhost:4200".to_string());
+    let jwt_secret = env::var("JWT_SECRET").unwrap_or_else(|_| "change-me-in-production".to_string());
+    let host = env::var("HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
+    let port = env::var("PORT").unwrap_or_else(|_| "3000".to_string());
+
+    let cors = CorsLayer::new()
+        .allow_origin(frontend_origin.parse::<axum::http::HeaderValue>()?)
+        .allow_methods([Method::GET, Method::POST, Method::PUT])
+        .allow_headers([axum::http::header::AUTHORIZATION, axum::http::header::CONTENT_TYPE]);
+
+    let state = AppState { db, jwt_secret };
+
+    let app = Router::new()
+        .route("/api/health", get(health_check))
+        .route("/api/auth/register", post(register))
+        .route("/api/auth/login", post(login))
+        .route("/api/me", get(me))
+        .route("/api/matrix", get(get_matrix))
+        .route("/api/statuses/:date", put(update_status))
+        .layer(cors)
+        .with_state(state);
+
+    let addr: SocketAddr = format!("{host}:{port}").parse()?;
+    let listener = tokio::net::TcpListener::bind(addr).await?;
+    info!("listening on http://{}", listener.local_addr()?);
+
+    axum::serve(listener, app).await?;
+    Ok(())
+}
+
+async fn initialize_database(db: &SqlitePool) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT NOT NULL UNIQUE,
+            display_name TEXT NOT NULL,
+            password_hash TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        "#,
+    )
+    .execute(db)
+    .await?;
+
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS availability_statuses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            status_date TEXT NOT NULL,
+            status TEXT NOT NULL CHECK (status IN ('W', 'V', 'A')),
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(user_id, status_date),
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+        "#,
+    )
+    .execute(db)
+    .await?;
+
+    sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_availability_statuses_date ON availability_statuses(status_date);",
+    )
+    .execute(db)
+    .await?;
+
+    Ok(())
+}
+
+async fn health_check() -> Json<serde_json::Value> {
+    Json(serde_json::json!({ "status": "ok" }))
+}
+
+async fn register(
+    State(state): State<AppState>,
+    Json(payload): Json<RegisterRequest>,
+) -> Result<Json<AuthResponse>, ApiError> {
+    let email = normalize_email(&payload.email)?;
+    let display_name = normalize_display_name(&payload.display_name)?;
+    validate_password(&payload.password)?;
+
+    let password_hash = hash_password(&payload.password)?;
+
+    let insert_result = sqlx::query(
+        "INSERT INTO users (email, display_name, password_hash) VALUES (?, ?, ?)",
+    )
+    .bind(&email)
+    .bind(&display_name)
+    .bind(password_hash)
+    .execute(&state.db)
+    .await;
+
+    if let Err(error) = insert_result {
+        if error.to_string().contains("UNIQUE constraint failed") {
+            return Err(ApiError::new(
+                StatusCode::CONFLICT,
+                "An account with that email already exists",
+            ));
+        }
+
+        return Err(ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to create account: {error}"),
+        ));
+    }
+
+    let user = sqlx::query_as::<_, UserRecord>(
+        "SELECT id, email, display_name, password_hash FROM users WHERE email = ?",
+    )
+    .bind(&email)
+    .fetch_one(&state.db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to load account after registration: {error}"),
+        )
+    })?;
+
+    let token = issue_token(user.id, &state.jwt_secret)?;
+
+    Ok(Json(AuthResponse {
+        token,
+        user: PublicUser {
+            id: user.id,
+            email: user.email,
+            display_name: user.display_name,
+        },
+    }))
+}
+
+async fn login(
+    State(state): State<AppState>,
+    Json(payload): Json<LoginRequest>,
+) -> Result<Json<AuthResponse>, ApiError> {
+    let email = normalize_email(&payload.email)?;
+
+    let user = sqlx::query_as::<_, UserRecord>(
+        "SELECT id, email, display_name, password_hash FROM users WHERE email = ?",
+    )
+    .bind(&email)
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to query user account: {error}"),
+        )
+    })?
+    .ok_or_else(|| ApiError::new(StatusCode::UNAUTHORIZED, "Invalid email or password"))?;
+
+    verify_password(&payload.password, &user.password_hash)?;
+    let token = issue_token(user.id, &state.jwt_secret)?;
+
+    Ok(Json(AuthResponse {
+        token,
+        user: PublicUser {
+            id: user.id,
+            email: user.email,
+            display_name: user.display_name,
+        },
+    }))
+}
+
+async fn me(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<PublicUser>, ApiError> {
+    let claims = authorize(&headers, &state.jwt_secret)?;
+    let user = find_public_user(&state.db, claims.sub).await?;
+    Ok(Json(user))
+}
+
+async fn get_matrix(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Query(query): Query<YearQuery>,
+) -> Result<Json<MatrixResponse>, ApiError> {
+    authorize(&headers, &state.jwt_secret)?;
+
+    let year = query.year.unwrap_or_else(|| Utc::now().year());
+    let start = NaiveDate::from_ymd_opt(year, 1, 1)
+        .ok_or_else(|| ApiError::new(StatusCode::BAD_REQUEST, "Year is invalid"))?;
+    let next_year_start = NaiveDate::from_ymd_opt(year + 1, 1, 1)
+        .ok_or_else(|| ApiError::new(StatusCode::BAD_REQUEST, "Year is invalid"))?;
+
+    let employees = sqlx::query_as::<_, EmployeeRow>(
+        "SELECT id, email, display_name FROM users ORDER BY display_name COLLATE NOCASE ASC",
+    )
+    .fetch_all(&state.db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to load employees: {error}"),
+        )
+    })?;
+
+    let status_rows = sqlx::query_as::<_, StatusRow>(
+        r#"
+        SELECT user_id, status_date, status
+        FROM availability_statuses
+        WHERE status_date >= ? AND status_date < ?
+        ORDER BY status_date ASC, user_id ASC
+        "#,
+    )
+    .bind(start.to_string())
+    .bind(next_year_start.to_string())
+    .fetch_all(&state.db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to load availability data: {error}"),
+        )
+    })?;
+
+    let days = build_day_list(year)?;
+    let entries = status_rows
+        .into_iter()
+        .map(|row| {
+            Ok(AvailabilityEntry {
+                user_id: row.user_id,
+                date: row.status_date,
+                status: StatusValue::from_db_value(&row.status)?,
+            })
+        })
+        .collect::<Result<Vec<_>, ApiError>>()?;
+
+    Ok(Json(MatrixResponse {
+        year,
+        days,
+        employees: employees
+            .into_iter()
+            .map(|user| PublicUser {
+                id: user.id,
+                email: user.email,
+                display_name: user.display_name,
+            })
+            .collect(),
+        entries,
+    }))
+}
+
+async fn update_status(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(date): Path<String>,
+    Json(payload): Json<UpdateStatusRequest>,
+) -> Result<Json<AvailabilityEntry>, ApiError> {
+    let claims = authorize(&headers, &state.jwt_secret)?;
+    let parsed_date = NaiveDate::parse_from_str(&date, "%Y-%m-%d")
+        .map_err(|_| ApiError::new(StatusCode::BAD_REQUEST, "Date must use YYYY-MM-DD"))?;
+
+    sqlx::query(
+        r#"
+        INSERT INTO availability_statuses (user_id, status_date, status)
+        VALUES (?, ?, ?)
+        ON CONFLICT(user_id, status_date)
+        DO UPDATE SET status = excluded.status, updated_at = CURRENT_TIMESTAMP
+        "#,
+    )
+    .bind(claims.sub)
+    .bind(parsed_date.to_string())
+    .bind(payload.status.as_db_value())
+    .execute(&state.db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to save availability status: {error}"),
+        )
+    })?;
+
+    Ok(Json(AvailabilityEntry {
+        user_id: claims.sub,
+        date: parsed_date.to_string(),
+        status: payload.status,
+    }))
+}
+
+async fn find_public_user(db: &SqlitePool, user_id: i64) -> Result<PublicUser, ApiError> {
+    sqlx::query_as::<_, EmployeeRow>(
+        "SELECT id, email, display_name FROM users WHERE id = ?",
+    )
+    .bind(user_id)
+    .fetch_optional(db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to load current user: {error}"),
+        )
+    })?
+    .map(|row| PublicUser {
+        id: row.id,
+        email: row.email,
+        display_name: row.display_name,
+    })
+    .ok_or_else(|| ApiError::new(StatusCode::UNAUTHORIZED, "Current user no longer exists"))
+}
+
+fn normalize_email(email: &str) -> Result<String, ApiError> {
+    let normalized = email.trim().to_lowercase();
+    if normalized.is_empty() || !normalized.contains('@') {
+        return Err(ApiError::new(
+            StatusCode::BAD_REQUEST,
+            "A valid email address is required",
+        ));
+    }
+
+    Ok(normalized)
+}
+
+fn normalize_display_name(display_name: &str) -> Result<String, ApiError> {
+    let normalized = display_name.trim();
+    if normalized.len() < 2 || normalized.len() > 80 {
+        return Err(ApiError::new(
+            StatusCode::BAD_REQUEST,
+            "Display name must be between 2 and 80 characters",
+        ));
+    }
+
+    Ok(normalized.to_string())
+}
+
+fn validate_password(password: &str) -> Result<(), ApiError> {
+    if password.len() < 8 {
+        return Err(ApiError::new(
+            StatusCode::BAD_REQUEST,
+            "Password must be at least 8 characters long",
+        ));
+    }
+
+    Ok(())
+}
+
+fn hash_password(password: &str) -> Result<String, ApiError> {
+    let salt = SaltString::generate(&mut OsRng);
+    Argon2::default()
+        .hash_password(password.as_bytes(), &salt)
+        .map(|hash| hash.to_string())
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to hash password: {error}"),
+            )
+        })
+}
+
+fn verify_password(password: &str, password_hash: &str) -> Result<(), ApiError> {
+    let parsed_hash = PasswordHash::new(password_hash).map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Stored password hash is invalid: {error}"),
+        )
+    })?;
+
+    Argon2::default()
+        .verify_password(password.as_bytes(), &parsed_hash)
+        .map_err(|_| ApiError::new(StatusCode::UNAUTHORIZED, "Invalid email or password"))
+}
+
+fn issue_token(user_id: i64, jwt_secret: &str) -> Result<String, ApiError> {
+    let expiration = Utc::now() + Duration::days(7);
+    let claims = Claims {
+        sub: user_id,
+        exp: expiration.timestamp() as usize,
+    };
+
+    encode(
+        &Header::default(),
+        &claims,
+        &EncodingKey::from_secret(jwt_secret.as_bytes()),
+    )
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to issue auth token: {error}"),
+        )
+    })
+}
+
+fn authorize(headers: &HeaderMap, jwt_secret: &str) -> Result<Claims, ApiError> {
+    let bearer = headers
+        .get(axum::http::header::AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+        .ok_or_else(|| ApiError::new(StatusCode::UNAUTHORIZED, "Missing Authorization header"))?;
+
+    let token = bearer
+        .strip_prefix("Bearer ")
+        .ok_or_else(|| ApiError::new(StatusCode::UNAUTHORIZED, "Authorization header must use Bearer token"))?;
+
+    decode::<Claims>(
+        token,
+        &DecodingKey::from_secret(jwt_secret.as_bytes()),
+        &Validation::default(),
+    )
+    .map(|data| data.claims)
+    .map_err(|_| ApiError::new(StatusCode::UNAUTHORIZED, "Authentication token is invalid or expired"))
+}
+
+fn build_day_list(year: i32) -> Result<Vec<String>, ApiError> {
+    let start = NaiveDate::from_ymd_opt(year, 1, 1)
+        .ok_or_else(|| ApiError::new(StatusCode::BAD_REQUEST, "Year is invalid"))?;
+    let next_year_start = NaiveDate::from_ymd_opt(year + 1, 1, 1)
+        .ok_or_else(|| ApiError::new(StatusCode::BAD_REQUEST, "Year is invalid"))?;
+
+    let total_days = (next_year_start - start).num_days();
+    Ok((0..total_days)
+        .map(|offset| (start + Duration::days(offset)).to_string())
+        .collect())
+}
