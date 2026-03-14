@@ -19,12 +19,34 @@ For this MVP, matrix cells default to `W` when no explicit entry exists yet.
 
 ## Project structure
 
-- `backend/` - Rust API built with Axum, SQLx, SQLite, JWT auth, and Argon2 password hashing
+- `backend/` - Rust API built with Axum, SQLx, PostgreSQL, JWT auth, and Argon2 password hashing
 - `frontend/` - Angular standalone application that renders and edits the availability matrix
 
-## Backend setup
+## Run with Docker
 
-Install Rust first, then run:
+This repository now includes a Docker Compose setup for the full stack:
+
+- `frontend` on `http://localhost:4200`
+- `backend` on `http://localhost:3000`
+- `postgres` as an internal compose service used by the backend
+
+Start everything with:
+
+```bash
+docker compose up --build
+```
+
+Stop the stack with:
+
+```bash
+docker compose down
+```
+
+The PostgreSQL data is persisted in the `postgres_data` Docker volume.
+
+## Backend setup without Docker
+
+If you want to run the backend directly on your machine instead of in Docker, install Rust and PostgreSQL first, then run:
 
 ```bash
 cd backend
@@ -32,9 +54,11 @@ cp .env.example .env
 cargo run
 ```
 
+The example `.env` assumes a local PostgreSQL instance that exposes the `postgres` user with password `postgres`. Docker Compose does not use this file for the backend container; it injects container-specific values directly.
+
 The API listens on `http://localhost:3000` by default.
 
-## Frontend setup
+## Frontend setup without Docker
 
 Install Node.js first, then run:
 
@@ -52,9 +76,11 @@ The backend reads these values from `.env`:
 
 - `HOST` - server host, default `127.0.0.1`
 - `PORT` - server port, default `3000`
-- `DATABASE_URL` - SQLite connection string, default `sqlite://data/app.db`
+- `DATABASE_URL` - PostgreSQL connection string, default `postgresql://postgres:postgres@localhost:5432/availability_matrix`
 - `JWT_SECRET` - JWT signing secret, must be changed for real deployments
 - `FRONTEND_ORIGIN` - allowed frontend origin for CORS, default `http://localhost:4200`
+
+In Docker Compose, the backend uses `postgresql://postgres:postgres@db:5432/availability_matrix` so it can reach the PostgreSQL container over the internal Docker network.
 
 ## Main API endpoints
 

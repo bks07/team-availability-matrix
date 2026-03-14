@@ -1,4 +1,4 @@
-use std::{env, net::SocketAddr, str::FromStr};
+use std::{env, net::SocketAddr};
 
 use argon2::{
     password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
@@ -16,15 +16,15 @@ use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation}
 use rand_core::OsRng;
 use serde::{Deserialize, Serialize};
 use sqlx::{
-    sqlite::{SqliteConnectOptions, SqlitePoolOptions},
-    FromRow, SqlitePool,
+    postgres::{PgDatabaseError, PgPoolOptions},
+    FromRow, PgPool,
 };
 use tower_http::cors::CorsLayer;
 use tracing::info;
 
 #[derive(Clone)]
 struct AppState {
-    db: SqlitePool,
+    db: PgPool,
     jwt_secret: String,
 }
 
@@ -51,7 +51,13 @@ impl ApiError {
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
-        (self.status, Json(ErrorResponse { error: self.message })).into_response()
+        (
+            self.status,
+            Json(ErrorResponse {
+                error: self.message,
+            }),
+        )
+            .into_response()
     }
 }
 
@@ -183,29 +189,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
         .init();
 
-    tokio::fs::create_dir_all("data").await?;
+    let database_url = env::var("DATABASE_URL").unwrap_or_else(|_| {
+        "postgresql://postgres:postgres@localhost:5432/availability_matrix".to_string()
+    });
 
-    let database_url = env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite://data/app.db".to_string());
-    let connect_options = SqliteConnectOptions::from_str(&database_url)?
-        .create_if_missing(true)
-        .foreign_keys(true);
-
-    let db = SqlitePoolOptions::new()
+    let db = PgPoolOptions::new()
         .max_connections(5)
-        .connect_with(connect_options)
+        .connect(&database_url)
         .await?;
 
     initialize_database(&db).await?;
 
-    let frontend_origin = env::var("FRONTEND_ORIGIN").unwrap_or_else(|_| "http://localhost:4200".to_string());
-    let jwt_secret = env::var("JWT_SECRET").unwrap_or_else(|_| "change-me-in-production".to_string());
+    let frontend_origin =
+        env::var("FRONTEND_ORIGIN").unwrap_or_else(|_| "http://localhost:4200".to_string());
+    let jwt_secret =
+        env::var("JWT_SECRET").unwrap_or_else(|_| "change-me-in-production".to_string());
     let host = env::var("HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
     let port = env::var("PORT").unwrap_or_else(|_| "3000".to_string());
 
     let cors = CorsLayer::new()
         .allow_origin(frontend_origin.parse::<axum::http::HeaderValue>()?)
         .allow_methods([Method::GET, Method::POST, Method::PUT])
-        .allow_headers([axum::http::header::AUTHORIZATION, axum::http::header::CONTENT_TYPE]);
+        .allow_headers([
+            axum::http::header::AUTHORIZATION,
+            axum::http::header::CONTENT_TYPE,
+        ]);
 
     let state = AppState { db, jwt_secret };
 
@@ -227,15 +235,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-async fn initialize_database(db: &SqlitePool) -> Result<(), sqlx::Error> {
+async fn initialize_database(db: &PgPool) -> Result<(), sqlx::Error> {
     sqlx::query(
         r#"
         CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id BIGSERIAL PRIMARY KEY,
             email TEXT NOT NULL UNIQUE,
             display_name TEXT NOT NULL,
             password_hash TEXT NOT NULL,
-            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
         "#,
     )
@@ -245,12 +253,12 @@ async fn initialize_database(db: &SqlitePool) -> Result<(), sqlx::Error> {
     sqlx::query(
         r#"
         CREATE TABLE IF NOT EXISTS availability_statuses (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
+            id BIGSERIAL PRIMARY KEY,
+            user_id BIGINT NOT NULL,
             status_date TEXT NOT NULL,
             status TEXT NOT NULL CHECK (status IN ('W', 'V', 'A')),
-            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(user_id, status_date),
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         );
@@ -282,17 +290,16 @@ async fn register(
 
     let password_hash = hash_password(&payload.password)?;
 
-    let insert_result = sqlx::query(
-        "INSERT INTO users (email, display_name, password_hash) VALUES (?, ?, ?)",
-    )
-    .bind(&email)
-    .bind(&display_name)
-    .bind(password_hash)
-    .execute(&state.db)
-    .await;
+    let insert_result =
+        sqlx::query("INSERT INTO users (email, display_name, password_hash) VALUES ($1, $2, $3)")
+            .bind(&email)
+            .bind(&display_name)
+            .bind(password_hash)
+            .execute(&state.db)
+            .await;
 
     if let Err(error) = insert_result {
-        if error.to_string().contains("UNIQUE constraint failed") {
+        if is_unique_violation(&error) {
             return Err(ApiError::new(
                 StatusCode::CONFLICT,
                 "An account with that email already exists",
@@ -306,7 +313,7 @@ async fn register(
     }
 
     let user = sqlx::query_as::<_, UserRecord>(
-        "SELECT id, email, display_name, password_hash FROM users WHERE email = ?",
+        "SELECT id, email, display_name, password_hash FROM users WHERE email = $1",
     )
     .bind(&email)
     .fetch_one(&state.db)
@@ -337,7 +344,7 @@ async fn login(
     let email = normalize_email(&payload.email)?;
 
     let user = sqlx::query_as::<_, UserRecord>(
-        "SELECT id, email, display_name, password_hash FROM users WHERE email = ?",
+        "SELECT id, email, display_name, password_hash FROM users WHERE email = $1",
     )
     .bind(&email)
     .fetch_optional(&state.db)
@@ -386,7 +393,7 @@ async fn get_matrix(
         .ok_or_else(|| ApiError::new(StatusCode::BAD_REQUEST, "Year is invalid"))?;
 
     let employees = sqlx::query_as::<_, EmployeeRow>(
-        "SELECT id, email, display_name FROM users ORDER BY display_name COLLATE NOCASE ASC",
+        "SELECT id, email, display_name FROM users ORDER BY LOWER(display_name) ASC, id ASC",
     )
     .fetch_all(&state.db)
     .await
@@ -401,7 +408,7 @@ async fn get_matrix(
         r#"
         SELECT user_id, status_date, status
         FROM availability_statuses
-        WHERE status_date >= ? AND status_date < ?
+        WHERE status_date >= $1 AND status_date < $2
         ORDER BY status_date ASC, user_id ASC
         "#,
     )
@@ -456,7 +463,7 @@ async fn update_status(
     sqlx::query(
         r#"
         INSERT INTO availability_statuses (user_id, status_date, status)
-        VALUES (?, ?, ?)
+        VALUES ($1, $2, $3)
         ON CONFLICT(user_id, status_date)
         DO UPDATE SET status = excluded.status, updated_at = CURRENT_TIMESTAMP
         "#,
@@ -480,25 +487,23 @@ async fn update_status(
     }))
 }
 
-async fn find_public_user(db: &SqlitePool, user_id: i64) -> Result<PublicUser, ApiError> {
-    sqlx::query_as::<_, EmployeeRow>(
-        "SELECT id, email, display_name FROM users WHERE id = ?",
-    )
-    .bind(user_id)
-    .fetch_optional(db)
-    .await
-    .map_err(|error| {
-        ApiError::new(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to load current user: {error}"),
-        )
-    })?
-    .map(|row| PublicUser {
-        id: row.id,
-        email: row.email,
-        display_name: row.display_name,
-    })
-    .ok_or_else(|| ApiError::new(StatusCode::UNAUTHORIZED, "Current user no longer exists"))
+async fn find_public_user(db: &PgPool, user_id: i64) -> Result<PublicUser, ApiError> {
+    sqlx::query_as::<_, EmployeeRow>("SELECT id, email, display_name FROM users WHERE id = $1")
+        .bind(user_id)
+        .fetch_optional(db)
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to load current user: {error}"),
+            )
+        })?
+        .map(|row| PublicUser {
+            id: row.id,
+            email: row.email,
+            display_name: row.display_name,
+        })
+        .ok_or_else(|| ApiError::new(StatusCode::UNAUTHORIZED, "Current user no longer exists"))
 }
 
 fn normalize_email(email: &str) -> Result<String, ApiError> {
@@ -588,9 +593,12 @@ fn authorize(headers: &HeaderMap, jwt_secret: &str) -> Result<Claims, ApiError> 
         .and_then(|value| value.to_str().ok())
         .ok_or_else(|| ApiError::new(StatusCode::UNAUTHORIZED, "Missing Authorization header"))?;
 
-    let token = bearer
-        .strip_prefix("Bearer ")
-        .ok_or_else(|| ApiError::new(StatusCode::UNAUTHORIZED, "Authorization header must use Bearer token"))?;
+    let token = bearer.strip_prefix("Bearer ").ok_or_else(|| {
+        ApiError::new(
+            StatusCode::UNAUTHORIZED,
+            "Authorization header must use Bearer token",
+        )
+    })?;
 
     decode::<Claims>(
         token,
@@ -598,7 +606,12 @@ fn authorize(headers: &HeaderMap, jwt_secret: &str) -> Result<Claims, ApiError> 
         &Validation::default(),
     )
     .map(|data| data.claims)
-    .map_err(|_| ApiError::new(StatusCode::UNAUTHORIZED, "Authentication token is invalid or expired"))
+    .map_err(|_| {
+        ApiError::new(
+            StatusCode::UNAUTHORIZED,
+            "Authentication token is invalid or expired",
+        )
+    })
 }
 
 fn build_day_list(year: i32) -> Result<Vec<String>, ApiError> {
@@ -611,4 +624,11 @@ fn build_day_list(year: i32) -> Result<Vec<String>, ApiError> {
     Ok((0..total_days)
         .map(|offset| (start + Duration::days(offset)).to_string())
         .collect())
+}
+
+fn is_unique_violation(error: &sqlx::Error) -> bool {
+    error
+        .as_database_error()
+        .and_then(|database_error| database_error.try_downcast_ref::<PgDatabaseError>())
+        .is_some_and(|database_error| database_error.code() == "23505")
 }
