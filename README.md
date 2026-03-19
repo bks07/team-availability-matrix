@@ -1,7 +1,7 @@
 # Team Availability Matrix
 
 An app that allows teams to keep a clear overview on who is available when. It also allows team members to perform time booking for each day and single items.
-It works as a webapp with a Rust backend and Angular frontend.
+It works as a webapp with a Rust backend and React + TypeScript frontend built with Vite.
 
 ## What it does
 
@@ -20,7 +20,7 @@ For this MVP, matrix cells default to `W` when no explicit entry exists yet.
 ## Project structure
 
 - `backend/` - Rust API built with Axum, SQLx, SQLite, JWT auth, and Argon2 password hashing
-- `frontend/` - Angular standalone application that renders and edits the availability matrix
+- `frontend/` - React + TypeScript + Vite application that renders and edits the availability matrix
 
 ## Backend setup
 
@@ -41,10 +41,19 @@ Install Node.js first, then run:
 ```bash
 cd frontend
 npm install
-npm start
+npm run dev
 ```
 
-The Angular dev server listens on `http://localhost:4200` by default.
+The Vite dev server listens on `http://localhost:4200` by default and proxies `/api` to `http://localhost:3000`.
+
+### Frontend production build
+
+```bash
+cd frontend
+npm run build
+```
+
+The optimized output is written to `frontend/dist/`.
 
 ## Environment variables
 
@@ -63,7 +72,3 @@ The backend reads these values from `.env`:
 - `GET /api/me`
 - `GET /api/matrix?year=2026`
 - `PUT /api/statuses/:date`
-
-## Notes
-
-This repository was scaffolded in an environment without Rust and Node.js installed, so the source code is in place but local build validation still requires installing those toolchains.
