@@ -1,4 +1,4 @@
-export type AvailabilityStatus = 'W' | 'V' | 'A';
+export type AvailabilityValue = 'W' | 'V' | 'A';
 
 export interface User {
   id: number;
@@ -11,17 +11,17 @@ export interface AuthResponse {
   user: User;
 }
 
-export interface AvailabilityEntry {
+export interface AvailabilityStatus {
   userId: number;
-  date: string;
-  status: AvailabilityStatus;
+  statusDate: string;
+  status: AvailabilityValue;
 }
 
 export interface MatrixResponse {
-  year: number;
-  days: string[];
   employees: User[];
-  entries: AvailabilityEntry[];
+  entries: AvailabilityStatus[];
+  days: string[];
+  year: number;
 }
 
 export interface LoginRequest {
