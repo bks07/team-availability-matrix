@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import AvailabilityMatrix from './components/AvailabilityMatrix';
 import AuthCard from './components/AuthCard';
 import HeroCard from './components/HeroCard';
-import type { AuthResponse, AvailabilityStatus, AvailabilityValue, User } from './lib/api.models';
+import type { AuthResponse, AvailabilityValue, User } from './lib/api.models';
 import { clearSession, loadSession, saveSession } from './lib/storage';
 import { me } from './services/auth.service';
 import { getMatrix, updateStatus } from './services/matrix.service';
@@ -81,12 +81,8 @@ export default function App(): JSX.Element {
       setFilteredDays(days);
 
       const nextMap = new Map<string, AvailabilityValue>();
-      matrixResults.flatMap((result) => result.entries).forEach((entry: AvailabilityStatus) => {
-        const date = entry.statusDate ?? entry.date;
-        if (!date) {
-          return;
-        }
-        nextMap.set(cellKey(entry.userId, date), entry.status);
+      matrixResults.flatMap((result) => result.entries).forEach((entry) => {
+        nextMap.set(cellKey(entry.userId, entry.statusDate), entry.status);
       });
 
       setEntryMap(nextMap);
@@ -158,14 +154,9 @@ export default function App(): JSX.Element {
 
     try {
       const saved = await updateStatus(date, status);
-      const savedDate = saved.statusDate ?? saved.date;
-      if (!savedDate) {
-        throw new Error('Invalid status response from server.');
-      }
-
       setEntryMap((prev) => {
         const next = new Map(prev);
-        next.set(cellKey(saved.userId, savedDate), saved.status);
+        next.set(cellKey(saved.userId, saved.statusDate), saved.status);
         return next;
       });
       setSuccessMessage(`Saved ${status} for ${date}.`);

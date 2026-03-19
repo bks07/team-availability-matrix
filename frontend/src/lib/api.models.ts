@@ -13,8 +13,7 @@ export interface AuthResponse {
 
 export interface AvailabilityStatus {
   userId: number;
-  statusDate?: string;
-  date?: string;
+  statusDate: string;
   status: AvailabilityValue;
 }
 
