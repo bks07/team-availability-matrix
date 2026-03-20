@@ -76,6 +76,8 @@ Every implementation document should use the following templates so agents can e
 
 The markdown files in the product area folder represent user story descriptions, as they describe user-facing functionality.
 These files are rather small, as they describe single items of user interactions.
+TThese files do not contain any implementation details, as they only describe the WHAT and WHY.
+All implementation details fully remain to the agent who is doing it.
 
 The files can be updated to reflect the described system capabilities. 
 

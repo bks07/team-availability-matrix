@@ -210,6 +210,15 @@ thead th {
   z-index: 3;
 }
 
+.today-row td,
+.today-row th {
+  background: #eef2ff;
+}
+
+.today-row .sticky-column {
+  background: #eef2ff;
+}
+
 .date-cell {
   white-space: nowrap;
   min-width: 164px;

@@ -29,6 +29,13 @@ export default function AvailabilityMatrix({
   onStatusUpdate
 }: AvailabilityMatrixProps): JSX.Element {
   const popupRef = useRef<HTMLDivElement | null>(null);
+  const todayStr = useMemo(() => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }, []);
 
   useEffect(() => {
     const onEscape = (event: KeyboardEvent) => {
@@ -89,7 +96,7 @@ export default function AvailabilityMatrix({
           </thead>
           <tbody>
             {filteredDays.map((day) => (
-              <tr key={day}>
+              <tr key={day} {...(day === todayStr ? { className: 'today-row' } : {})}>
                 <th className="sticky-column date-cell">{formatDay(day)}</th>
                 {employees.map((employee) => {
                   const key = cellKey(employee.id, day);
