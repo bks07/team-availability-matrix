@@ -5,9 +5,9 @@ Each markdown document defines work that agents should plan and implement.
 
 Use this index to understand:
 
-1. Which folder to use.
-2. What kind of change is expected.
-3. How agents should turn documentation into implementation tasks.
+1. Which folder to use?
+2. What kind of change is expected?
+3. How should agents turn documentation into implementation tasks?
 
 ## Folder Overview
 
@@ -70,7 +70,39 @@ Execution guidance:
 
 ## Required Document Structure
 
-Every implementation document should include these sections so agents can execute without guessing:
+Every implementation document should use the following templates so agents can execute without having to guess.
+
+### Product Area
+
+The markdown files in the product area folder represent user story descriptions, as they describe user-facing functionality.
+These files are rather small, as they describe single items of user interactions.
+
+The files can be updated to reflect the described system capabilities. 
+
+#### Template
+
+1. STORY
+  - A user story using the following format
+    - **IN ORDER TO** ´user value´
+    - **AS** ´type of user´
+    - **I WANT TO** ´user need´
+2. ACCEPTANCE CRITERIA
+  - Testable completion conditions.
+4. IN-SCOPE
+  - In-scope boundaries.
+5. OUT-OF-SCOPE
+  - In-scope boundaries.
+6. ADDITIONAL INFORMATION 
+  - Dependencies, constraints, rollout notes, or references.
+
+If any section is missing, agents must ask clarifying questions before implementation.
+
+### Technical Initiatives
+
+The markdown files for technical initiatives can be rather long.
+These files should not change once they have been used for implementation.
+
+#### Template
 
 1. WHAT
   - The exact change to be delivered.
