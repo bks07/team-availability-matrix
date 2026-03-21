@@ -54,14 +54,15 @@ If any of the above is missing, request a corrected plan from Planner before pro
 
 Ensure develop branch is ready for planning:
 
-1. Commit all documentation changes made by the human with a clean commit message.
-2. Push develop branch to remote.
-3. Compare docs subfolders between develop and main branches.
-   - Identify all created, removed, and modified .md files in:
-     - docs/product-areas
-     - docs/rebrushes
-     - docs/technical-initiatives
-4. Pass the doc deltas as context to Planner.
+1. Stage all changes in develop branch with `git add .`.
+2. Commit all documentation changes made by the human with a clean commit message.
+3. Push develop branch to remote.
+4. Compare docs subfolders between develop and main branches.
+  - Identify all created, removed, and modified .md files in:
+    - docs/product-areas
+    - docs/rebrushes
+    - docs/technical-initiatives
+5. Pass the doc deltas as context to Planner.
 
 ### Step 2: Clarify If Needed
 

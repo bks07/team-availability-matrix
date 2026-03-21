@@ -1,6 +1,7 @@
 # Documentation Index
 
-This folder is the source of truth for agent execution.
+The `docs` folder is the source of truth for agent execution.
+Each sub-folder contains markdown documents that describe features, technical changes, or changes to the frontend.
 Each markdown document defines work that agents should plan and implement.
 
 Use this index to understand:
@@ -9,9 +10,9 @@ Use this index to understand:
 2. What kind of change is expected?
 3. How should agents turn documentation into implementation tasks?
 
-## Folder Overview
+Every implementation document should use the following templates so agents can execute without having to guess.
 
-### Product Areas
+## Product Areas
 
 Folder: `./product-areas`
 
@@ -30,7 +31,34 @@ Execution guidance:
 - Orchestrator should assign Coder and Designer based on task type.
 - Coder and Designer should implement only the scoped changes described in the plan.
 
-### Rebrushes
+### General Markdown Design
+
+The markdown files in the product area folder represent user story descriptions, as they describe user-facing functionality.
+These files are rather small, as they describe single items of user interactions.
+These files do not contain any implementation details, as they only describe the WHAT and WHY.
+All implementation details fully remain to the agent who is doing it.
+
+The files can be updated to reflect the described system capabilities. 
+
+### Markdown Template
+
+1. STORY
+  - A user story using the following format
+    - **IN ORDER TO** ´user value´
+    - **AS** ´type of user´
+    - **I WANT TO** ´user need´
+2. ACCEPTANCE CRITERIA
+  - Testable completion conditions.
+4. IN-SCOPE
+  - In-scope boundaries.
+5. OUT-OF-SCOPE
+  - In-scope boundaries.
+6. ADDITIONAL INFORMATION 
+  - Dependencies, constraints, rollout notes, or references.
+
+If any section is missing, agents must ask clarifying questions before implementation.
+
+## Rebrushes
 
 Folder: `./rebrushes`
 
@@ -49,7 +77,22 @@ Execution guidance:
 - Coder implements approved design decisions.
 - Orchestrator should split work into phases to avoid file overlap.
 
-### Technical Initiatives
+### General Markdown Design
+
+The markdown files under the Rebrushes folder are held rather simplistic so that they allow more degrees of freedom to foster creativity of the designer.
+
+### Markdown Template
+
+1. WHAT
+  - The exact change to be delivered.
+2. WHY
+  - The business or technical reason.
+3. ADDITIONAL INFORMATION
+  - Dependencies, constraints, rollout notes, or references.
+
+If any section is missing, agents must ask clarifying questions before implementation.
+
+## Technical Initiatives
 
 Folder: `./technical-initiatives`
 
@@ -68,43 +111,12 @@ Execution guidance:
 - Orchestrator should enforce dependency order and conflict-safe parallelization.
 - Coder should preserve external behavior unless explicitly stated otherwise.
 
-## Required Document Structure
-
-Every implementation document should use the following templates so agents can execute without having to guess.
-
-### Product Area
-
-The markdown files in the product area folder represent user story descriptions, as they describe user-facing functionality.
-These files are rather small, as they describe single items of user interactions.
-TThese files do not contain any implementation details, as they only describe the WHAT and WHY.
-All implementation details fully remain to the agent who is doing it.
-
-The files can be updated to reflect the described system capabilities. 
-
-#### Template
-
-1. STORY
-  - A user story using the following format
-    - **IN ORDER TO** ´user value´
-    - **AS** ´type of user´
-    - **I WANT TO** ´user need´
-2. ACCEPTANCE CRITERIA
-  - Testable completion conditions.
-4. IN-SCOPE
-  - In-scope boundaries.
-5. OUT-OF-SCOPE
-  - In-scope boundaries.
-6. ADDITIONAL INFORMATION 
-  - Dependencies, constraints, rollout notes, or references.
-
-If any section is missing, agents must ask clarifying questions before implementation.
-
-### Technical Initiatives
+### General Markdown Design
 
 The markdown files for technical initiatives can be rather long.
 These files should not change once they have been used for implementation.
 
-#### Template
+### Markdown Template
 
 1. WHAT
   - The exact change to be delivered.
