@@ -344,11 +344,11 @@ async fn initialize_database(db: &PgPool) -> Result<(), sqlx::Error> {
     sqlx::query(
         r#"
         CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id BIGSERIAL PRIMARY KEY,
             email TEXT NOT NULL UNIQUE,
             display_name TEXT NOT NULL,
             password_hash TEXT NOT NULL,
-            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
         "#,
     )
@@ -358,7 +358,7 @@ async fn initialize_database(db: &PgPool) -> Result<(), sqlx::Error> {
     sqlx::query(
         r#"
         CREATE TABLE IF NOT EXISTS locations (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id BIGSERIAL PRIMARY KEY,
             name TEXT NOT NULL UNIQUE
         );
         "#,
@@ -366,30 +366,22 @@ async fn initialize_database(db: &PgPool) -> Result<(), sqlx::Error> {
     .execute(db)
     .await?;
 
-    let add_location_id_result = sqlx::query(
-        "ALTER TABLE users ADD COLUMN location_id INTEGER REFERENCES locations(id) ON DELETE SET NULL",
+    sqlx::query(
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS location_id BIGINT REFERENCES locations(id) ON DELETE SET NULL",
     )
     .execute(db)
-    .await;
-
-    if let Err(error) = add_location_id_result {
-        let message = error.to_string();
-        if !message.contains("duplicate column name") {
-            return Err(error);
-        }
-    }
+    .await?;
 
     sqlx::query(
         r#"
         CREATE TABLE IF NOT EXISTS availability_statuses (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            status_date TEXT NOT NULL,
+            id BIGSERIAL PRIMARY KEY,
+            user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            status_date DATE NOT NULL,
             status TEXT NOT NULL CHECK (status IN ('W', 'V', 'A')),
-            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(user_id, status_date),
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            UNIQUE(user_id, status_date)
         );
         "#,
     )
@@ -399,11 +391,10 @@ async fn initialize_database(db: &PgPool) -> Result<(), sqlx::Error> {
     sqlx::query(
         r#"
         CREATE TABLE IF NOT EXISTS user_permissions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
+            id BIGSERIAL PRIMARY KEY,
+            user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
             permission TEXT NOT NULL,
-            UNIQUE(user_id, permission),
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            UNIQUE(user_id, permission)
         );
         "#,
     )
@@ -413,12 +404,11 @@ async fn initialize_database(db: &PgPool) -> Result<(), sqlx::Error> {
     sqlx::query(
         r#"
         CREATE TABLE IF NOT EXISTS public_holidays (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            holiday_date TEXT NOT NULL,
+            id BIGSERIAL PRIMARY KEY,
+            holiday_date DATE NOT NULL,
             name TEXT NOT NULL,
-            location_id INTEGER NOT NULL,
-            UNIQUE(holiday_date, location_id),
-            FOREIGN KEY (location_id) REFERENCES locations(id) ON DELETE CASCADE
+            location_id BIGINT NOT NULL REFERENCES locations(id) ON DELETE CASCADE,
+            UNIQUE(holiday_date, location_id)
         );
         "#,
     )
@@ -1425,8 +1415,8 @@ async fn ensure_location_exists(db: &PgPool, location_id: i64) -> Result<(), Api
 }
 
 async fn table_exists(db: &PgPool, table_name: &str) -> Result<bool, ApiError> {
-    let exists = sqlx::query_scalar::<_, i64>(
-        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1",
+    let exists = sqlx::query_scalar::<_, i32>(
+        "SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = $1 LIMIT 1",
     )
     .bind(table_name)
     .fetch_optional(db)
