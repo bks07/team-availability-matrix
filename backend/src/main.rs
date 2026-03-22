@@ -28,6 +28,17 @@ struct AppState {
     jwt_secret: String,
 }
 
+const PERMISSION_ADMIN: &str = "admin";
+const PERMISSION_MANAGE_LOCATIONS: &str = "manage_locations";
+const PERMISSION_MANAGE_PUBLIC_HOLIDAYS: &str = "manage_public_holidays";
+const PERMISSION_SUPER_ADMIN: &str = "super_admin";
+const FIRST_USER_PERMISSIONS: [&str; 4] = [
+    PERMISSION_ADMIN,
+    PERMISSION_MANAGE_LOCATIONS,
+    PERMISSION_MANAGE_PUBLIC_HOLIDAYS,
+    PERMISSION_SUPER_ADMIN,
+];
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ErrorResponse {
@@ -86,6 +97,7 @@ struct YearQuery {
 struct AuthResponse {
     token: String,
     user: PublicUser,
+    permissions: Vec<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -94,6 +106,7 @@ struct PublicUser {
     id: i64,
     email: String,
     display_name: String,
+    permissions: Vec<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -204,7 +217,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let cors = CorsLayer::new()
         .allow_origin(frontend_origin.parse::<axum::http::HeaderValue>()?)
-        .allow_methods([Method::GET, Method::POST, Method::PUT])
+        .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE])
         .allow_headers([axum::http::header::AUTHORIZATION, axum::http::header::CONTENT_TYPE]);
 
     let state = AppState { db, jwt_secret };
@@ -260,6 +273,20 @@ async fn initialize_database(db: &SqlitePool) -> Result<(), sqlx::Error> {
     .await?;
 
     sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS user_permissions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            permission TEXT NOT NULL,
+            UNIQUE(user_id, permission),
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+        "#,
+    )
+    .execute(db)
+    .await?;
+
+    sqlx::query(
         "CREATE INDEX IF NOT EXISTS idx_availability_statuses_date ON availability_statuses(status_date);",
     )
     .execute(db)
@@ -291,19 +318,22 @@ async fn register(
     .execute(&state.db)
     .await;
 
-    if let Err(error) = insert_result {
-        if error.to_string().contains("UNIQUE constraint failed") {
+    let insert_result = match insert_result {
+        Ok(result) => result,
+        Err(error) => {
+            if error.to_string().contains("UNIQUE constraint failed") {
+                return Err(ApiError::new(
+                    StatusCode::CONFLICT,
+                    "An account with that email already exists",
+                ));
+            }
+
             return Err(ApiError::new(
-                StatusCode::CONFLICT,
-                "An account with that email already exists",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to create account: {error}"),
             ));
         }
-
-        return Err(ApiError::new(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to create account: {error}"),
-        ));
-    }
+    };
 
     let user = sqlx::query_as::<_, UserRecord>(
         "SELECT id, email, display_name, password_hash FROM users WHERE email = ?",
@@ -318,6 +348,24 @@ async fn register(
         )
     })?;
 
+    if insert_result.last_insert_rowid() == 1 {
+        for permission in FIRST_USER_PERMISSIONS {
+            sqlx::query("INSERT OR IGNORE INTO user_permissions (user_id, permission) VALUES (?, ?)")
+                .bind(user.id)
+                .bind(permission)
+                .execute(&state.db)
+                .await
+                .map_err(|error| {
+                    ApiError::new(
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        format!("Failed to assign initial permissions: {error}"),
+                    )
+                })?;
+        }
+    }
+
+    let permissions = get_user_permissions(&state.db, user.id).await?;
+
     let token = issue_token(user.id, &state.jwt_secret)?;
 
     Ok(Json(AuthResponse {
@@ -326,7 +374,9 @@ async fn register(
             id: user.id,
             email: user.email,
             display_name: user.display_name,
+            permissions: permissions.clone(),
         },
+        permissions,
     }))
 }
 
@@ -351,6 +401,7 @@ async fn login(
     .ok_or_else(|| ApiError::new(StatusCode::UNAUTHORIZED, "Invalid email or password"))?;
 
     verify_password(&payload.password, &user.password_hash)?;
+    let permissions = get_user_permissions(&state.db, user.id).await?;
     let token = issue_token(user.id, &state.jwt_secret)?;
 
     Ok(Json(AuthResponse {
@@ -359,7 +410,9 @@ async fn login(
             id: user.id,
             email: user.email,
             display_name: user.display_name,
+            permissions: permissions.clone(),
         },
+        permissions,
     }))
 }
 
@@ -431,14 +484,19 @@ async fn get_matrix(
     Ok(Json(MatrixResponse {
         year,
         days,
-        employees: employees
-            .into_iter()
-            .map(|user| PublicUser {
-                id: user.id,
-                email: user.email,
-                display_name: user.display_name,
-            })
-            .collect(),
+        employees: {
+            let mut public_users = Vec::with_capacity(employees.len());
+            for user in employees {
+                let permissions = get_user_permissions(&state.db, user.id).await?;
+                public_users.push(PublicUser {
+                    id: user.id,
+                    email: user.email,
+                    display_name: user.display_name,
+                    permissions,
+                });
+            }
+            public_users
+        },
         entries,
     }))
 }
@@ -481,7 +539,7 @@ async fn update_status(
 }
 
 async fn find_public_user(db: &SqlitePool, user_id: i64) -> Result<PublicUser, ApiError> {
-    sqlx::query_as::<_, EmployeeRow>(
+    let row = sqlx::query_as::<_, EmployeeRow>(
         "SELECT id, email, display_name FROM users WHERE id = ?",
     )
     .bind(user_id)
@@ -493,12 +551,64 @@ async fn find_public_user(db: &SqlitePool, user_id: i64) -> Result<PublicUser, A
             format!("Failed to load current user: {error}"),
         )
     })?
-    .map(|row| PublicUser {
+    .ok_or_else(|| ApiError::new(StatusCode::UNAUTHORIZED, "Current user no longer exists"))?;
+
+    let permissions = get_user_permissions(db, user_id).await?;
+    Ok(PublicUser {
         id: row.id,
         email: row.email,
         display_name: row.display_name,
+        permissions,
     })
-    .ok_or_else(|| ApiError::new(StatusCode::UNAUTHORIZED, "Current user no longer exists"))
+}
+
+async fn get_user_permissions(db: &SqlitePool, user_id: i64) -> Result<Vec<String>, ApiError> {
+    sqlx::query_scalar::<_, String>(
+        "SELECT permission FROM user_permissions WHERE user_id = ? ORDER BY permission ASC",
+    )
+    .bind(user_id)
+    .fetch_all(db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to load user permissions: {error}"),
+        )
+    })
+}
+
+#[allow(dead_code)]
+async fn require_permission(
+    headers: &HeaderMap,
+    db: &SqlitePool,
+    jwt_secret: &str,
+    permission: &str,
+) -> Result<Claims, ApiError> {
+    let claims = authorize(headers, jwt_secret)?;
+
+    let has_permission = sqlx::query_scalar::<_, i64>(
+        "SELECT 1 FROM user_permissions WHERE user_id = ? AND permission = ? LIMIT 1",
+    )
+    .bind(claims.sub)
+    .bind(permission)
+    .fetch_optional(db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to verify user permission: {error}"),
+        )
+    })?
+    .is_some();
+
+    if !has_permission {
+        return Err(ApiError::new(
+            StatusCode::FORBIDDEN,
+            "Insufficient permissions",
+        ));
+    }
+
+    Ok(claims)
 }
 
 fn normalize_email(email: &str) -> Result<String, ApiError> {
