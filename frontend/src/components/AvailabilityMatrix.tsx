@@ -95,8 +95,14 @@ export default function AvailabilityMatrix({
             </tr>
           </thead>
           <tbody>
-            {filteredDays.map((day) => (
-              <tr key={day} {...(day === todayStr ? { className: 'today-row' } : {})}>
+            {filteredDays.map((day) => {
+              const dateObj = new Date(`${day}T00:00:00`);
+              const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+              const isToday = day === todayStr;
+              const rowClass = [isToday ? 'today-row' : '', isWeekend ? 'weekend-row' : ''].filter(Boolean).join(' ');
+
+              return (
+                <tr key={day} className={rowClass || undefined}>
                 <th className="sticky-column date-cell">{formatDay(day)}</th>
                 {employees.map((employee) => {
                   const key = cellKey(employee.id, day);
@@ -145,8 +151,9 @@ export default function AvailabilityMatrix({
                     </td>
                   );
                 })}
-              </tr>
-            ))}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
