@@ -27,3 +27,7 @@ export function clearSession(): void {
 export function currentToken(): string | null {
   return loadSession()?.token ?? null;
 }
+
+export function currentPermissions(): string[] {
+  return loadSession()?.user?.permissions ?? [];
+}
