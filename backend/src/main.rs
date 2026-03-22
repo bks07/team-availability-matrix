@@ -438,19 +438,22 @@ async fn register(
 
     let password_hash = hash_password(&payload.password)?;
 
-    let insert_result = sqlx::query(
-        "INSERT INTO users (email, display_name, password_hash) VALUES (?, ?, ?)",
+    let inserted_id = sqlx::query_scalar::<_, i64>(
+        "INSERT INTO users (email, display_name, password_hash) VALUES ($1, $2, $3) RETURNING id",
     )
     .bind(&email)
     .bind(&display_name)
     .bind(password_hash)
-    .execute(&state.db)
+    .fetch_one(&state.db)
     .await;
 
-    let insert_result = match insert_result {
-        Ok(result) => result,
+    let inserted_id = match inserted_id {
+        Ok(id) => id,
         Err(error) => {
-            if error.to_string().contains("UNIQUE constraint failed") {
+            if error
+                .to_string()
+                .contains("duplicate key value violates unique constraint")
+            {
                 return Err(ApiError::new(
                     StatusCode::CONFLICT,
                     "An account with that email already exists",
@@ -465,7 +468,7 @@ async fn register(
     };
 
     let user = sqlx::query_as::<_, UserRecord>(
-        "SELECT id, email, display_name, password_hash FROM users WHERE email = ?",
+        "SELECT id, email, display_name, password_hash FROM users WHERE email = $1",
     )
     .bind(&email)
     .fetch_one(&state.db)
@@ -477,9 +480,11 @@ async fn register(
         )
     })?;
 
-    if insert_result.last_insert_rowid() == 1 {
+    if inserted_id == 1 {
         for permission in FIRST_USER_PERMISSIONS {
-            sqlx::query("INSERT OR IGNORE INTO user_permissions (user_id, permission) VALUES (?, ?)")
+            sqlx::query(
+                "INSERT INTO user_permissions (user_id, permission) VALUES ($1, $2) ON CONFLICT (user_id, permission) DO NOTHING",
+            )
                 .bind(user.id)
                 .bind(permission)
                 .execute(&state.db)
@@ -516,7 +521,7 @@ async fn login(
     let email = normalize_email(&payload.email)?;
 
     let user = sqlx::query_as::<_, UserRecord>(
-        "SELECT id, email, display_name, password_hash FROM users WHERE email = ?",
+        "SELECT id, email, display_name, password_hash FROM users WHERE email = $1",
     )
     .bind(&email)
     .fetch_optional(&state.db)
@@ -568,7 +573,7 @@ async fn get_matrix(
         .ok_or_else(|| ApiError::new(StatusCode::BAD_REQUEST, "Year is invalid"))?;
 
     let employees = sqlx::query_as::<_, EmployeeRow>(
-        "SELECT id, email, display_name FROM users ORDER BY display_name COLLATE NOCASE ASC",
+        "SELECT id, email, display_name FROM users ORDER BY LOWER(display_name) ASC",
     )
     .fetch_all(&state.db)
     .await
@@ -583,12 +588,12 @@ async fn get_matrix(
         r#"
         SELECT user_id, status_date, status
         FROM availability_statuses
-        WHERE status_date >= ? AND status_date < ?
+        WHERE status_date >= $1 AND status_date < $2
         ORDER BY status_date ASC, user_id ASC
         "#,
     )
-    .bind(start.to_string())
-    .bind(next_year_start.to_string())
+    .bind(start)
+    .bind(next_year_start)
     .fetch_all(&state.db)
     .await
     .map_err(|error| {
@@ -643,13 +648,13 @@ async fn update_status(
     sqlx::query(
         r#"
         INSERT INTO availability_statuses (user_id, status_date, status)
-        VALUES (?, ?, ?)
+        VALUES ($1, $2, $3)
         ON CONFLICT(user_id, status_date)
         DO UPDATE SET status = excluded.status, updated_at = CURRENT_TIMESTAMP
         "#,
     )
     .bind(claims.sub)
-    .bind(parsed_date.to_string())
+    .bind(parsed_date)
     .bind(payload.status.as_db_value())
     .execute(&state.db)
     .await
@@ -680,7 +685,7 @@ async fn list_locations(
     .await?;
 
     let locations = sqlx::query_as::<_, LocationRow>(
-        "SELECT id, name FROM locations ORDER BY name COLLATE NOCASE ASC",
+        "SELECT id, name FROM locations ORDER BY LOWER(name) ASC",
     )
     .fetch_all(&state.db)
     .await
@@ -717,15 +722,20 @@ async fn create_location(
 
     let name = normalize_location_name(&payload.name)?;
 
-    let insert_result = sqlx::query("INSERT INTO locations (name) VALUES (?)")
-        .bind(&name)
-        .execute(&state.db)
-        .await;
+    let location = sqlx::query_as::<_, LocationRow>(
+        "INSERT INTO locations (name) VALUES ($1) RETURNING id, name",
+    )
+    .bind(&name)
+    .fetch_one(&state.db)
+    .await;
 
-    let insert_result = match insert_result {
-        Ok(result) => result,
+    let location = match location {
+        Ok(location) => location,
         Err(error) => {
-            if error.to_string().contains("UNIQUE constraint failed") {
+            if error
+                .to_string()
+                .contains("duplicate key value violates unique constraint")
+            {
                 return Err(ApiError::new(
                     StatusCode::CONFLICT,
                     "A location with that name already exists",
@@ -739,22 +749,11 @@ async fn create_location(
         }
     };
 
-    let row = sqlx::query_as::<_, LocationRow>("SELECT id, name FROM locations WHERE id = ?")
-        .bind(insert_result.last_insert_rowid())
-        .fetch_one(&state.db)
-        .await
-        .map_err(|error| {
-            ApiError::new(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to load location after create: {error}"),
-            )
-        })?;
-
     Ok((
         StatusCode::CREATED,
         Json(LocationResponse {
-            id: row.id,
-            name: row.name,
+            id: location.id,
+            name: location.name,
         }),
     ))
 }
@@ -775,7 +774,7 @@ async fn update_location(
 
     let name = normalize_location_name(&payload.name)?;
 
-    let exists = sqlx::query_scalar::<_, i64>("SELECT 1 FROM locations WHERE id = ? LIMIT 1")
+    let exists = sqlx::query_scalar::<_, i32>("SELECT 1 FROM locations WHERE id = $1 LIMIT 1")
         .bind(id)
         .fetch_optional(&state.db)
         .await
@@ -791,14 +790,17 @@ async fn update_location(
         return Err(ApiError::new(StatusCode::NOT_FOUND, "Location not found"));
     }
 
-    let update_result = sqlx::query("UPDATE locations SET name = ? WHERE id = ?")
+    let update_result = sqlx::query("UPDATE locations SET name = $1 WHERE id = $2")
         .bind(&name)
         .bind(id)
         .execute(&state.db)
         .await;
 
     if let Err(error) = update_result {
-        if error.to_string().contains("UNIQUE constraint failed") {
+        if error
+            .to_string()
+            .contains("duplicate key value violates unique constraint")
+        {
             return Err(ApiError::new(
                 StatusCode::CONFLICT,
                 "A location with that name already exists",
@@ -828,7 +830,7 @@ async fn delete_location(
     .await?;
 
     let users_using_location = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM users WHERE location_id = ?",
+        "SELECT COUNT(*) FROM users WHERE location_id = $1",
     )
     .bind(id)
     .fetch_one(&state.db)
@@ -849,7 +851,7 @@ async fn delete_location(
 
     if table_exists(&state.db, "public_holidays").await? {
         let holidays_using_location = sqlx::query_scalar::<_, i64>(
-            "SELECT COUNT(*) FROM public_holidays WHERE location_id = ?",
+            "SELECT COUNT(*) FROM public_holidays WHERE location_id = $1",
         )
         .bind(id)
         .fetch_one(&state.db)
@@ -869,7 +871,7 @@ async fn delete_location(
         }
     }
 
-    let delete_result = sqlx::query("DELETE FROM locations WHERE id = ?")
+    let delete_result = sqlx::query("DELETE FROM locations WHERE id = $1")
         .bind(id)
         .execute(&state.db)
         .await
@@ -905,7 +907,7 @@ async fn list_public_holidays(
             r#"
             SELECT id, holiday_date, name, location_id
             FROM public_holidays
-            WHERE location_id = ?
+            WHERE location_id = $1
             ORDER BY holiday_date ASC, id ASC
             "#,
         )
@@ -961,19 +963,22 @@ async fn create_public_holiday(
     let name = normalize_public_holiday_name(&payload.name)?;
     ensure_location_exists(&state.db, payload.location_id).await?;
 
-    let insert_result = sqlx::query(
-        "INSERT INTO public_holidays (holiday_date, name, location_id) VALUES (?, ?, ?)",
+    let holiday = sqlx::query_as::<_, PublicHolidayRow>(
+        "INSERT INTO public_holidays (holiday_date, name, location_id) VALUES ($1, $2, $3) RETURNING id, holiday_date, name, location_id",
     )
-    .bind(parsed_date.to_string())
+    .bind(parsed_date)
     .bind(&name)
     .bind(payload.location_id)
-    .execute(&state.db)
+    .fetch_one(&state.db)
     .await;
 
-    let insert_result = match insert_result {
-        Ok(result) => result,
+    let holiday = match holiday {
+        Ok(holiday) => holiday,
         Err(error) => {
-            if error.to_string().contains("UNIQUE constraint failed") {
+            if error
+                .to_string()
+                .contains("duplicate key value violates unique constraint")
+            {
                 return Err(ApiError::new(
                     StatusCode::CONFLICT,
                     "A public holiday already exists for this date and location",
@@ -986,19 +991,6 @@ async fn create_public_holiday(
             ));
         }
     };
-
-    let holiday = sqlx::query_as::<_, PublicHolidayRow>(
-        "SELECT id, holiday_date, name, location_id FROM public_holidays WHERE id = ?",
-    )
-    .bind(insert_result.last_insert_rowid())
-    .fetch_one(&state.db)
-    .await
-    .map_err(|error| {
-        ApiError::new(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to load public holiday after create: {error}"),
-        )
-    })?;
 
     Ok((
         StatusCode::CREATED,
@@ -1030,7 +1022,8 @@ async fn update_public_holiday(
     let name = normalize_public_holiday_name(&payload.name)?;
     ensure_location_exists(&state.db, payload.location_id).await?;
 
-    let exists = sqlx::query_scalar::<_, i64>("SELECT 1 FROM public_holidays WHERE id = ? LIMIT 1")
+    let exists =
+        sqlx::query_scalar::<_, i32>("SELECT 1 FROM public_holidays WHERE id = $1 LIMIT 1")
         .bind(id)
         .fetch_optional(&state.db)
         .await
@@ -1047,9 +1040,9 @@ async fn update_public_holiday(
     }
 
     let update_result = sqlx::query(
-        "UPDATE public_holidays SET holiday_date = ?, name = ?, location_id = ? WHERE id = ?",
+        "UPDATE public_holidays SET holiday_date = $1, name = $2, location_id = $3 WHERE id = $4",
     )
-    .bind(parsed_date.to_string())
+    .bind(parsed_date)
     .bind(&name)
     .bind(payload.location_id)
     .bind(id)
@@ -1057,7 +1050,10 @@ async fn update_public_holiday(
     .await;
 
     if let Err(error) = update_result {
-        if error.to_string().contains("UNIQUE constraint failed") {
+        if error
+            .to_string()
+            .contains("duplicate key value violates unique constraint")
+        {
             return Err(ApiError::new(
                 StatusCode::CONFLICT,
                 "A public holiday already exists for this date and location",
@@ -1091,7 +1087,7 @@ async fn delete_public_holiday(
     )
     .await?;
 
-    let delete_result = sqlx::query("DELETE FROM public_holidays WHERE id = ?")
+    let delete_result = sqlx::query("DELETE FROM public_holidays WHERE id = $1")
         .bind(id)
         .execute(&state.db)
         .await
@@ -1122,7 +1118,7 @@ async fn list_admin_users(
     .await?;
 
     let users = sqlx::query_as::<_, EmployeeRow>(
-        "SELECT id, email, display_name FROM users ORDER BY display_name COLLATE NOCASE ASC",
+        "SELECT id, email, display_name FROM users ORDER BY LOWER(display_name) ASC",
     )
     .fetch_all(&state.db)
     .await
@@ -1218,7 +1214,7 @@ async fn update_user_permissions(
         )
     })?;
 
-    let user_exists = sqlx::query_scalar::<_, i64>("SELECT 1 FROM users WHERE id = ? LIMIT 1")
+    let user_exists = sqlx::query_scalar::<_, i32>("SELECT 1 FROM users WHERE id = $1 LIMIT 1")
         .bind(user_id)
         .fetch_optional(&mut *tx)
         .await
@@ -1234,7 +1230,7 @@ async fn update_user_permissions(
         return Err(ApiError::new(StatusCode::NOT_FOUND, "User not found"));
     }
 
-    sqlx::query("DELETE FROM user_permissions WHERE user_id = ?")
+    sqlx::query("DELETE FROM user_permissions WHERE user_id = $1")
         .bind(user_id)
         .execute(&mut *tx)
         .await
@@ -1246,7 +1242,7 @@ async fn update_user_permissions(
         })?;
 
     for permission in &unique_permissions {
-        sqlx::query("INSERT INTO user_permissions (user_id, permission) VALUES (?, ?)")
+        sqlx::query("INSERT INTO user_permissions (user_id, permission) VALUES ($1, $2)")
             .bind(user_id)
             .bind(permission)
             .execute(&mut *tx)
@@ -1275,7 +1271,7 @@ async fn update_user_permissions(
 
 async fn find_public_user(db: &PgPool, user_id: i64) -> Result<PublicUser, ApiError> {
     let row = sqlx::query_as::<_, EmployeeRow>(
-        "SELECT id, email, display_name FROM users WHERE id = ?",
+        "SELECT id, email, display_name FROM users WHERE id = $1",
     )
     .bind(user_id)
     .fetch_optional(db)
@@ -1299,7 +1295,7 @@ async fn find_public_user(db: &PgPool, user_id: i64) -> Result<PublicUser, ApiEr
 
 async fn get_user_permissions(db: &PgPool, user_id: i64) -> Result<Vec<String>, ApiError> {
     sqlx::query_scalar::<_, String>(
-        "SELECT permission FROM user_permissions WHERE user_id = ? ORDER BY permission ASC",
+        "SELECT permission FROM user_permissions WHERE user_id = $1 ORDER BY permission ASC",
     )
     .bind(user_id)
     .fetch_all(db)
@@ -1321,8 +1317,8 @@ async fn require_permission(
 ) -> Result<Claims, ApiError> {
     let claims = authorize(headers, jwt_secret)?;
 
-    let has_permission = sqlx::query_scalar::<_, i64>(
-        "SELECT 1 FROM user_permissions WHERE user_id = ? AND permission = ? LIMIT 1",
+    let has_permission = sqlx::query_scalar::<_, i32>(
+        "SELECT 1 FROM user_permissions WHERE user_id = $1 AND permission = $2 LIMIT 1",
     )
     .bind(claims.sub)
     .bind(permission)
@@ -1395,7 +1391,7 @@ fn normalize_public_holiday_name(name: &str) -> Result<String, ApiError> {
 }
 
 async fn ensure_location_exists(db: &PgPool, location_id: i64) -> Result<(), ApiError> {
-    let exists = sqlx::query_scalar::<_, i64>("SELECT 1 FROM locations WHERE id = ? LIMIT 1")
+    let exists = sqlx::query_scalar::<_, i32>("SELECT 1 FROM locations WHERE id = $1 LIMIT 1")
         .bind(location_id)
         .fetch_optional(db)
         .await
@@ -1433,7 +1429,7 @@ async fn table_exists(db: &PgPool, table_name: &str) -> Result<bool, ApiError> {
 }
 
 async fn ensure_user_exists(db: &PgPool, user_id: i64) -> Result<(), ApiError> {
-    let exists = sqlx::query_scalar::<_, i64>("SELECT 1 FROM users WHERE id = ? LIMIT 1")
+    let exists = sqlx::query_scalar::<_, i32>("SELECT 1 FROM users WHERE id = $1 LIMIT 1")
         .bind(user_id)
         .fetch_optional(db)
         .await
