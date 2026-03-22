@@ -12,6 +12,45 @@ Use this index to understand:
 
 Every implementation document should use the following templates so agents can execute without having to guess.
 
+## Bugfixing
+
+Folder: `./bugfixing`
+
+Bugfixing docs describe errors found and reported by end users.
+
+Typical outputs:
+
+- Fixed system behavior.
+
+Execution guidance:
+
+- Planner should create a clear, step-by-step implementation plan based on the bug description.
+- Orchestrator should assign Coder and Designer based on task type.
+- Coder and Designer should implement only the scoped changes described in the plan.
+
+### General Markdown Design
+
+The markdown files under the bugfixing folder represent a description of the observed behavior of the system.
+These files do not contain any implementation details, as they only describe the what and why.
+All implementation details fully remain to the agent who is doing it.
+
+### Markdown Template
+
+1. CURRENT BEHAVIOR
+  - A user story using the following format.
+2. EXPECTED BEHAVIOR
+  - Testable completion conditions.
+3. IMPACT
+  - The impact on the user.
+4. STEPS TO REPRODUCE
+  - The information if the system behavior is reproducible.
+  - A description of the steps of the user that led to the observed system behavior.
+5. ADDITIONAL INFORMATION
+  - Dependencies, constraints, rollout notes, or references.
+
+If any section is missing, agents must ask clarifying questions before implementation.
+
+
 ## Product Areas
 
 Folder: `./product-areas`
