@@ -19,7 +19,7 @@ For this MVP, matrix cells default to `W` when no explicit entry exists yet.
 
 ## Project structure
 
-- `backend/` - Rust API built with Axum, SQLx, SQLite, JWT auth, and Argon2 password hashing
+- `backend/` - Rust API built with Axum, SQLx, PostgreSQL, JWT auth, and Argon2 password hashing
 - `frontend/` - React + TypeScript + Vite application that renders and edits the availability matrix
 
 ## Backend setup
@@ -61,7 +61,7 @@ The backend reads these values from `.env`:
 
 - `HOST` - server host, default `127.0.0.1`
 - `PORT` - server port, default `3000`
-- `DATABASE_URL` - SQLite connection string, default `sqlite://data/app.db`
+- `DATABASE_URL` - PostgreSQL connection string, default `postgres://postgres:postgres@localhost:5432/availability_matrix`
 - `JWT_SECRET` - JWT signing secret, must be changed for real deployments
 - `FRONTEND_ORIGIN` - allowed frontend origin for CORS, default `http://localhost:4200`
 
