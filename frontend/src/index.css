@@ -219,6 +219,26 @@ thead th {
   background: #eef2ff;
 }
 
+/* Weekend rows */
+.weekend-row td,
+.weekend-row th {
+  background: #f1f5f9;
+}
+
+.weekend-row .sticky-column {
+  background: #f1f5f9;
+}
+
+/* Combined Today + Weekend */
+.today-row.weekend-row td,
+.today-row.weekend-row th {
+  background: #e0e7ff;
+}
+
+.today-row.weekend-row .sticky-column {
+  background: #e0e7ff;
+}
+
 .date-cell {
   white-space: nowrap;
   min-width: 164px;
