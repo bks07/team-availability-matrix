@@ -1,4 +1,4 @@
-use std::{env, net::SocketAddr, str::FromStr};
+use std::{env, net::SocketAddr};
 
 use argon2::{
     password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
@@ -15,16 +15,13 @@ use chrono::{Datelike, Duration, NaiveDate, Utc};
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
 use rand_core::OsRng;
 use serde::{Deserialize, Serialize};
-use sqlx::{
-    sqlite::{SqliteConnectOptions, SqlitePoolOptions},
-    FromRow, SqlitePool,
-};
+use sqlx::{postgres::PgPoolOptions, FromRow, PgPool};
 use tower_http::cors::CorsLayer;
 use tracing::info;
 
 #[derive(Clone)]
 struct AppState {
-    db: SqlitePool,
+    db: PgPool,
     jwt_secret: String,
 }
 
@@ -287,16 +284,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
         .init();
 
-    tokio::fs::create_dir_all("data").await?;
+    let database_url = env::var("DATABASE_URL").unwrap_or_else(|_| {
+        "postgres://postgres:postgres@localhost:5432/availability_matrix".to_string()
+    });
 
-    let database_url = env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite://data/app.db".to_string());
-    let connect_options = SqliteConnectOptions::from_str(&database_url)?
-        .create_if_missing(true)
-        .foreign_keys(true);
-
-    let db = SqlitePoolOptions::new()
+    let db = PgPoolOptions::new()
         .max_connections(5)
-        .connect_with(connect_options)
+        .connect(&database_url)
         .await?;
 
     initialize_database(&db).await?;
@@ -346,7 +340,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-async fn initialize_database(db: &SqlitePool) -> Result<(), sqlx::Error> {
+async fn initialize_database(db: &PgPool) -> Result<(), sqlx::Error> {
     sqlx::query(
         r#"
         CREATE TABLE IF NOT EXISTS users (
@@ -1289,7 +1283,7 @@ async fn update_user_permissions(
     }))
 }
 
-async fn find_public_user(db: &SqlitePool, user_id: i64) -> Result<PublicUser, ApiError> {
+async fn find_public_user(db: &PgPool, user_id: i64) -> Result<PublicUser, ApiError> {
     let row = sqlx::query_as::<_, EmployeeRow>(
         "SELECT id, email, display_name FROM users WHERE id = ?",
     )
@@ -1313,7 +1307,7 @@ async fn find_public_user(db: &SqlitePool, user_id: i64) -> Result<PublicUser, A
     })
 }
 
-async fn get_user_permissions(db: &SqlitePool, user_id: i64) -> Result<Vec<String>, ApiError> {
+async fn get_user_permissions(db: &PgPool, user_id: i64) -> Result<Vec<String>, ApiError> {
     sqlx::query_scalar::<_, String>(
         "SELECT permission FROM user_permissions WHERE user_id = ? ORDER BY permission ASC",
     )
@@ -1331,7 +1325,7 @@ async fn get_user_permissions(db: &SqlitePool, user_id: i64) -> Result<Vec<Strin
 #[allow(dead_code)]
 async fn require_permission(
     headers: &HeaderMap,
-    db: &SqlitePool,
+    db: &PgPool,
     jwt_secret: &str,
     permission: &str,
 ) -> Result<Claims, ApiError> {
@@ -1410,7 +1404,7 @@ fn normalize_public_holiday_name(name: &str) -> Result<String, ApiError> {
     Ok(normalized.to_string())
 }
 
-async fn ensure_location_exists(db: &SqlitePool, location_id: i64) -> Result<(), ApiError> {
+async fn ensure_location_exists(db: &PgPool, location_id: i64) -> Result<(), ApiError> {
     let exists = sqlx::query_scalar::<_, i64>("SELECT 1 FROM locations WHERE id = ? LIMIT 1")
         .bind(location_id)
         .fetch_optional(db)
@@ -1430,7 +1424,7 @@ async fn ensure_location_exists(db: &SqlitePool, location_id: i64) -> Result<(),
     Ok(())
 }
 
-async fn table_exists(db: &SqlitePool, table_name: &str) -> Result<bool, ApiError> {
+async fn table_exists(db: &PgPool, table_name: &str) -> Result<bool, ApiError> {
     let exists = sqlx::query_scalar::<_, i64>(
         "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1",
     )
@@ -1448,7 +1442,7 @@ async fn table_exists(db: &SqlitePool, table_name: &str) -> Result<bool, ApiErro
     Ok(exists)
 }
 
-async fn ensure_user_exists(db: &SqlitePool, user_id: i64) -> Result<(), ApiError> {
+async fn ensure_user_exists(db: &PgPool, user_id: i64) -> Result<(), ApiError> {
     let exists = sqlx::query_scalar::<_, i64>("SELECT 1 FROM users WHERE id = ? LIMIT 1")
         .bind(user_id)
         .fetch_optional(db)
