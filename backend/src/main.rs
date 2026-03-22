@@ -32,6 +32,12 @@ const PERMISSION_ADMIN: &str = "admin";
 const PERMISSION_MANAGE_LOCATIONS: &str = "manage_locations";
 const PERMISSION_MANAGE_PUBLIC_HOLIDAYS: &str = "manage_public_holidays";
 const PERMISSION_SUPER_ADMIN: &str = "super_admin";
+const KNOWN_PERMISSIONS: [&str; 4] = [
+    PERMISSION_ADMIN,
+    PERMISSION_MANAGE_LOCATIONS,
+    PERMISSION_MANAGE_PUBLIC_HOLIDAYS,
+    PERMISSION_SUPER_ADMIN,
+];
 const FIRST_USER_PERMISSIONS: [&str; 4] = [
     PERMISSION_ADMIN,
     PERMISSION_MANAGE_LOCATIONS,
@@ -116,6 +122,12 @@ struct UpdatePublicHolidayRequest {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct UpdatePermissionsRequest {
+    permissions: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
 struct PublicHolidayQuery {
     location_id: Option<i64>,
 }
@@ -173,6 +185,22 @@ struct PublicHolidayResponse {
     holiday_date: String,
     name: String,
     location_id: i64,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct UserPermissionsResponse {
+    user_id: i64,
+    permissions: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AdminUserResponse {
+    id: i64,
+    email: String,
+    display_name: String,
+    permissions: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq)]
@@ -301,6 +329,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route(
             "/api/admin/public-holidays/:id",
             put(update_public_holiday).delete(delete_public_holiday),
+        )
+        .route("/api/admin/users", get(list_admin_users))
+        .route(
+            "/api/admin/users/:id/permissions",
+            get(get_user_permissions_handler).put(update_user_permissions),
         )
         .layer(cors)
         .with_state(state);
@@ -1092,6 +1125,170 @@ async fn delete_public_holiday(
     Ok(StatusCode::NO_CONTENT)
 }
 
+async fn list_admin_users(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<Vec<AdminUserResponse>>, ApiError> {
+    require_permission(
+        &headers,
+        &state.db,
+        &state.jwt_secret,
+        PERMISSION_SUPER_ADMIN,
+    )
+    .await?;
+
+    let users = sqlx::query_as::<_, EmployeeRow>(
+        "SELECT id, email, display_name FROM users ORDER BY display_name COLLATE NOCASE ASC",
+    )
+    .fetch_all(&state.db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to load users: {error}"),
+        )
+    })?;
+
+    let mut response = Vec::with_capacity(users.len());
+    for user in users {
+        let permissions = get_user_permissions(&state.db, user.id).await?;
+        response.push(AdminUserResponse {
+            id: user.id,
+            email: user.email,
+            display_name: user.display_name,
+            permissions,
+        });
+    }
+
+    Ok(Json(response))
+}
+
+async fn get_user_permissions_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(user_id): Path<i64>,
+) -> Result<Json<UserPermissionsResponse>, ApiError> {
+    require_permission(
+        &headers,
+        &state.db,
+        &state.jwt_secret,
+        PERMISSION_SUPER_ADMIN,
+    )
+    .await?;
+
+    ensure_user_exists(&state.db, user_id).await?;
+    let permissions = get_user_permissions(&state.db, user_id).await?;
+
+    Ok(Json(UserPermissionsResponse {
+        user_id,
+        permissions,
+    }))
+}
+
+async fn update_user_permissions(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(user_id): Path<i64>,
+    Json(payload): Json<UpdatePermissionsRequest>,
+) -> Result<Json<UserPermissionsResponse>, ApiError> {
+    let claims = require_permission(
+        &headers,
+        &state.db,
+        &state.jwt_secret,
+        PERMISSION_SUPER_ADMIN,
+    )
+    .await?;
+
+    for permission in &payload.permissions {
+        if !is_known_permission(permission) {
+            return Err(ApiError::new(
+                StatusCode::BAD_REQUEST,
+                format!("Unknown permission: {permission}"),
+            ));
+        }
+    }
+
+    if claims.sub == user_id
+        && !payload
+            .permissions
+            .iter()
+            .any(|permission| permission == PERMISSION_SUPER_ADMIN)
+    {
+        return Err(ApiError::new(
+            StatusCode::FORBIDDEN,
+            "Cannot remove your own super admin permission",
+        ));
+    }
+
+    let mut unique_permissions = Vec::new();
+    for permission in &payload.permissions {
+        if !unique_permissions.iter().any(|item| item == permission) {
+            unique_permissions.push(permission.clone());
+        }
+    }
+
+    let mut tx = state.db.begin().await.map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to start permission update transaction: {error}"),
+        )
+    })?;
+
+    let user_exists = sqlx::query_scalar::<_, i64>("SELECT 1 FROM users WHERE id = ? LIMIT 1")
+        .bind(user_id)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to check user: {error}"),
+            )
+        })?
+        .is_some();
+
+    if !user_exists {
+        return Err(ApiError::new(StatusCode::NOT_FOUND, "User not found"));
+    }
+
+    sqlx::query("DELETE FROM user_permissions WHERE user_id = ?")
+        .bind(user_id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to clear user permissions: {error}"),
+            )
+        })?;
+
+    for permission in &unique_permissions {
+        sqlx::query("INSERT INTO user_permissions (user_id, permission) VALUES (?, ?)")
+            .bind(user_id)
+            .bind(permission)
+            .execute(&mut *tx)
+            .await
+            .map_err(|error| {
+                ApiError::new(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Failed to save user permissions: {error}"),
+                )
+            })?;
+    }
+
+    tx.commit().await.map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to commit permission update transaction: {error}"),
+        )
+    })?;
+
+    let permissions = get_user_permissions(&state.db, user_id).await?;
+    Ok(Json(UserPermissionsResponse {
+        user_id,
+        permissions,
+    }))
+}
+
 async fn find_public_user(db: &SqlitePool, user_id: i64) -> Result<PublicUser, ApiError> {
     let row = sqlx::query_as::<_, EmployeeRow>(
         "SELECT id, email, display_name FROM users WHERE id = ?",
@@ -1249,6 +1446,30 @@ async fn table_exists(db: &SqlitePool, table_name: &str) -> Result<bool, ApiErro
     .is_some();
 
     Ok(exists)
+}
+
+async fn ensure_user_exists(db: &SqlitePool, user_id: i64) -> Result<(), ApiError> {
+    let exists = sqlx::query_scalar::<_, i64>("SELECT 1 FROM users WHERE id = ? LIMIT 1")
+        .bind(user_id)
+        .fetch_optional(db)
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to check user: {error}"),
+            )
+        })?
+        .is_some();
+
+    if !exists {
+        return Err(ApiError::new(StatusCode::NOT_FOUND, "User not found"));
+    }
+
+    Ok(())
+}
+
+fn is_known_permission(permission: &str) -> bool {
+    KNOWN_PERMISSIONS.contains(&permission)
 }
 
 fn validate_password(password: &str) -> Result<(), ApiError> {
