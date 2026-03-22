@@ -43,5 +43,9 @@ export const httpClient = {
   put: async <T, TBody = unknown>(url: string, body?: TBody): Promise<T> => {
     const response = await client.put<T>(url, body);
     return response.data;
+  },
+  delete: async <T>(url: string): Promise<T> => {
+    const response = await client.delete<T>(url);
+    return response.data;
   }
 };
