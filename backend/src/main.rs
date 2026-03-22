@@ -256,7 +256,7 @@ struct EmployeeRow {
 #[derive(Debug, FromRow)]
 struct StatusRow {
     user_id: i64,
-    status_date: String,
+    status_date: NaiveDate,
     status: String,
 }
 
@@ -269,7 +269,7 @@ struct LocationRow {
 #[derive(Debug, FromRow)]
 struct PublicHolidayRow {
     id: i64,
-    holiday_date: String,
+    holiday_date: NaiveDate,
     name: String,
     location_id: i64,
 }
@@ -609,7 +609,7 @@ async fn get_matrix(
         .map(|row| {
             Ok(AvailabilityEntry {
                 user_id: row.user_id,
-                date: row.status_date,
+                date: row.status_date.to_string(),
                 status: StatusValue::from_db_value(&row.status)?,
             })
         })
@@ -937,7 +937,7 @@ async fn list_public_holidays(
             .into_iter()
             .map(|holiday| PublicHolidayResponse {
                 id: holiday.id,
-                holiday_date: holiday.holiday_date,
+                holiday_date: holiday.holiday_date.to_string(),
                 name: holiday.name,
                 location_id: holiday.location_id,
             })
@@ -996,7 +996,7 @@ async fn create_public_holiday(
         StatusCode::CREATED,
         Json(PublicHolidayResponse {
             id: holiday.id,
-            holiday_date: holiday.holiday_date,
+            holiday_date: holiday.holiday_date.to_string(),
             name: holiday.name,
             location_id: holiday.location_id,
         }),
