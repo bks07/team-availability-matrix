@@ -100,6 +100,27 @@ struct UpdateLocationRequest {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CreatePublicHolidayRequest {
+    holiday_date: String,
+    name: String,
+    location_id: i64,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct UpdatePublicHolidayRequest {
+    holiday_date: String,
+    name: String,
+    location_id: i64,
+}
+
+#[derive(Debug, Deserialize)]
+struct PublicHolidayQuery {
+    location_id: Option<i64>,
+}
+
+#[derive(Debug, Deserialize)]
 struct YearQuery {
     year: Option<i32>,
 }
@@ -143,6 +164,15 @@ struct MatrixResponse {
 struct LocationResponse {
     id: i64,
     name: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PublicHolidayResponse {
+    id: i64,
+    holiday_date: String,
+    name: String,
+    location_id: i64,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq)]
@@ -211,6 +241,14 @@ struct LocationRow {
     name: String,
 }
 
+#[derive(Debug, FromRow)]
+struct PublicHolidayRow {
+    id: i64,
+    holiday_date: String,
+    name: String,
+    location_id: i64,
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenvy::dotenv().ok();
@@ -256,6 +294,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/statuses/:date", put(update_status))
         .route("/api/admin/locations", get(list_locations).post(create_location))
         .route("/api/admin/locations/:id", put(update_location).delete(delete_location))
+        .route(
+            "/api/admin/public-holidays",
+            get(list_public_holidays).post(create_public_holiday),
+        )
+        .route(
+            "/api/admin/public-holidays/:id",
+            put(update_public_holiday).delete(delete_public_holiday),
+        )
         .layer(cors)
         .with_state(state);
 
@@ -331,6 +377,21 @@ async fn initialize_database(db: &SqlitePool) -> Result<(), sqlx::Error> {
             permission TEXT NOT NULL,
             UNIQUE(user_id, permission),
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+        "#,
+    )
+    .execute(db)
+    .await?;
+
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS public_holidays (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            holiday_date TEXT NOT NULL,
+            name TEXT NOT NULL,
+            location_id INTEGER NOT NULL,
+            UNIQUE(holiday_date, location_id),
+            FOREIGN KEY (location_id) REFERENCES locations(id) ON DELETE CASCADE
         );
         "#,
     )
@@ -809,6 +870,228 @@ async fn delete_location(
     Ok(StatusCode::NO_CONTENT)
 }
 
+async fn list_public_holidays(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Query(query): Query<PublicHolidayQuery>,
+) -> Result<Json<Vec<PublicHolidayResponse>>, ApiError> {
+    require_permission(
+        &headers,
+        &state.db,
+        &state.jwt_secret,
+        PERMISSION_MANAGE_PUBLIC_HOLIDAYS,
+    )
+    .await?;
+
+    let holidays = if let Some(location_id) = query.location_id {
+        sqlx::query_as::<_, PublicHolidayRow>(
+            r#"
+            SELECT id, holiday_date, name, location_id
+            FROM public_holidays
+            WHERE location_id = ?
+            ORDER BY holiday_date ASC, id ASC
+            "#,
+        )
+        .bind(location_id)
+        .fetch_all(&state.db)
+        .await
+    } else {
+        sqlx::query_as::<_, PublicHolidayRow>(
+            r#"
+            SELECT id, holiday_date, name, location_id
+            FROM public_holidays
+            ORDER BY holiday_date ASC, id ASC
+            "#,
+        )
+        .fetch_all(&state.db)
+        .await
+    }
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to load public holidays: {error}"),
+        )
+    })?;
+
+    Ok(Json(
+        holidays
+            .into_iter()
+            .map(|holiday| PublicHolidayResponse {
+                id: holiday.id,
+                holiday_date: holiday.holiday_date,
+                name: holiday.name,
+                location_id: holiday.location_id,
+            })
+            .collect(),
+    ))
+}
+
+async fn create_public_holiday(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<CreatePublicHolidayRequest>,
+) -> Result<(StatusCode, Json<PublicHolidayResponse>), ApiError> {
+    require_permission(
+        &headers,
+        &state.db,
+        &state.jwt_secret,
+        PERMISSION_MANAGE_PUBLIC_HOLIDAYS,
+    )
+    .await?;
+
+    let parsed_date = NaiveDate::parse_from_str(&payload.holiday_date, "%Y-%m-%d")
+        .map_err(|_| ApiError::new(StatusCode::BAD_REQUEST, "holidayDate must use YYYY-MM-DD"))?;
+    let name = normalize_public_holiday_name(&payload.name)?;
+    ensure_location_exists(&state.db, payload.location_id).await?;
+
+    let insert_result = sqlx::query(
+        "INSERT INTO public_holidays (holiday_date, name, location_id) VALUES (?, ?, ?)",
+    )
+    .bind(parsed_date.to_string())
+    .bind(&name)
+    .bind(payload.location_id)
+    .execute(&state.db)
+    .await;
+
+    let insert_result = match insert_result {
+        Ok(result) => result,
+        Err(error) => {
+            if error.to_string().contains("UNIQUE constraint failed") {
+                return Err(ApiError::new(
+                    StatusCode::CONFLICT,
+                    "A public holiday already exists for this date and location",
+                ));
+            }
+
+            return Err(ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to create public holiday: {error}"),
+            ));
+        }
+    };
+
+    let holiday = sqlx::query_as::<_, PublicHolidayRow>(
+        "SELECT id, holiday_date, name, location_id FROM public_holidays WHERE id = ?",
+    )
+    .bind(insert_result.last_insert_rowid())
+    .fetch_one(&state.db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to load public holiday after create: {error}"),
+        )
+    })?;
+
+    Ok((
+        StatusCode::CREATED,
+        Json(PublicHolidayResponse {
+            id: holiday.id,
+            holiday_date: holiday.holiday_date,
+            name: holiday.name,
+            location_id: holiday.location_id,
+        }),
+    ))
+}
+
+async fn update_public_holiday(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+    Json(payload): Json<UpdatePublicHolidayRequest>,
+) -> Result<Json<PublicHolidayResponse>, ApiError> {
+    require_permission(
+        &headers,
+        &state.db,
+        &state.jwt_secret,
+        PERMISSION_MANAGE_PUBLIC_HOLIDAYS,
+    )
+    .await?;
+
+    let parsed_date = NaiveDate::parse_from_str(&payload.holiday_date, "%Y-%m-%d")
+        .map_err(|_| ApiError::new(StatusCode::BAD_REQUEST, "holidayDate must use YYYY-MM-DD"))?;
+    let name = normalize_public_holiday_name(&payload.name)?;
+    ensure_location_exists(&state.db, payload.location_id).await?;
+
+    let exists = sqlx::query_scalar::<_, i64>("SELECT 1 FROM public_holidays WHERE id = ? LIMIT 1")
+        .bind(id)
+        .fetch_optional(&state.db)
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to check public holiday: {error}"),
+            )
+        })?
+        .is_some();
+
+    if !exists {
+        return Err(ApiError::new(StatusCode::NOT_FOUND, "Public holiday not found"));
+    }
+
+    let update_result = sqlx::query(
+        "UPDATE public_holidays SET holiday_date = ?, name = ?, location_id = ? WHERE id = ?",
+    )
+    .bind(parsed_date.to_string())
+    .bind(&name)
+    .bind(payload.location_id)
+    .bind(id)
+    .execute(&state.db)
+    .await;
+
+    if let Err(error) = update_result {
+        if error.to_string().contains("UNIQUE constraint failed") {
+            return Err(ApiError::new(
+                StatusCode::CONFLICT,
+                "A public holiday already exists for this date and location",
+            ));
+        }
+
+        return Err(ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to update public holiday: {error}"),
+        ));
+    }
+
+    Ok(Json(PublicHolidayResponse {
+        id,
+        holiday_date: parsed_date.to_string(),
+        name,
+        location_id: payload.location_id,
+    }))
+}
+
+async fn delete_public_holiday(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+) -> Result<StatusCode, ApiError> {
+    require_permission(
+        &headers,
+        &state.db,
+        &state.jwt_secret,
+        PERMISSION_MANAGE_PUBLIC_HOLIDAYS,
+    )
+    .await?;
+
+    let delete_result = sqlx::query("DELETE FROM public_holidays WHERE id = ?")
+        .bind(id)
+        .execute(&state.db)
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to delete public holiday: {error}"),
+            )
+        })?;
+
+    if delete_result.rows_affected() == 0 {
+        return Err(ApiError::new(StatusCode::NOT_FOUND, "Public holiday not found"));
+    }
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
 async fn find_public_user(db: &SqlitePool, user_id: i64) -> Result<PublicUser, ApiError> {
     let row = sqlx::query_as::<_, EmployeeRow>(
         "SELECT id, email, display_name FROM users WHERE id = ?",
@@ -916,6 +1199,38 @@ fn normalize_location_name(name: &str) -> Result<String, ApiError> {
     }
 
     Ok(normalized.to_string())
+}
+
+fn normalize_public_holiday_name(name: &str) -> Result<String, ApiError> {
+    let normalized = name.trim();
+    if normalized.is_empty() {
+        return Err(ApiError::new(
+            StatusCode::BAD_REQUEST,
+            "Public holiday name is required",
+        ));
+    }
+
+    Ok(normalized.to_string())
+}
+
+async fn ensure_location_exists(db: &SqlitePool, location_id: i64) -> Result<(), ApiError> {
+    let exists = sqlx::query_scalar::<_, i64>("SELECT 1 FROM locations WHERE id = ? LIMIT 1")
+        .bind(location_id)
+        .fetch_optional(db)
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to check location: {error}"),
+            )
+        })?
+        .is_some();
+
+    if !exists {
+        return Err(ApiError::new(StatusCode::BAD_REQUEST, "Location not found"));
+    }
+
+    Ok(())
 }
 
 async fn table_exists(db: &SqlitePool, table_name: &str) -> Result<bool, ApiError> {
