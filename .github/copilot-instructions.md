@@ -4,7 +4,7 @@
 
 Team availability matrix web app. Employees register, log in, and maintain a yearly grid showing their availability as `W` (Working), `V` (Vacation), or `A` (Absence). Cells without an explicit entry default to `W`.
 
-- **Backend**: Rust · Axum · SQLx · SQLite · JWT (HS256) · Argon2
+- **Backend**: Rust · Axum · SQLx · PostgreSQL · JWT (HS256) · Argon2
 - **Frontend**: React 18 · TypeScript · Vite · Axios · React Router
 
 ## Commands
@@ -36,7 +36,7 @@ npm run typecheck  # TypeScript type checking
 ## Architecture
 
 ```
-frontend (React :5173)  →  REST API  →  backend (Axum :3000)  →  SQLite (backend/data/app.db)
+frontend (React :5173)  →  REST API  →  backend (Axum :3000)  →  PostgreSQL
 ```
 
 - Auth flow: register/login → receive JWT → store full `AuthResponse` (including `user.permissions`) in `localStorage` under key `availability-matrix.session` → attach as `Authorization: Bearer <token>` on subsequent requests.
@@ -54,7 +54,7 @@ frontend (React :5173)  →  REST API  →  backend (Axum :3000)  →  SQLite (b
 - **Error handling**: use `ApiError { status: StatusCode, message: String }` for all handler errors. It implements `IntoResponse` and serialises to `{ "error": "..." }`. Never return raw strings or panic in handlers.
 - **Input normalisation**: email is trimmed + lowercased before insert/lookup. Display name is trimmed. Validation helpers (`normalize_email`, `normalize_display_name`, `validate_password`) live as plain fns, not methods.
 - **DB schema**: created inline in `initialize_database()` at startup with `CREATE TABLE IF NOT EXISTS`. No migration framework; schema changes go there.
-- **Date format**: always `YYYY-MM-DD` strings (SQLite TEXT). Use `NaiveDate` from `chrono` for parsing.
+- **Date format**: always `YYYY-MM-DD` strings. Dates are stored as PostgreSQL `DATE`, and timestamps use `TIMESTAMPTZ`. Use `NaiveDate` from `chrono` for parsing.
 
 ### Frontend
 
@@ -87,6 +87,6 @@ JWT claims: `{ sub: user_id (i64), exp: unix_timestamp }`. Token lifetime: 7 day
 |---|---|---|
 | `HOST` | `127.0.0.1` | |
 | `PORT` | `3000` | |
-| `DATABASE_URL` | `sqlite://data/app.db` | |
+| `DATABASE_URL` | `postgres://postgres:postgres@localhost:5432/availability_matrix` | |
 | `JWT_SECRET` | `change-me-in-production` | **Must be changed for real deployments** |
 | `FRONTEND_ORIGIN` | `http://localhost:4200` | CORS allowed origin |
