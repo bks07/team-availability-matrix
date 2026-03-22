@@ -1,7 +1,7 @@
 # Documentation Index
 
 The `docs` folder is the source of truth for agent execution.
-Each sub-folder contains markdown documents that describe features, technical changes, or changes to the frontend.
+Each folder in the folder hierarchy contains markdown documents that describe features, technical changes, or changes to the user interface.
 Each markdown document defines work that agents should plan and implement.
 
 Use this index to understand:
