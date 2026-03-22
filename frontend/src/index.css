@@ -440,3 +440,46 @@ thead th {
 .guard-message a {
   color: #4f46e5;
 }
+
+/* Permission table */
+.permission-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.permission-table th,
+.permission-table td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.permission-table th {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.permission-table td.checkbox-cell {
+  text-align: center;
+}
+
+.permission-table th.checkbox-header {
+  text-align: center;
+}
+
+.user-info .user-name {
+  font-weight: 500;
+}
+
+.user-info .user-email {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.admin-inline-success {
+  margin: 0.5rem 0 0;
+  color: #047857;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
