@@ -88,6 +88,18 @@ struct UpdateStatusRequest {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CreateLocationRequest {
+    name: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct UpdateLocationRequest {
+    name: String,
+}
+
+#[derive(Debug, Deserialize)]
 struct YearQuery {
     year: Option<i32>,
 }
@@ -124,6 +136,13 @@ struct MatrixResponse {
     days: Vec<String>,
     employees: Vec<PublicUser>,
     entries: Vec<AvailabilityEntry>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LocationResponse {
+    id: i64,
+    name: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq)]
@@ -186,6 +205,12 @@ struct StatusRow {
     status: String,
 }
 
+#[derive(Debug, FromRow)]
+struct LocationRow {
+    id: i64,
+    name: String,
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenvy::dotenv().ok();
@@ -229,6 +254,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/me", get(me))
         .route("/api/matrix", get(get_matrix))
         .route("/api/statuses/:date", put(update_status))
+        .route("/api/admin/locations", get(list_locations).post(create_location))
+        .route("/api/admin/locations/:id", put(update_location).delete(delete_location))
         .layer(cors)
         .with_state(state);
 
@@ -254,6 +281,30 @@ async fn initialize_database(db: &SqlitePool) -> Result<(), sqlx::Error> {
     )
     .execute(db)
     .await?;
+
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS locations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE
+        );
+        "#,
+    )
+    .execute(db)
+    .await?;
+
+    let add_location_id_result = sqlx::query(
+        "ALTER TABLE users ADD COLUMN location_id INTEGER REFERENCES locations(id) ON DELETE SET NULL",
+    )
+    .execute(db)
+    .await;
+
+    if let Err(error) = add_location_id_result {
+        let message = error.to_string();
+        if !message.contains("duplicate column name") {
+            return Err(error);
+        }
+    }
 
     sqlx::query(
         r#"
@@ -538,6 +589,226 @@ async fn update_status(
     }))
 }
 
+async fn list_locations(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<Vec<LocationResponse>>, ApiError> {
+    require_permission(
+        &headers,
+        &state.db,
+        &state.jwt_secret,
+        PERMISSION_MANAGE_LOCATIONS,
+    )
+    .await?;
+
+    let locations = sqlx::query_as::<_, LocationRow>(
+        "SELECT id, name FROM locations ORDER BY name COLLATE NOCASE ASC",
+    )
+    .fetch_all(&state.db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to load locations: {error}"),
+        )
+    })?;
+
+    Ok(Json(
+        locations
+            .into_iter()
+            .map(|location| LocationResponse {
+                id: location.id,
+                name: location.name,
+            })
+            .collect(),
+    ))
+}
+
+async fn create_location(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<CreateLocationRequest>,
+) -> Result<(StatusCode, Json<LocationResponse>), ApiError> {
+    require_permission(
+        &headers,
+        &state.db,
+        &state.jwt_secret,
+        PERMISSION_MANAGE_LOCATIONS,
+    )
+    .await?;
+
+    let name = normalize_location_name(&payload.name)?;
+
+    let insert_result = sqlx::query("INSERT INTO locations (name) VALUES (?)")
+        .bind(&name)
+        .execute(&state.db)
+        .await;
+
+    let insert_result = match insert_result {
+        Ok(result) => result,
+        Err(error) => {
+            if error.to_string().contains("UNIQUE constraint failed") {
+                return Err(ApiError::new(
+                    StatusCode::CONFLICT,
+                    "A location with that name already exists",
+                ));
+            }
+
+            return Err(ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to create location: {error}"),
+            ));
+        }
+    };
+
+    let row = sqlx::query_as::<_, LocationRow>("SELECT id, name FROM locations WHERE id = ?")
+        .bind(insert_result.last_insert_rowid())
+        .fetch_one(&state.db)
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to load location after create: {error}"),
+            )
+        })?;
+
+    Ok((
+        StatusCode::CREATED,
+        Json(LocationResponse {
+            id: row.id,
+            name: row.name,
+        }),
+    ))
+}
+
+async fn update_location(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+    Json(payload): Json<UpdateLocationRequest>,
+) -> Result<Json<LocationResponse>, ApiError> {
+    require_permission(
+        &headers,
+        &state.db,
+        &state.jwt_secret,
+        PERMISSION_MANAGE_LOCATIONS,
+    )
+    .await?;
+
+    let name = normalize_location_name(&payload.name)?;
+
+    let exists = sqlx::query_scalar::<_, i64>("SELECT 1 FROM locations WHERE id = ? LIMIT 1")
+        .bind(id)
+        .fetch_optional(&state.db)
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to check location: {error}"),
+            )
+        })?
+        .is_some();
+
+    if !exists {
+        return Err(ApiError::new(StatusCode::NOT_FOUND, "Location not found"));
+    }
+
+    let update_result = sqlx::query("UPDATE locations SET name = ? WHERE id = ?")
+        .bind(&name)
+        .bind(id)
+        .execute(&state.db)
+        .await;
+
+    if let Err(error) = update_result {
+        if error.to_string().contains("UNIQUE constraint failed") {
+            return Err(ApiError::new(
+                StatusCode::CONFLICT,
+                "A location with that name already exists",
+            ));
+        }
+
+        return Err(ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to update location: {error}"),
+        ));
+    }
+
+    Ok(Json(LocationResponse { id, name }))
+}
+
+async fn delete_location(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+) -> Result<StatusCode, ApiError> {
+    require_permission(
+        &headers,
+        &state.db,
+        &state.jwt_secret,
+        PERMISSION_MANAGE_LOCATIONS,
+    )
+    .await?;
+
+    let users_using_location = sqlx::query_scalar::<_, i64>(
+        "SELECT COUNT(*) FROM users WHERE location_id = ?",
+    )
+    .bind(id)
+    .fetch_one(&state.db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to check users for location usage: {error}"),
+        )
+    })?;
+
+    if users_using_location > 0 {
+        return Err(ApiError::new(
+            StatusCode::CONFLICT,
+            "Location is in use by one or more users",
+        ));
+    }
+
+    if table_exists(&state.db, "public_holidays").await? {
+        let holidays_using_location = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(*) FROM public_holidays WHERE location_id = ?",
+        )
+        .bind(id)
+        .fetch_one(&state.db)
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to check public holidays for location usage: {error}"),
+            )
+        })?;
+
+        if holidays_using_location > 0 {
+            return Err(ApiError::new(
+                StatusCode::CONFLICT,
+                "Location is in use by one or more public holidays",
+            ));
+        }
+    }
+
+    let delete_result = sqlx::query("DELETE FROM locations WHERE id = ?")
+        .bind(id)
+        .execute(&state.db)
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to delete location: {error}"),
+            )
+        })?;
+
+    if delete_result.rows_affected() == 0 {
+        return Err(ApiError::new(StatusCode::NOT_FOUND, "Location not found"));
+    }
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
 async fn find_public_user(db: &SqlitePool, user_id: i64) -> Result<PublicUser, ApiError> {
     let row = sqlx::query_as::<_, EmployeeRow>(
         "SELECT id, email, display_name FROM users WHERE id = ?",
@@ -633,6 +904,36 @@ fn normalize_display_name(display_name: &str) -> Result<String, ApiError> {
     }
 
     Ok(normalized.to_string())
+}
+
+fn normalize_location_name(name: &str) -> Result<String, ApiError> {
+    let normalized = name.trim();
+    if normalized.is_empty() {
+        return Err(ApiError::new(
+            StatusCode::BAD_REQUEST,
+            "Location name is required",
+        ));
+    }
+
+    Ok(normalized.to_string())
+}
+
+async fn table_exists(db: &SqlitePool, table_name: &str) -> Result<bool, ApiError> {
+    let exists = sqlx::query_scalar::<_, i64>(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1",
+    )
+    .bind(table_name)
+    .fetch_optional(db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to check table existence: {error}"),
+        )
+    })?
+    .is_some();
+
+    Ok(exists)
 }
 
 fn validate_password(password: &str) -> Result<(), ApiError> {
