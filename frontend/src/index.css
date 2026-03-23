@@ -105,6 +105,37 @@ input {
   padding: 2rem;
 }
 
+/* -- Login Screen -- */
+.login-screen {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bg-page);
+  padding: 2rem;
+}
+
+.login-branding {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.login-logo {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 1rem;
+}
+
+.login-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
 .hero-card,
 .auth-card,
 .toolbar-card,
@@ -168,6 +199,10 @@ h1 {
   margin-bottom: 1rem;
 }
 
+.auth-card {
+  background: var(--bg-card);
+}
+
 .auth-tabs button,
 .toolbar-actions button {
   border: 1px solid var(--border-input);
@@ -178,11 +213,20 @@ h1 {
   cursor: pointer;
 }
 
+.auth-tabs button:hover {
+  border-color: var(--text-link);
+  color: var(--text-link);
+}
+
 .auth-tabs button.active,
 .primary-button {
   background: var(--btn-primary-bg);
   color: var(--text-inverse);
   border-color: var(--btn-primary-bg);
+}
+
+.auth-tabs button.active {
+  color: var(--text-inverse);
 }
 
 .auth-form {
@@ -204,9 +248,20 @@ input {
   padding: 0.8rem 0.9rem;
 }
 
+input:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--border-focus) 20%, transparent);
+}
+
 .primary-button {
   cursor: pointer;
   padding: 0.9rem 1rem;
+}
+
+.primary-button:hover:not(:disabled) {
+  background: var(--btn-primary-hover);
+  border-color: var(--btn-primary-hover);
 }
 
 .toolbar-title {

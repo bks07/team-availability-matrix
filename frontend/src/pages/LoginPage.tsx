@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AuthCard from '../components/AuthCard';
-import HeroCard from '../components/HeroCard';
+import logo from '../assets/logo.svg';
 import type { AuthResponse } from '../lib/api.models';
 import { loadSession } from '../lib/storage';
 
@@ -24,8 +24,11 @@ export default function LoginPage({ onAuthSuccess }: LoginPageProps): JSX.Elemen
   };
 
   return (
-    <main className="page-shell">
-      <HeroCard />
+    <main className="login-screen">
+      <div className="login-branding">
+        <img src={logo} alt="Availability Matrix" className="login-logo" />
+        <h1 className="login-title">Team Availability Matrix</h1>
+      </div>
       <AuthCard onAuthSuccess={handleAuthSuccess} />
     </main>
   );
