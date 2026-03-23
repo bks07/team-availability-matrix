@@ -356,8 +356,7 @@ input:focus {
 }
 
 .matrix-wrapper {
-  overflow: auto;
-  max-height: 75vh;
+  overflow-x: auto;
 }
 
 table {
@@ -378,9 +377,13 @@ td {
 
 thead th {
   position: sticky;
-  top: 0;
+  top: var(--navbar-height);
   z-index: 2;
   background: var(--row-today-bg);
+}
+
+thead th:first-child {
+  top: var(--navbar-height);
 }
 
 .sticky-column {
