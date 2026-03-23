@@ -136,7 +136,6 @@ input {
   margin: 0;
 }
 
-.hero-card,
 .auth-card,
 .toolbar-card,
 .matrix-card {
@@ -146,7 +145,6 @@ input {
   padding: 1.5rem;
 }
 
-.hero-card,
 .toolbar-card {
   display: flex;
   justify-content: space-between;
@@ -159,31 +157,15 @@ input {
   padding: 0.9rem 1.25rem;
 }
 
-.eyebrow {
-  margin: 0 0 0.4rem;
-  color: var(--text-link);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-size: 0.78rem;
-}
-
 h1 {
   margin: 0;
   font-size: clamp(2rem, 4vw, 3rem);
 }
 
-.hero-copy,
 .toolbar-subtitle,
 .employee-email {
   margin: 0.4rem 0 0;
   color: var(--text-secondary);
-}
-
-.legend {
-  display: flex;
-  gap: 0.75rem;
-  flex-wrap: wrap;
 }
 
 .legend-item {
