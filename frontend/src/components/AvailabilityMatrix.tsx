@@ -114,7 +114,8 @@ export default function AvailabilityMatrix({
                   return (
                     <td key={key}>
                       <div className={`cell-wrapper ${editable ? 'editable' : ''}`}>
-                        <span
+                        <button
+                          type="button"
                           className={`status-pill status-${status.toLowerCase()}`}
                           onClick={(event) => {
                             if (!editable) {
@@ -123,9 +124,12 @@ export default function AvailabilityMatrix({
                             event.stopPropagation();
                             onOpenPopup(isOpen ? null : key);
                           }}
+                          tabIndex={editable ? 0 : -1}
+                          aria-disabled={!editable}
+                          aria-label={`Set status for ${day}`}
                         >
                           {isPending ? '…' : status}
-                        </span>
+                        </button>
 
                         {isOpen && editable && openPosition?.date === day && openPosition.userId === employee.id && (
                           <div

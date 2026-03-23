@@ -66,6 +66,12 @@
   --feedback-error-bg: #fff0e6;
   --feedback-error-text: #b35e00;
 
+  /* Interactive state tokens */
+  --nav-link-hover-bg: color-mix(in srgb, var(--text-inverse) 10%, transparent);
+  --nav-link-active-bg: color-mix(in srgb, var(--text-inverse) 15%, transparent);
+  --dropdown-shadow: 0 4px 16px color-mix(in srgb, var(--deep-space-blue) 20%, transparent);
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--border-focus) 24%, transparent);
+
   /* Layout */
   --navbar-height: 60px;
 }
@@ -211,6 +217,20 @@ h1 {
   color: var(--text-inverse);
 }
 
+.auth-tabs button:focus-visible,
+.toolbar-actions button:focus-visible,
+.primary-button:focus-visible,
+.overlay-btn:focus-visible,
+.entity-actions button:focus-visible,
+.navbar-user-trigger:focus-visible,
+.navbar-dropdown-item:focus-visible,
+.navbar-link:focus-visible,
+.admin-sidebar a:focus-visible,
+.guard-message a:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
 .auth-form {
   display: grid;
   gap: 1rem;
@@ -234,6 +254,13 @@ input:focus {
   outline: none;
   border-color: var(--border-focus);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--border-focus) 20%, transparent);
+}
+
+input:focus-visible,
+select:focus-visible {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: var(--focus-ring);
 }
 
 .primary-button {
@@ -433,11 +460,24 @@ thead th:first-child {
   padding: 0.35rem 0.75rem;
   font-weight: 700;
   font-size: 0.85rem;
+  border: 1px solid transparent;
+  line-height: 1;
   user-select: none;
 }
 
 .editable .status-pill {
   cursor: pointer;
+}
+
+.editable .status-pill:hover {
+  border-color: var(--status-w-solid);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--status-w-solid) 20%, transparent);
+}
+
+.editable .status-pill:focus-visible {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: var(--focus-ring);
 }
 
 .status-overlay {
@@ -570,12 +610,12 @@ thead th:first-child {
 
 .navbar-link:hover {
   color: var(--text-navbar-active);
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: var(--nav-link-hover-bg);
 }
 
 .navbar-link.active {
   color: var(--text-navbar-active);
-  background-color: rgba(255, 255, 255, 0.15);
+  background-color: var(--nav-link-active-bg);
 }
 
 .navbar-right {
@@ -602,7 +642,7 @@ thead th:first-child {
 .navbar-user-trigger:hover,
 .navbar-user-trigger[aria-expanded='true'] {
   color: var(--text-navbar-active);
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: var(--nav-link-hover-bg);
 }
 
 .navbar-dropdown {
@@ -613,7 +653,7 @@ thead th:first-child {
   background: var(--bg-overlay);
   border: 1px solid var(--border-light);
   border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--dropdown-shadow);
   padding: 4px;
   z-index: 51;
 }
