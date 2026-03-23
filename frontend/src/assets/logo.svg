@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" aria-label="Availability Matrix Logo" role="img">
+  <title>Availability Matrix</title>
+  
+  <!-- Row 1 -->
+  <rect x="2" y="2" width="14" height="8" rx="4" fill="#8ecae6" />
+  <rect x="18" y="2" width="12" height="8" rx="4" fill="#ffb703" />
+  
+  <!-- Row 2 -->
+  <rect x="2" y="12" width="8" height="8" rx="4" fill="#fb8500" />
+  <rect x="12" y="12" width="18" height="8" rx="4" fill="#219ebc" />
+  
+  <!-- Row 3 -->
+  <rect x="2" y="22" width="10" height="8" rx="4" fill="#219ebc" />
+  <rect x="14" y="22" width="16" height="8" rx="4" fill="#8ecae6" />
+</svg>
