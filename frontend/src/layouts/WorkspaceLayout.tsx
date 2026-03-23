@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import AvailabilityMatrix from '../components/AvailabilityMatrix';
-import HeroCard from '../components/HeroCard';
 import { useAuth } from '../context/AuthContext';
 import type { AvailabilityValue, User } from '../lib/api.models';
 import { getMatrix, updateStatus } from '../services/matrix.service';
@@ -128,22 +127,18 @@ export default function WorkspaceLayout(): JSX.Element {
 
   return (
     <main className="workspace-layout page-shell">
-      <HeroCard />
-
       <section className="toolbar-card">
-        <div>
-          <p className="toolbar-title">Signed in as {currentUser.displayName}</p>
-          <p className="toolbar-subtitle">You can edit only your own column. Click a cell to change its status.</p>
-        </div>
         <div className="toolbar-actions">
-          <label className="period-label">
-            From
-            <input type="date" value={periodStart} onChange={(event) => setPeriodStart(event.target.value)} />
-          </label>
-          <label className="period-label">
-            To
-            <input type="date" value={periodEnd} onChange={(event) => setPeriodEnd(event.target.value)} />
-          </label>
+          <div className="period-controls">
+            <label className="period-label">
+              From
+              <input type="date" value={periodStart} onChange={(event) => setPeriodStart(event.target.value)} />
+            </label>
+            <label className="period-label">
+              To
+              <input type="date" value={periodEnd} onChange={(event) => setPeriodEnd(event.target.value)} />
+            </label>
+          </div>
           <button type="button" onClick={() => void refreshMatrix()} disabled={matrixLoading}>
             Refresh
           </button>
@@ -153,6 +148,15 @@ export default function WorkspaceLayout(): JSX.Element {
       {errorMessage && <p className="message error">{errorMessage}</p>}
       {successMessage && <p className="message success">{successMessage}</p>}
       {matrixLoading && <p className="message">Loading matrix...</p>}
+
+      <div className="matrix-legend">
+        <span className="legend-hint">You can only edit your own column</span>
+        <div className="legend-items">
+          <span className="legend-item"><span className="legend-dot legend-dot-w"></span>Working</span>
+          <span className="legend-item"><span className="legend-dot legend-dot-v"></span>Vacation</span>
+          <span className="legend-item"><span className="legend-dot legend-dot-a"></span>Absence</span>
+        </div>
+      </div>
 
       {!!filteredDays.length && !!employees.length && (
         <AvailabilityMatrix

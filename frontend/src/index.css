@@ -124,6 +124,10 @@ input {
   flex-wrap: wrap;
 }
 
+.toolbar-card {
+  padding: 0.9rem 1.25rem;
+}
+
 .eyebrow {
   margin: 0 0 0.4rem;
   color: var(--text-link);
@@ -213,6 +217,15 @@ input {
 .toolbar-actions {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.period-controls {
+  display: flex;
+  align-items: center;
   gap: 0.75rem;
   flex-wrap: wrap;
 }
@@ -227,6 +240,51 @@ input {
 
 .period-label input {
   padding: 0.55rem 0.75rem;
+}
+
+/* -- Legend Strip -- */
+.matrix-legend {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.legend-hint {
+  font-style: italic;
+}
+
+.legend-items {
+  display: flex;
+  gap: 16px;
+}
+
+.matrix-legend .legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.matrix-legend .legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.legend-dot-w {
+  background-color: var(--status-w-solid);
+}
+
+.legend-dot-v {
+  background-color: var(--status-v-solid);
+}
+
+.legend-dot-a {
+  background-color: var(--status-a-solid);
 }
 
 .message {
