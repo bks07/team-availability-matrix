@@ -107,3 +107,58 @@ pub(crate) struct BulkStatusResponse {
 pub(crate) struct SelfRegistrationSettingResponse {
     pub(crate) enabled: bool,
 }
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct TeamResponse {
+    pub(crate) id: i64,
+    pub(crate) name: String,
+    pub(crate) description: String,
+    pub(crate) member_count: i64,
+    pub(crate) my_role: String,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct TeamDetailResponse {
+    pub(crate) id: i64,
+    pub(crate) name: String,
+    pub(crate) description: String,
+    pub(crate) members: Vec<TeamMemberResponse>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct TeamMemberResponse {
+    pub(crate) user_id: i64,
+    pub(crate) display_name: String,
+    pub(crate) email: String,
+    pub(crate) photo_url: Option<String>,
+    pub(crate) role: String,
+    pub(crate) joined_at: chrono::DateTime<chrono::Utc>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct TeamInvitationResponse {
+    pub(crate) id: i64,
+    pub(crate) team_id: i64,
+    pub(crate) team_name: String,
+    pub(crate) inviter_name: String,
+    pub(crate) status: String,
+    pub(crate) created_at: chrono::DateTime<chrono::Utc>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct UserSearchResult {
+    pub(crate) id: i64,
+    pub(crate) display_name: String,
+    pub(crate) email: String,
+    pub(crate) photo_url: Option<String>,
+}

@@ -122,5 +122,59 @@ pub(crate) async fn initialize_database(db: &PgPool) -> Result<(), sqlx::Error> 
     .execute(db)
     .await?;
 
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS teams (
+            id BIGSERIAL PRIMARY KEY,
+            name TEXT NOT NULL UNIQUE,
+            description TEXT DEFAULT '',
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        "#,
+    )
+    .execute(db)
+    .await?;
+
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS team_members (
+            id BIGSERIAL PRIMARY KEY,
+            team_id BIGINT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+            user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            role TEXT NOT NULL CHECK (role IN ('owner', 'admin', 'member')) DEFAULT 'member',
+            joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            UNIQUE(team_id, user_id)
+        );
+        "#,
+    )
+    .execute(db)
+    .await?;
+
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS team_invitations (
+            id BIGSERIAL PRIMARY KEY,
+            team_id BIGINT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+            inviter_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            invitee_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            status TEXT NOT NULL CHECK (status IN ('pending', 'accepted', 'rejected', 'cancelled')) DEFAULT 'pending',
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        "#,
+    )
+    .execute(db)
+    .await?;
+
+    sqlx::query(
+        r#"
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_team_invitations_pending
+        ON team_invitations (team_id, invitee_id)
+        WHERE status = 'pending';
+        "#,
+    )
+    .execute(db)
+    .await?;
+
     Ok(())
 }

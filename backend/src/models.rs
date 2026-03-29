@@ -97,3 +97,34 @@ pub(crate) struct WorkScheduleRow {
     pub(crate) ignore_weekends: bool,
     pub(crate) ignore_public_holidays: bool,
 }
+
+#[allow(dead_code)]
+#[derive(Debug, FromRow)]
+pub(crate) struct TeamRow {
+    pub(crate) id: i64,
+    pub(crate) name: String,
+    pub(crate) description: String,
+    pub(crate) created_at: chrono::DateTime<chrono::Utc>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, FromRow)]
+pub(crate) struct TeamMemberRow {
+    pub(crate) id: i64,
+    pub(crate) team_id: i64,
+    pub(crate) user_id: i64,
+    pub(crate) role: String,
+    pub(crate) joined_at: chrono::DateTime<chrono::Utc>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, FromRow)]
+pub(crate) struct TeamInvitationRow {
+    pub(crate) id: i64,
+    pub(crate) team_id: i64,
+    pub(crate) inviter_id: i64,
+    pub(crate) invitee_id: i64,
+    pub(crate) status: String,
+    pub(crate) created_at: chrono::DateTime<chrono::Utc>,
+    pub(crate) updated_at: chrono::DateTime<chrono::Utc>,
+}

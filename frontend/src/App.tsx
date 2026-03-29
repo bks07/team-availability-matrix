@@ -9,6 +9,7 @@ import WorkspaceLayout from './layouts/WorkspaceLayout';
 import type { AuthResponse, User } from './lib/api.models';
 import { clearSession, loadSession, saveSession } from './lib/storage';
 import LoginPage from './pages/LoginPage';
+import MyCalendarPage from './pages/MyCalendarPage';
 import ProfilePage from './pages/ProfilePage';
 import HolidaysPage from './pages/admin/HolidaysPage';
 import LocationsPage from './pages/admin/LocationsPage';
@@ -80,6 +81,7 @@ export default function App(): JSX.Element {
               <Route path="/" element={<Navigate to="/workspace" replace />} />
               <Route path="/workspace" element={<WorkspaceLayout />} />
               <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/my-calendar" element={<MyCalendarPage />} />
               <Route element={<AdminGuard />}>
                 <Route element={<AdminLayout />}>
                   <Route path="/admin" element={<Navigate to="/admin/locations" replace />} />

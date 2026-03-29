@@ -2,10 +2,12 @@ import { useContext, useEffect, useRef, useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import logo from '../assets/logo.svg';
 import { AuthContext } from '../context/AuthContext';
+import BurgerMenu from './BurgerMenu';
 
 export default function NavBar(): JSX.Element | null {
   const { currentUser, onLogout } = useContext(AuthContext);
   const [open, setOpen] = useState(false);
+  const [burgerOpen, setBurgerOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   if (!currentUser) {
@@ -48,46 +50,59 @@ export default function NavBar(): JSX.Element | null {
   };
 
   return (
-    <header className="navbar">
-      <div className="navbar-left">
-        <Link to="/workspace" className="navbar-logo">
-          <img src={logo} alt="Availability Matrix" height="32" />
-        </Link>
-        <nav className="navbar-nav">
-          <NavLink to="/workspace" className={({ isActive }) => (isActive ? 'navbar-link active' : 'navbar-link')}>
-            Workspace
-          </NavLink>
-          {hasAdminPermission && (
-            <NavLink to="/admin" className={({ isActive }) => (isActive ? 'navbar-link active' : 'navbar-link')}>
-              Admin
-            </NavLink>
-          )}
-        </nav>
-      </div>
-
-      <div className="navbar-right">
-        <div className="navbar-user" ref={dropdownRef}>
+    <>
+      <header className="navbar">
+        <div className="navbar-left">
           <button
             type="button"
-            className="navbar-user-trigger"
-            onClick={() => setOpen(!open)}
-            aria-haspopup="true"
-            aria-expanded={open}
+            className="burger-menu-trigger"
+            onClick={() => setBurgerOpen(!burgerOpen)}
+            aria-label="Navigation menu"
+            aria-expanded={burgerOpen}
+            aria-controls="burger-menu"
           >
-            {currentUser.displayName} ▾
+            ☰
           </button>
-          {open && (
-            <div className="navbar-dropdown" role="menu">
-              <Link to="/profile" className="navbar-dropdown-item" role="menuitem" onClick={() => setOpen(false)}>
-                Profile
-              </Link>
-              <button type="button" className="navbar-dropdown-item" role="menuitem" onClick={handleLogout}>
-                Log out
-              </button>
-            </div>
-          )}
+          <Link to="/workspace" className="navbar-logo">
+            <img src={logo} alt="Availability Matrix" height="32" />
+          </Link>
+          <nav className="navbar-nav">
+            <NavLink to="/workspace" className={({ isActive }) => (isActive ? 'navbar-link active' : 'navbar-link')}>
+              Workspace
+            </NavLink>
+            {hasAdminPermission && (
+              <NavLink to="/admin" className={({ isActive }) => (isActive ? 'navbar-link active' : 'navbar-link')}>
+                Admin
+              </NavLink>
+            )}
+          </nav>
         </div>
-      </div>
-    </header>
+
+        <div className="navbar-right">
+          <div className="navbar-user" ref={dropdownRef}>
+            <button
+              type="button"
+              className="navbar-user-trigger"
+              onClick={() => setOpen(!open)}
+              aria-haspopup="true"
+              aria-expanded={open}
+            >
+              {currentUser.displayName} ▾
+            </button>
+            {open && (
+              <div className="navbar-dropdown" role="menu">
+                <Link to="/profile" className="navbar-dropdown-item" role="menuitem" onClick={() => setOpen(false)}>
+                  Profile
+                </Link>
+                <button type="button" className="navbar-dropdown-item" role="menuitem" onClick={handleLogout}>
+                  Log out
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
+      <BurgerMenu isOpen={burgerOpen} onClose={() => setBurgerOpen(false)} permissions={currentUser.permissions} />
+    </>
   );
 }

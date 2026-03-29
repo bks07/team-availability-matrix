@@ -136,3 +136,47 @@ pub(crate) struct UpdateWorkScheduleRequest {
     pub(crate) ignore_weekends: bool,
     pub(crate) ignore_public_holidays: bool,
 }
+
+#[allow(dead_code)]
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CreateTeamRequest {
+    pub(crate) name: String,
+    pub(crate) description: Option<String>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct UpdateTeamRequest {
+    pub(crate) name: String,
+    pub(crate) description: Option<String>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct InviteToTeamRequest {
+    pub(crate) user_id: i64,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct UpdateMemberRoleRequest {
+    pub(crate) role: String,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct TransferOwnershipRequest {
+    pub(crate) new_owner_id: i64,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct UserSearchQuery {
+    pub(crate) q: Option<String>,
+}
