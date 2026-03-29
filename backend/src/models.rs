@@ -1,0 +1,84 @@
+use axum::http::StatusCode;
+use chrono::NaiveDate;
+use serde::{Deserialize, Serialize};
+use sqlx::FromRow;
+
+use crate::error::ApiError;
+
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum StatusValue {
+    #[serde(rename = "W")]
+    Working,
+    #[serde(rename = "V")]
+    Vacation,
+    #[serde(rename = "A")]
+    Absence,
+}
+
+impl StatusValue {
+    pub(crate) fn as_db_value(self) -> &'static str {
+        match self {
+            Self::Working => "W",
+            Self::Vacation => "V",
+            Self::Absence => "A",
+        }
+    }
+
+    pub(crate) fn from_db_value(value: &str) -> Result<Self, ApiError> {
+        match value {
+            "W" => Ok(Self::Working),
+            "V" => Ok(Self::Vacation),
+            "A" => Ok(Self::Absence),
+            _ => Err(ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Stored availability status is invalid",
+            )),
+        }
+    }
+}
+
+#[derive(Debug, FromRow)]
+pub(crate) struct UserRecord {
+    pub(crate) id: i64,
+    pub(crate) email: String,
+    pub(crate) display_name: String,
+    pub(crate) location_id: Option<i64>,
+    pub(crate) photo_url: Option<String>,
+    pub(crate) password_hash: String,
+}
+
+#[derive(Debug, FromRow)]
+pub(crate) struct EmployeeRow {
+    pub(crate) id: i64,
+    pub(crate) email: String,
+    pub(crate) display_name: String,
+    pub(crate) location_id: Option<i64>,
+    pub(crate) photo_url: Option<String>,
+}
+
+#[derive(Debug, FromRow)]
+pub(crate) struct SystemSettingRow {
+    pub(crate) key: String,
+    pub(crate) value: String,
+}
+
+#[derive(Debug, FromRow)]
+pub(crate) struct StatusRow {
+    pub(crate) user_id: i64,
+    pub(crate) status_date: NaiveDate,
+    pub(crate) status: String,
+}
+
+#[derive(Debug, FromRow)]
+pub(crate) struct LocationRow {
+    pub(crate) id: i64,
+    pub(crate) name: String,
+}
+
+#[derive(Debug, FromRow)]
+pub(crate) struct PublicHolidayRow {
+    pub(crate) id: i64,
+    pub(crate) holiday_date: NaiveDate,
+    pub(crate) name: String,
+    pub(crate) location_id: i64,
+}

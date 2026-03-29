@@ -1,0 +1,106 @@
+use sqlx::PgPool;
+
+pub(crate) async fn initialize_database(db: &PgPool) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS users (
+            id BIGSERIAL PRIMARY KEY,
+            email TEXT NOT NULL UNIQUE,
+            display_name TEXT NOT NULL,
+            password_hash TEXT NOT NULL,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        "#,
+    )
+    .execute(db)
+    .await?;
+
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS locations (
+            id BIGSERIAL PRIMARY KEY,
+            name TEXT NOT NULL UNIQUE
+        );
+        "#,
+    )
+    .execute(db)
+    .await?;
+
+    sqlx::query(
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS location_id BIGINT REFERENCES locations(id) ON DELETE SET NULL",
+    )
+    .execute(db)
+    .await?;
+
+    sqlx::query("ALTER TABLE users ADD COLUMN IF NOT EXISTS photo_url TEXT")
+        .execute(db)
+        .await?;
+
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS availability_statuses (
+            id BIGSERIAL PRIMARY KEY,
+            user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            status_date DATE NOT NULL,
+            status TEXT NOT NULL CHECK (status IN ('W', 'V', 'A')),
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            UNIQUE(user_id, status_date)
+        );
+        "#,
+    )
+    .execute(db)
+    .await?;
+
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS user_permissions (
+            id BIGSERIAL PRIMARY KEY,
+            user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            permission TEXT NOT NULL,
+            UNIQUE(user_id, permission)
+        );
+        "#,
+    )
+    .execute(db)
+    .await?;
+
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS public_holidays (
+            id BIGSERIAL PRIMARY KEY,
+            holiday_date DATE NOT NULL,
+            name TEXT NOT NULL,
+            location_id BIGINT NOT NULL REFERENCES locations(id) ON DELETE CASCADE,
+            UNIQUE(holiday_date, location_id)
+        );
+        "#,
+    )
+    .execute(db)
+    .await?;
+
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS system_settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        );
+        "#,
+    )
+    .execute(db)
+    .await?;
+
+    sqlx::query(
+        "INSERT INTO system_settings (key, value) VALUES ('self_registration_enabled', 'true') ON CONFLICT (key) DO NOTHING",
+    )
+    .execute(db)
+    .await?;
+
+    sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_availability_statuses_date ON availability_statuses(status_date);",
+    )
+    .execute(db)
+    .await?;
+
+    Ok(())
+}

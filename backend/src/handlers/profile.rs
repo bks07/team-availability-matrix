@@ -1,0 +1,287 @@
+use std::time::{SystemTime, UNIX_EPOCH};
+
+use axum::{
+    extract::{Multipart, State},
+    http::{HeaderMap, StatusCode},
+    Json,
+};
+
+use crate::auth::{authorize, get_user_permissions, hash_password, validate_password, verify_password};
+use crate::error::ApiError;
+use crate::helpers::{
+    delete_photo_file_best_effort, ensure_location_exists, find_public_user,
+    normalize_display_name, normalize_email,
+};
+use crate::models::EmployeeRow;
+use crate::state::AppState;
+use crate::types::requests::{ChangePasswordRequest, UpdateProfileRequest};
+use crate::types::responses::PublicUser;
+
+pub(crate) async fn update_profile(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<UpdateProfileRequest>,
+) -> Result<Json<PublicUser>, ApiError> {
+    let claims = authorize(&headers, &state.jwt_secret)?;
+    let email = normalize_email(&payload.email)?;
+    let display_name = normalize_display_name(&payload.display_name)?;
+
+    if let Some(location_id) = payload.location_id {
+        ensure_location_exists(&state.db, location_id).await?;
+    }
+
+    let updated = sqlx::query_as::<_, EmployeeRow>(
+        "UPDATE users SET email = $1, display_name = $2, location_id = $3 WHERE id = $4 RETURNING id, email, display_name, location_id, photo_url",
+    )
+    .bind(&email)
+    .bind(&display_name)
+    .bind(payload.location_id)
+    .bind(claims.sub)
+    .fetch_optional(&state.db)
+    .await;
+
+    let updated = match updated {
+        Ok(Some(user)) => user,
+        Ok(None) => {
+            return Err(ApiError::new(
+                StatusCode::UNAUTHORIZED,
+                "Current user no longer exists",
+            ))
+        }
+        Err(error) => {
+            if error
+                .to_string()
+                .contains("duplicate key value violates unique constraint")
+            {
+                return Err(ApiError::new(
+                    StatusCode::CONFLICT,
+                    "An account with that email already exists",
+                ));
+            }
+
+            return Err(ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to update profile: {error}"),
+            ));
+        }
+    };
+
+    let permissions = get_user_permissions(&state.db, claims.sub).await?;
+    Ok(Json(PublicUser {
+        id: updated.id,
+        email: updated.email,
+        display_name: updated.display_name,
+        location_id: updated.location_id,
+        photo_url: updated.photo_url,
+        permissions,
+    }))
+}
+
+
+
+pub(crate) async fn upload_profile_photo(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    mut multipart: Multipart,
+) -> Result<Json<PublicUser>, ApiError> {
+    let claims = authorize(&headers, &state.jwt_secret)?;
+
+    let field = multipart
+        .next_field()
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::BAD_REQUEST,
+                format!("Failed to read uploaded file: {error}"),
+            )
+        })?
+        .ok_or_else(|| ApiError::new(StatusCode::BAD_REQUEST, "No file was provided"))?;
+
+    let content_type = field
+        .content_type()
+        .map(str::to_string)
+        .ok_or_else(|| ApiError::new(StatusCode::BAD_REQUEST, "Uploaded file is missing content type"))?;
+
+    let extension = match content_type.as_str() {
+        "image/jpeg" => "jpg",
+        "image/png" => "png",
+        "image/webp" => "webp",
+        "image/gif" => "gif",
+        _ => {
+            return Err(ApiError::new(
+                StatusCode::BAD_REQUEST,
+                "Unsupported image format. Supported formats: JPEG, PNG, WebP, GIF",
+            ))
+        }
+    };
+
+    let bytes = field.bytes().await.map_err(|error| {
+        ApiError::new(
+            StatusCode::BAD_REQUEST,
+            format!("Failed to read uploaded file bytes: {error}"),
+        )
+    })?;
+
+    if bytes.len() > 2 * 1024 * 1024 {
+        return Err(ApiError::new(
+            StatusCode::BAD_REQUEST,
+            "File size exceeds the 2MB limit",
+        ));
+    }
+
+    let existing_photo_url = sqlx::query_scalar::<_, Option<String>>(
+        "SELECT photo_url FROM users WHERE id = $1",
+    )
+    .bind(claims.sub)
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to load current profile photo: {error}"),
+        )
+    })?
+    .ok_or_else(|| ApiError::new(StatusCode::UNAUTHORIZED, "Current user no longer exists"))?;
+
+    tokio::fs::create_dir_all("uploads/photos")
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to prepare upload directory: {error}"),
+            )
+        })?;
+
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to generate upload timestamp: {error}"),
+            )
+        })?
+        .as_millis();
+    let filename = format!("{}_{}.{}", claims.sub, timestamp, extension);
+    let file_path = format!("uploads/photos/{filename}");
+    let photo_url = format!("/uploads/photos/{filename}");
+
+    tokio::fs::write(&file_path, &bytes).await.map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to store uploaded file: {error}"),
+        )
+    })?;
+
+    sqlx::query("UPDATE users SET photo_url = $1 WHERE id = $2")
+        .bind(&photo_url)
+        .bind(claims.sub)
+        .execute(&state.db)
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to save profile photo reference: {error}"),
+            )
+        })?;
+
+    if let Some(previous) = existing_photo_url {
+        delete_photo_file_best_effort(&previous).await;
+    }
+
+    let user = find_public_user(&state.db, claims.sub).await?;
+    Ok(Json(user))
+}
+
+
+
+pub(crate) async fn delete_profile_photo(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<StatusCode, ApiError> {
+    let claims = authorize(&headers, &state.jwt_secret)?;
+
+    let existing_photo_url = sqlx::query_scalar::<_, Option<String>>(
+        "SELECT photo_url FROM users WHERE id = $1",
+    )
+    .bind(claims.sub)
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to load current profile photo: {error}"),
+        )
+    })?
+    .ok_or_else(|| ApiError::new(StatusCode::UNAUTHORIZED, "Current user no longer exists"))?;
+
+    if let Some(photo_url) = existing_photo_url {
+        delete_photo_file_best_effort(&photo_url).await;
+    }
+
+    sqlx::query("UPDATE users SET photo_url = NULL WHERE id = $1")
+        .bind(claims.sub)
+        .execute(&state.db)
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to clear profile photo: {error}"),
+            )
+        })?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
+
+
+pub(crate) async fn change_password(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<ChangePasswordRequest>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let claims = authorize(&headers, &state.jwt_secret)?;
+
+    let current_password_hash = sqlx::query_scalar::<_, String>(
+        "SELECT password_hash FROM users WHERE id = $1",
+    )
+    .bind(claims.sub)
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to load current password: {error}"),
+        )
+    })?
+    .ok_or_else(|| ApiError::new(StatusCode::UNAUTHORIZED, "Current user no longer exists"))?;
+
+    if let Err(error) = verify_password(&payload.current_password, &current_password_hash) {
+        if error.status == StatusCode::UNAUTHORIZED {
+            return Err(ApiError::new(
+                StatusCode::UNAUTHORIZED,
+                "Current password is incorrect",
+            ));
+        }
+        return Err(error);
+    }
+
+    validate_password(&payload.new_password)?;
+    let new_password_hash = hash_password(&payload.new_password)?;
+
+    sqlx::query("UPDATE users SET password_hash = $1 WHERE id = $2")
+        .bind(new_password_hash)
+        .bind(claims.sub)
+        .execute(&state.db)
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to update password: {error}"),
+            )
+        })?;
+
+    Ok(Json(
+        serde_json::json!({ "message": "Password changed successfully" }),
+    ))
+}
+
