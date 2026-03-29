@@ -5,6 +5,11 @@ use axum::{
 use tower_http::{cors::CorsLayer, services::ServeDir};
 
 use crate::handlers;
+use crate::handlers::teams::{
+    accept_invitation, cancel_invitation, create_team, delete_team, get_team_detail,
+    invite_to_team, leave_team, list_my_invitations, list_my_teams, reject_invitation,
+    remove_member, search_users, transfer_ownership, update_member_role, update_team,
+};
 use crate::state::AppState;
 
 pub(crate) fn build_router(state: AppState, cors: CorsLayer, upload_dir: &str) -> Router {
@@ -33,6 +38,33 @@ pub(crate) fn build_router(state: AppState, cors: CorsLayer, upload_dir: &str) -
             "/api/statuses/:date",
             put(handlers::matrix::update_status).delete(handlers::matrix::delete_status),
         )
+        .route("/api/teams", get(list_my_teams).post(create_team))
+            .route("/api/teams/invitations", get(list_my_invitations))
+            .route(
+                "/api/teams/invitations/:id/accept",
+                post(accept_invitation),
+            )
+            .route(
+                "/api/teams/invitations/:id/reject",
+                post(reject_invitation),
+            )
+            .route("/api/teams/invitations/:id", delete(cancel_invitation))
+        .route(
+            "/api/teams/:id",
+            get(get_team_detail).put(update_team).delete(delete_team),
+        )
+            .route("/api/teams/:id/invitations", post(invite_to_team))
+            .route(
+                "/api/teams/:id/members/:user_id/role",
+                put(update_member_role),
+            )
+            .route("/api/teams/:id/members/:user_id", delete(remove_member))
+            .route("/api/teams/:id/leave", post(leave_team))
+            .route(
+                "/api/teams/:id/transfer-ownership",
+                post(transfer_ownership),
+            )
+        .route("/api/users/search", get(search_users))
         .route(
             "/api/admin/locations",
             get(handlers::locations::list_locations).post(handlers::locations::create_location),

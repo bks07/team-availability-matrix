@@ -4,6 +4,16 @@ import logo from '../assets/logo.svg';
 import { AuthContext } from '../context/AuthContext';
 import BurgerMenu from './BurgerMenu';
 
+function getInitials(name: string): string {
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .map((part) => part[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+}
+
 export default function NavBar(): JSX.Element | null {
   const { currentUser, onLogout } = useContext(AuthContext);
   const [open, setOpen] = useState(false);
@@ -87,14 +97,50 @@ export default function NavBar(): JSX.Element | null {
               aria-haspopup="true"
               aria-expanded={open}
             >
-              {currentUser.displayName} ▾
+              {currentUser.photoUrl ? (
+                <img src={currentUser.photoUrl} alt="" className="navbar-user-avatar" />
+              ) : (
+                <span className="navbar-user-initials">{getInitials(currentUser.displayName)}</span>
+              )}
+              <span className="navbar-user-name">{currentUser.displayName}</span>
+              <span className="navbar-user-chevron">▾</span>
             </button>
             {open && (
               <div className="navbar-dropdown" role="menu">
+                <Link to="/profile" className="navbar-dropdown-header" onClick={() => setOpen(false)}>
+                  {currentUser.photoUrl ? (
+                    <img src={currentUser.photoUrl} alt="" className="navbar-dropdown-avatar" />
+                  ) : (
+                    <span className="navbar-dropdown-initials">{getInitials(currentUser.displayName)}</span>
+                  )}
+                  <div className="navbar-dropdown-user-info">
+                    <span className="navbar-dropdown-user-name">{currentUser.displayName}</span>
+                    <span className="navbar-dropdown-user-email">{currentUser.email}</span>
+                  </div>
+                </Link>
+
+                <div className="navbar-dropdown-separator" />
+
                 <Link to="/profile" className="navbar-dropdown-item" role="menuitem" onClick={() => setOpen(false)}>
                   Profile
                 </Link>
-                <button type="button" className="navbar-dropdown-item" role="menuitem" onClick={handleLogout}>
+                <Link
+                  to="/profile#change-password"
+                  className="navbar-dropdown-item"
+                  role="menuitem"
+                  onClick={() => setOpen(false)}
+                >
+                  Change Password
+                </Link>
+
+                <div className="navbar-dropdown-separator" />
+
+                <button
+                  type="button"
+                  className="navbar-dropdown-item logout"
+                  role="menuitem"
+                  onClick={handleLogout}
+                >
                   Log out
                 </button>
               </div>
