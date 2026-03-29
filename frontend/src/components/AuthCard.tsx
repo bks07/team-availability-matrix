@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { AuthResponse } from '../lib/api.models';
 import { login, register } from '../services/auth.service';
+import { getSelfRegistration } from '../services/settings.service';
 
 type AuthMode = 'login' | 'register';
 
@@ -27,9 +28,31 @@ export default function AuthCard({ onAuthSuccess }: AuthCardProps): JSX.Element 
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [selfRegistrationEnabled, setSelfRegistrationEnabled] = useState(false);
+
+  useEffect(() => {
+    const loadSelfRegistration = async () => {
+      try {
+        const response = await getSelfRegistration();
+        setSelfRegistrationEnabled(response.enabled);
+      } catch {
+        setSelfRegistrationEnabled(false);
+      }
+    };
+
+    void loadSelfRegistration();
+  }, []);
 
   const submitAuth = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    if (authMode === 'register' && !selfRegistrationEnabled) {
+      setAuthMode('login');
+      setErrorMessage('Self-registration is currently disabled.');
+      setSuccessMessage('');
+      return;
+    }
+
     setErrorMessage('');
     setSuccessMessage('');
     setSubmitting(true);
@@ -56,13 +79,15 @@ export default function AuthCard({ onAuthSuccess }: AuthCardProps): JSX.Element 
         <button type="button" className={authMode === 'login' ? 'active' : ''} onClick={() => setAuthMode('login')}>
           Log in
         </button>
-        <button
-          type="button"
-          className={authMode === 'register' ? 'active' : ''}
-          onClick={() => setAuthMode('register')}
-        >
-          Register
-        </button>
+        {selfRegistrationEnabled ? (
+          <button
+            type="button"
+            className={authMode === 'register' ? 'active' : ''}
+            onClick={() => setAuthMode('register')}
+          >
+            Register
+          </button>
+        ) : null}
       </div>
 
       <form className="auth-form" onSubmit={submitAuth}>

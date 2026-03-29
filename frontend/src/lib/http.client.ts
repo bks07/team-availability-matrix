@@ -40,6 +40,10 @@ export const httpClient = {
     const response = await client.post<T>(url, body);
     return response.data;
   },
+  postForm: async <T>(url: string, body: FormData): Promise<T> => {
+    const response = await client.post<T>(url, body);
+    return response.data;
+  },
   put: async <T, TBody = unknown>(url: string, body?: TBody): Promise<T> => {
     const response = await client.put<T>(url, body);
     return response.data;

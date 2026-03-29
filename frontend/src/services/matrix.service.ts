@@ -11,6 +11,7 @@ interface ApiAvailabilityStatus {
 interface ApiMatrixResponse {
   employees: MatrixResponse['employees'];
   entries: ApiAvailabilityStatus[];
+  publicHolidays: MatrixResponse['publicHolidays'];
   days: string[];
   year: number;
 }
@@ -33,6 +34,7 @@ export async function getMatrix(year: number): Promise<MatrixResponse> {
   return {
     employees: response.employees,
     entries: response.entries.map(normalizeStatus),
+    publicHolidays: response.publicHolidays,
     days: response.days,
     year: response.year
   };

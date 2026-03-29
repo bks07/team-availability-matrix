@@ -32,6 +32,7 @@ export default function WorkspaceLayout(): JSX.Element {
   const [employees, setEmployees] = useState<User[]>([]);
   const [filteredDays, setFilteredDays] = useState<string[]>([]);
   const [entryMap, setEntryMap] = useState<Map<string, AvailabilityValue>>(new Map());
+  const [holidayLookup, setHolidayLookup] = useState<Map<number, Set<string>>>(new Map());
   const [periodStart, setPeriodStart] = useState(initialPeriod.start);
   const [periodEnd, setPeriodEnd] = useState(initialPeriod.end);
   const [openKey, setOpenKey] = useState<string | null>(null);
@@ -82,6 +83,17 @@ export default function WorkspaceLayout(): JSX.Element {
       });
 
       setEntryMap(nextMap);
+
+      const nextHolidayLookup = new Map<number, Set<string>>();
+      matrixResults
+        .flatMap((result) => result.publicHolidays)
+        .forEach((holiday) => {
+          const byLocation = nextHolidayLookup.get(holiday.locationId) ?? new Set<string>();
+          byLocation.add(holiday.holidayDate);
+          nextHolidayLookup.set(holiday.locationId, byLocation);
+        });
+
+      setHolidayLookup(nextHolidayLookup);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Failed to load the availability matrix.');
     } finally {
@@ -164,6 +176,7 @@ export default function WorkspaceLayout(): JSX.Element {
           employees={employees}
           filteredDays={filteredDays}
           statusFor={statusFor}
+          holidayLookup={holidayLookup}
           openKey={openKey}
           pendingKey={pendingKey}
           onOpenPopup={setOpenKey}

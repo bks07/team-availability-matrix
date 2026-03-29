@@ -4,6 +4,8 @@ export interface User {
   id: number;
   email: string;
   displayName: string;
+  locationId?: number | null;
+  photoUrl?: string | null;
   permissions: string[];
 }
 
@@ -23,7 +25,32 @@ export interface UserWithPermissions {
   id: number;
   email: string;
   displayName: string;
+  locationId?: number | null;
+  photoUrl?: string | null;
   permissions: string[];
+}
+
+export interface CreateUserRequest {
+  email: string;
+  displayName: string;
+  password: string;
+  locationId?: number | null;
+}
+
+export interface UpdateUserRequest {
+  email: string;
+  displayName: string;
+  locationId?: number | null;
+  password?: string;
+}
+
+export interface BulkAssignLocationRequest {
+  userIds: number[];
+  locationId: number | null;
+}
+
+export interface SelfRegistrationSettings {
+  enabled: boolean;
 }
 
 export interface AuthResponse {
@@ -40,6 +67,7 @@ export interface AvailabilityStatus {
 export interface MatrixResponse {
   employees: User[];
   entries: AvailabilityStatus[];
+  publicHolidays: PublicHoliday[];
   days: string[];
   year: number;
 }

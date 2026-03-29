@@ -1,14 +1,14 @@
-use std::{env, net::SocketAddr};
+use std::{env, net::SocketAddr, time::{SystemTime, UNIX_EPOCH}};
 
 use argon2::{
     password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
     Argon2,
 };
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Multipart, Path, Query, State},
     http::{HeaderMap, Method, StatusCode},
     response::{IntoResponse, Response},
-    routing::{get, post, put},
+    routing::{delete, get, post, put},
     Json, Router,
 };
 use chrono::{Datelike, Duration, NaiveDate, Utc};
@@ -17,6 +17,7 @@ use rand_core::OsRng;
 use serde::{Deserialize, Serialize};
 use sqlx::{postgres::PgPoolOptions, FromRow, PgPool};
 use tower_http::cors::CorsLayer;
+use tower_http::services::ServeDir;
 use tracing::info;
 
 #[derive(Clone)]
@@ -125,6 +126,46 @@ struct UpdatePermissionsRequest {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ChangePasswordRequest {
+    current_password: String,
+    new_password: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct UpdateProfileRequest {
+    email: String,
+    display_name: String,
+    location_id: Option<i64>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AdminCreateUserRequest {
+    email: String,
+    display_name: String,
+    password: String,
+    location_id: Option<i64>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AdminUpdateUserRequest {
+    email: String,
+    display_name: String,
+    location_id: Option<i64>,
+    password: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct BulkAssignLocationRequest {
+    user_ids: Vec<i64>,
+    location_id: i64,
+}
+
+#[derive(Debug, Deserialize)]
 struct PublicHolidayQuery {
     location_id: Option<i64>,
 }
@@ -148,6 +189,8 @@ struct PublicUser {
     id: i64,
     email: String,
     display_name: String,
+    location_id: Option<i64>,
+    photo_url: Option<String>,
     permissions: Vec<String>,
 }
 
@@ -166,6 +209,7 @@ struct MatrixResponse {
     days: Vec<String>,
     employees: Vec<PublicUser>,
     entries: Vec<AvailabilityEntry>,
+    public_holidays: Vec<PublicHolidayResponse>,
 }
 
 #[derive(Debug, Serialize)]
@@ -197,7 +241,27 @@ struct AdminUserResponse {
     id: i64,
     email: String,
     display_name: String,
+    location_id: Option<i64>,
+    photo_url: Option<String>,
     permissions: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct BulkAssignLocationResponse {
+    updated_count: i64,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SelfRegistrationSettingResponse {
+    enabled: bool,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct UpdateSelfRegistrationRequest {
+    enabled: bool,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq)]
@@ -243,6 +307,8 @@ struct UserRecord {
     id: i64,
     email: String,
     display_name: String,
+    location_id: Option<i64>,
+    photo_url: Option<String>,
     password_hash: String,
 }
 
@@ -251,6 +317,14 @@ struct EmployeeRow {
     id: i64,
     email: String,
     display_name: String,
+    location_id: Option<i64>,
+    photo_url: Option<String>,
+}
+
+#[derive(Debug, FromRow)]
+struct SystemSettingRow {
+    key: String,
+    value: String,
 }
 
 #[derive(Debug, FromRow)]
@@ -311,24 +385,52 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/health", get(health_check))
         .route("/api/auth/register", post(register))
         .route("/api/auth/login", post(login))
+        .route(
+            "/api/settings/self-registration",
+            get(get_self_registration_setting),
+        )
         .route("/api/me", get(me))
+        .route("/api/profile", put(update_profile))
+        .route("/api/profile/password", put(change_password))
+        .route(
+            "/api/profile/photo",
+            post(upload_profile_photo).delete(delete_profile_photo),
+        )
         .route("/api/matrix", get(get_matrix))
         .route("/api/statuses/:date", put(update_status))
         .route("/api/admin/locations", get(list_locations).post(create_location))
-        .route("/api/admin/locations/:id", put(update_location).delete(delete_location))
+        .route("/api/admin/locations/:id", put(update_location))
+        .route("/api/admin/locations/:id", delete(delete_location))
         .route(
             "/api/admin/public-holidays",
             get(list_public_holidays).post(create_public_holiday),
         )
         .route(
             "/api/admin/public-holidays/:id",
-            put(update_public_holiday).delete(delete_public_holiday),
+            put(update_public_holiday),
         )
-        .route("/api/admin/users", get(list_admin_users))
+        .route(
+            "/api/admin/public-holidays/:id",
+            delete(delete_public_holiday),
+        )
+        .route("/api/admin/users", get(list_admin_users).post(admin_create_user))
+        .route(
+            "/api/admin/users/bulk-location",
+            put(bulk_assign_location),
+        )
+        .route(
+            "/api/admin/users/:id",
+            put(admin_update_user).delete(admin_delete_user),
+        )
+        .route(
+            "/api/admin/settings/self-registration",
+            put(update_self_registration_setting),
+        )
         .route(
             "/api/admin/users/:id/permissions",
             get(get_user_permissions_handler).put(update_user_permissions),
         )
+        .nest_service("/uploads", ServeDir::new("uploads"))
         .layer(cors)
         .with_state(state);
 
@@ -371,6 +473,10 @@ async fn initialize_database(db: &PgPool) -> Result<(), sqlx::Error> {
     )
     .execute(db)
     .await?;
+
+    sqlx::query("ALTER TABLE users ADD COLUMN IF NOT EXISTS photo_url TEXT")
+        .execute(db)
+        .await?;
 
     sqlx::query(
         r#"
@@ -416,6 +522,23 @@ async fn initialize_database(db: &PgPool) -> Result<(), sqlx::Error> {
     .await?;
 
     sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS system_settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        );
+        "#,
+    )
+    .execute(db)
+    .await?;
+
+    sqlx::query(
+        "INSERT INTO system_settings (key, value) VALUES ('self_registration_enabled', 'true') ON CONFLICT (key) DO NOTHING",
+    )
+    .execute(db)
+    .await?;
+
+    sqlx::query(
         "CREATE INDEX IF NOT EXISTS idx_availability_statuses_date ON availability_statuses(status_date);",
     )
     .execute(db)
@@ -432,6 +555,25 @@ async fn register(
     State(state): State<AppState>,
     Json(payload): Json<RegisterRequest>,
 ) -> Result<Json<AuthResponse>, ApiError> {
+    let self_registration_setting = sqlx::query_scalar::<_, String>(
+        "SELECT value FROM system_settings WHERE key = 'self_registration_enabled'",
+    )
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to load self-registration setting: {error}"),
+        )
+    })?;
+
+    if self_registration_setting.as_deref() == Some("false") {
+        return Err(ApiError::new(
+            StatusCode::FORBIDDEN,
+            "Self-registration is currently disabled",
+        ));
+    }
+
     let email = normalize_email(&payload.email)?;
     let display_name = normalize_display_name(&payload.display_name)?;
     validate_password(&payload.password)?;
@@ -468,7 +610,7 @@ async fn register(
     };
 
     let user = sqlx::query_as::<_, UserRecord>(
-        "SELECT id, email, display_name, password_hash FROM users WHERE email = $1",
+        "SELECT id, email, display_name, location_id, photo_url, password_hash FROM users WHERE email = $1",
     )
     .bind(&email)
     .fetch_one(&state.db)
@@ -508,6 +650,8 @@ async fn register(
             id: user.id,
             email: user.email,
             display_name: user.display_name,
+            location_id: user.location_id,
+            photo_url: user.photo_url,
             permissions: permissions.clone(),
         },
         permissions,
@@ -521,7 +665,7 @@ async fn login(
     let email = normalize_email(&payload.email)?;
 
     let user = sqlx::query_as::<_, UserRecord>(
-        "SELECT id, email, display_name, password_hash FROM users WHERE email = $1",
+        "SELECT id, email, display_name, location_id, photo_url, password_hash FROM users WHERE email = $1",
     )
     .bind(&email)
     .fetch_optional(&state.db)
@@ -544,6 +688,8 @@ async fn login(
             id: user.id,
             email: user.email,
             display_name: user.display_name,
+            location_id: user.location_id,
+            photo_url: user.photo_url,
             permissions: permissions.clone(),
         },
         permissions,
@@ -557,6 +703,324 @@ async fn me(
     let claims = authorize(&headers, &state.jwt_secret)?;
     let user = find_public_user(&state.db, claims.sub).await?;
     Ok(Json(user))
+}
+
+async fn update_profile(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<UpdateProfileRequest>,
+) -> Result<Json<PublicUser>, ApiError> {
+    let claims = authorize(&headers, &state.jwt_secret)?;
+    let email = normalize_email(&payload.email)?;
+    let display_name = normalize_display_name(&payload.display_name)?;
+
+    if let Some(location_id) = payload.location_id {
+        ensure_location_exists(&state.db, location_id).await?;
+    }
+
+    let updated = sqlx::query_as::<_, EmployeeRow>(
+        "UPDATE users SET email = $1, display_name = $2, location_id = $3 WHERE id = $4 RETURNING id, email, display_name, location_id, photo_url",
+    )
+    .bind(&email)
+    .bind(&display_name)
+    .bind(payload.location_id)
+    .bind(claims.sub)
+    .fetch_optional(&state.db)
+    .await;
+
+    let updated = match updated {
+        Ok(Some(user)) => user,
+        Ok(None) => {
+            return Err(ApiError::new(
+                StatusCode::UNAUTHORIZED,
+                "Current user no longer exists",
+            ))
+        }
+        Err(error) => {
+            if error
+                .to_string()
+                .contains("duplicate key value violates unique constraint")
+            {
+                return Err(ApiError::new(
+                    StatusCode::CONFLICT,
+                    "An account with that email already exists",
+                ));
+            }
+
+            return Err(ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to update profile: {error}"),
+            ));
+        }
+    };
+
+    let permissions = get_user_permissions(&state.db, claims.sub).await?;
+    Ok(Json(PublicUser {
+        id: updated.id,
+        email: updated.email,
+        display_name: updated.display_name,
+        location_id: updated.location_id,
+        photo_url: updated.photo_url,
+        permissions,
+    }))
+}
+
+async fn upload_profile_photo(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    mut multipart: Multipart,
+) -> Result<Json<PublicUser>, ApiError> {
+    let claims = authorize(&headers, &state.jwt_secret)?;
+
+    let field = multipart
+        .next_field()
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::BAD_REQUEST,
+                format!("Failed to read uploaded file: {error}"),
+            )
+        })?
+        .ok_or_else(|| ApiError::new(StatusCode::BAD_REQUEST, "No file was provided"))?;
+
+    let content_type = field
+        .content_type()
+        .map(str::to_string)
+        .ok_or_else(|| ApiError::new(StatusCode::BAD_REQUEST, "Uploaded file is missing content type"))?;
+
+    let extension = match content_type.as_str() {
+        "image/jpeg" => "jpg",
+        "image/png" => "png",
+        "image/webp" => "webp",
+        "image/gif" => "gif",
+        _ => {
+            return Err(ApiError::new(
+                StatusCode::BAD_REQUEST,
+                "Unsupported image format. Supported formats: JPEG, PNG, WebP, GIF",
+            ))
+        }
+    };
+
+    let bytes = field.bytes().await.map_err(|error| {
+        ApiError::new(
+            StatusCode::BAD_REQUEST,
+            format!("Failed to read uploaded file bytes: {error}"),
+        )
+    })?;
+
+    if bytes.len() > 2 * 1024 * 1024 {
+        return Err(ApiError::new(
+            StatusCode::BAD_REQUEST,
+            "File size exceeds the 2MB limit",
+        ));
+    }
+
+    let existing_photo_url = sqlx::query_scalar::<_, Option<String>>(
+        "SELECT photo_url FROM users WHERE id = $1",
+    )
+    .bind(claims.sub)
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to load current profile photo: {error}"),
+        )
+    })?
+    .ok_or_else(|| ApiError::new(StatusCode::UNAUTHORIZED, "Current user no longer exists"))?;
+
+    tokio::fs::create_dir_all("uploads/photos")
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to prepare upload directory: {error}"),
+            )
+        })?;
+
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to generate upload timestamp: {error}"),
+            )
+        })?
+        .as_millis();
+    let filename = format!("{}_{}.{}", claims.sub, timestamp, extension);
+    let file_path = format!("uploads/photos/{filename}");
+    let photo_url = format!("/uploads/photos/{filename}");
+
+    tokio::fs::write(&file_path, &bytes).await.map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to store uploaded file: {error}"),
+        )
+    })?;
+
+    sqlx::query("UPDATE users SET photo_url = $1 WHERE id = $2")
+        .bind(&photo_url)
+        .bind(claims.sub)
+        .execute(&state.db)
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to save profile photo reference: {error}"),
+            )
+        })?;
+
+    if let Some(previous) = existing_photo_url {
+        delete_photo_file_best_effort(&previous).await;
+    }
+
+    let user = find_public_user(&state.db, claims.sub).await?;
+    Ok(Json(user))
+}
+
+async fn delete_profile_photo(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<StatusCode, ApiError> {
+    let claims = authorize(&headers, &state.jwt_secret)?;
+
+    let existing_photo_url = sqlx::query_scalar::<_, Option<String>>(
+        "SELECT photo_url FROM users WHERE id = $1",
+    )
+    .bind(claims.sub)
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to load current profile photo: {error}"),
+        )
+    })?
+    .ok_or_else(|| ApiError::new(StatusCode::UNAUTHORIZED, "Current user no longer exists"))?;
+
+    if let Some(photo_url) = existing_photo_url {
+        delete_photo_file_best_effort(&photo_url).await;
+    }
+
+    sqlx::query("UPDATE users SET photo_url = NULL WHERE id = $1")
+        .bind(claims.sub)
+        .execute(&state.db)
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to clear profile photo: {error}"),
+            )
+        })?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn change_password(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<ChangePasswordRequest>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let claims = authorize(&headers, &state.jwt_secret)?;
+
+    let current_password_hash = sqlx::query_scalar::<_, String>(
+        "SELECT password_hash FROM users WHERE id = $1",
+    )
+    .bind(claims.sub)
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to load current password: {error}"),
+        )
+    })?
+    .ok_or_else(|| ApiError::new(StatusCode::UNAUTHORIZED, "Current user no longer exists"))?;
+
+    if let Err(error) = verify_password(&payload.current_password, &current_password_hash) {
+        if error.status == StatusCode::UNAUTHORIZED {
+            return Err(ApiError::new(
+                StatusCode::UNAUTHORIZED,
+                "Current password is incorrect",
+            ));
+        }
+        return Err(error);
+    }
+
+    validate_password(&payload.new_password)?;
+    let new_password_hash = hash_password(&payload.new_password)?;
+
+    sqlx::query("UPDATE users SET password_hash = $1 WHERE id = $2")
+        .bind(new_password_hash)
+        .bind(claims.sub)
+        .execute(&state.db)
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to update password: {error}"),
+            )
+        })?;
+
+    Ok(Json(
+        serde_json::json!({ "message": "Password changed successfully" }),
+    ))
+}
+
+async fn get_self_registration_setting(
+    State(state): State<AppState>,
+) -> Result<Json<SelfRegistrationSettingResponse>, ApiError> {
+    let setting = sqlx::query_as::<_, SystemSettingRow>(
+        "SELECT key, value FROM system_settings WHERE key = 'self_registration_enabled'",
+    )
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to load self-registration setting: {error}"),
+        )
+    })?;
+
+    let enabled = match setting {
+        Some(row) => row.key == "self_registration_enabled" && row.value == "true",
+        None => true,
+    };
+
+    Ok(Json(SelfRegistrationSettingResponse { enabled }))
+}
+
+async fn update_self_registration_setting(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<UpdateSelfRegistrationRequest>,
+) -> Result<Json<SelfRegistrationSettingResponse>, ApiError> {
+    require_permission(
+        &headers,
+        &state.db,
+        &state.jwt_secret,
+        PERMISSION_SUPER_ADMIN,
+    )
+    .await?;
+
+    let value = if payload.enabled { "true" } else { "false" };
+
+    sqlx::query(
+        "INSERT INTO system_settings (key, value) VALUES ('self_registration_enabled', $1) ON CONFLICT (key) DO UPDATE SET value = $1",
+    )
+    .bind(value)
+    .execute(&state.db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to update self-registration setting: {error}"),
+        )
+    })?;
+
+    Ok(Json(SelfRegistrationSettingResponse {
+        enabled: payload.enabled,
+    }))
 }
 
 async fn get_matrix(
@@ -573,7 +1037,7 @@ async fn get_matrix(
         .ok_or_else(|| ApiError::new(StatusCode::BAD_REQUEST, "Year is invalid"))?;
 
     let employees = sqlx::query_as::<_, EmployeeRow>(
-        "SELECT id, email, display_name FROM users ORDER BY LOWER(display_name) ASC",
+        "SELECT id, email, display_name, location_id, photo_url FROM users ORDER BY LOWER(display_name) ASC",
     )
     .fetch_all(&state.db)
     .await
@@ -615,6 +1079,35 @@ async fn get_matrix(
         })
         .collect::<Result<Vec<_>, ApiError>>()?;
 
+    let public_holiday_rows = sqlx::query_as::<_, PublicHolidayRow>(
+        r#"
+        SELECT id, holiday_date, name, location_id
+        FROM public_holidays
+        WHERE holiday_date >= $1 AND holiday_date < $2
+        ORDER BY holiday_date ASC
+        "#,
+    )
+    .bind(start)
+    .bind(next_year_start)
+    .fetch_all(&state.db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to load public holidays for matrix: {error}"),
+        )
+    })?;
+
+    let public_holidays = public_holiday_rows
+        .into_iter()
+        .map(|holiday| PublicHolidayResponse {
+            id: holiday.id,
+            holiday_date: holiday.holiday_date.to_string(),
+            name: holiday.name,
+            location_id: holiday.location_id,
+        })
+        .collect();
+
     Ok(Json(MatrixResponse {
         year,
         days,
@@ -626,12 +1119,15 @@ async fn get_matrix(
                     id: user.id,
                     email: user.email,
                     display_name: user.display_name,
+                    location_id: user.location_id,
+                    photo_url: user.photo_url,
                     permissions,
                 });
             }
             public_users
         },
         entries,
+        public_holidays,
     }))
 }
 
@@ -1113,12 +1609,12 @@ async fn list_admin_users(
         &headers,
         &state.db,
         &state.jwt_secret,
-        PERMISSION_SUPER_ADMIN,
+        PERMISSION_ADMIN,
     )
     .await?;
 
     let users = sqlx::query_as::<_, EmployeeRow>(
-        "SELECT id, email, display_name FROM users ORDER BY LOWER(display_name) ASC",
+        "SELECT id, email, display_name, location_id, photo_url FROM users ORDER BY LOWER(display_name) ASC",
     )
     .fetch_all(&state.db)
     .await
@@ -1136,11 +1632,263 @@ async fn list_admin_users(
             id: user.id,
             email: user.email,
             display_name: user.display_name,
+            location_id: user.location_id,
+            photo_url: user.photo_url,
             permissions,
         });
     }
 
     Ok(Json(response))
+}
+
+async fn admin_create_user(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<AdminCreateUserRequest>,
+) -> Result<(StatusCode, Json<AdminUserResponse>), ApiError> {
+    require_permission(&headers, &state.db, &state.jwt_secret, PERMISSION_ADMIN).await?;
+
+    let email = normalize_email(&payload.email)?;
+    let display_name = normalize_display_name(&payload.display_name)?;
+    validate_password(&payload.password)?;
+
+    if let Some(location_id) = payload.location_id {
+        ensure_location_exists(&state.db, location_id).await?;
+    }
+
+    let password_hash = hash_password(&payload.password)?;
+
+    let created_user = sqlx::query_as::<_, EmployeeRow>(
+        "INSERT INTO users (email, display_name, password_hash, location_id) VALUES ($1, $2, $3, $4) RETURNING id, email, display_name, location_id, photo_url, created_at",
+    )
+    .bind(&email)
+    .bind(&display_name)
+    .bind(password_hash)
+    .bind(payload.location_id)
+    .fetch_one(&state.db)
+    .await;
+
+    let created_user = match created_user {
+        Ok(user) => user,
+        Err(error) => {
+            if error
+                .to_string()
+                .contains("duplicate key value violates unique constraint")
+            {
+                return Err(ApiError::new(
+                    StatusCode::CONFLICT,
+                    "A user with this email already exists",
+                ));
+            }
+
+            return Err(ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to create user: {error}"),
+            ));
+        }
+    };
+
+    let permissions = get_user_permissions(&state.db, created_user.id).await?;
+
+    Ok((
+        StatusCode::CREATED,
+        Json(AdminUserResponse {
+            id: created_user.id,
+            email: created_user.email,
+            display_name: created_user.display_name,
+            location_id: created_user.location_id,
+            photo_url: created_user.photo_url,
+            permissions,
+        }),
+    ))
+}
+
+async fn admin_update_user(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+    Json(payload): Json<AdminUpdateUserRequest>,
+) -> Result<Json<AdminUserResponse>, ApiError> {
+    require_permission(&headers, &state.db, &state.jwt_secret, PERMISSION_ADMIN).await?;
+
+    ensure_user_exists(&state.db, id).await?;
+
+    let email = normalize_email(&payload.email)?;
+    let display_name = normalize_display_name(&payload.display_name)?;
+
+    if let Some(location_id) = payload.location_id {
+        ensure_location_exists(&state.db, location_id).await?;
+    }
+
+    let update_result = if let Some(password) = &payload.password {
+        validate_password(password)?;
+        let password_hash = hash_password(password)?;
+
+        sqlx::query(
+            "UPDATE users SET email = $1, display_name = $2, location_id = $3, password_hash = $4 WHERE id = $5",
+        )
+        .bind(&email)
+        .bind(&display_name)
+        .bind(payload.location_id)
+        .bind(password_hash)
+        .bind(id)
+        .execute(&state.db)
+        .await
+    } else {
+        sqlx::query("UPDATE users SET email = $1, display_name = $2, location_id = $3 WHERE id = $4")
+            .bind(&email)
+            .bind(&display_name)
+            .bind(payload.location_id)
+            .bind(id)
+            .execute(&state.db)
+            .await
+    };
+
+    if let Err(error) = update_result {
+        if error
+            .to_string()
+            .contains("duplicate key value violates unique constraint")
+        {
+            return Err(ApiError::new(
+                StatusCode::CONFLICT,
+                "A user with this email already exists",
+            ));
+        }
+
+        return Err(ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to update user: {error}"),
+        ));
+    }
+
+    let user = sqlx::query_as::<_, EmployeeRow>(
+        "SELECT id, email, display_name, location_id, photo_url FROM users WHERE id = $1",
+    )
+    .bind(id)
+    .fetch_one(&state.db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to load updated user: {error}"),
+        )
+    })?;
+
+    let permissions = get_user_permissions(&state.db, id).await?;
+
+    Ok(Json(AdminUserResponse {
+        id: user.id,
+        email: user.email,
+        display_name: user.display_name,
+        location_id: user.location_id,
+        photo_url: user.photo_url,
+        permissions,
+    }))
+}
+
+async fn admin_delete_user(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+) -> Result<StatusCode, ApiError> {
+    let claims = require_permission(&headers, &state.db, &state.jwt_secret, PERMISSION_ADMIN).await?;
+
+    if claims.sub == id {
+        return Err(ApiError::new(
+            StatusCode::FORBIDDEN,
+            "Cannot delete your own account",
+        ));
+    }
+
+    let existing_photo_url = sqlx::query_scalar::<_, Option<String>>(
+        "SELECT photo_url FROM users WHERE id = $1",
+    )
+    .bind(id)
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to load user photo for cleanup: {error}"),
+        )
+    })?
+    .ok_or_else(|| ApiError::new(StatusCode::NOT_FOUND, "User not found"))?;
+
+    sqlx::query("DELETE FROM availability_statuses WHERE user_id = $1")
+        .bind(id)
+        .execute(&state.db)
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to delete user availability statuses: {error}"),
+            )
+        })?;
+
+    sqlx::query("DELETE FROM user_permissions WHERE user_id = $1")
+        .bind(id)
+        .execute(&state.db)
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to delete user permissions: {error}"),
+            )
+        })?;
+
+    let delete_result = sqlx::query("DELETE FROM users WHERE id = $1")
+        .bind(id)
+        .execute(&state.db)
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to delete user: {error}"),
+            )
+        })?;
+
+    if delete_result.rows_affected() == 0 {
+        return Err(ApiError::new(StatusCode::NOT_FOUND, "User not found"));
+    }
+
+    if let Some(photo_url) = existing_photo_url {
+        delete_photo_file_best_effort(&photo_url).await;
+    }
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn bulk_assign_location(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<BulkAssignLocationRequest>,
+) -> Result<Json<BulkAssignLocationResponse>, ApiError> {
+    require_permission(&headers, &state.db, &state.jwt_secret, PERMISSION_ADMIN).await?;
+
+    if payload.user_ids.is_empty() {
+        return Err(ApiError::new(
+            StatusCode::BAD_REQUEST,
+            "At least one user must be selected",
+        ));
+    }
+
+    ensure_location_exists(&state.db, payload.location_id).await?;
+
+    let update_result = sqlx::query("UPDATE users SET location_id = $1 WHERE id = ANY($2)")
+        .bind(payload.location_id)
+        .bind(&payload.user_ids[..])
+        .execute(&state.db)
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to assign location in bulk: {error}"),
+            )
+        })?;
+
+    Ok(Json(BulkAssignLocationResponse {
+        updated_count: update_result.rows_affected() as i64,
+    }))
 }
 
 async fn get_user_permissions_handler(
@@ -1271,7 +2019,7 @@ async fn update_user_permissions(
 
 async fn find_public_user(db: &PgPool, user_id: i64) -> Result<PublicUser, ApiError> {
     let row = sqlx::query_as::<_, EmployeeRow>(
-        "SELECT id, email, display_name FROM users WHERE id = $1",
+        "SELECT id, email, display_name, location_id, photo_url FROM users WHERE id = $1",
     )
     .bind(user_id)
     .fetch_optional(db)
@@ -1289,8 +2037,23 @@ async fn find_public_user(db: &PgPool, user_id: i64) -> Result<PublicUser, ApiEr
         id: row.id,
         email: row.email,
         display_name: row.display_name,
+        location_id: row.location_id,
+        photo_url: row.photo_url,
         permissions,
     })
+}
+
+async fn delete_photo_file_best_effort(photo_url: &str) {
+    let relative_path = if let Some(path) = photo_url.strip_prefix("/uploads/") {
+        path
+    } else if let Some(path) = photo_url.strip_prefix("uploads/") {
+        path
+    } else {
+        return;
+    };
+
+    let full_path = std::path::Path::new("uploads").join(relative_path);
+    let _ = tokio::fs::remove_file(full_path).await;
 }
 
 async fn get_user_permissions(db: &PgPool, user_id: i64) -> Result<Vec<String>, ApiError> {

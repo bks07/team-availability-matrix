@@ -6,6 +6,7 @@ interface AvailabilityMatrixProps {
   employees: User[];
   filteredDays: string[];
   statusFor: (userId: number, day: string) => AvailabilityValue;
+  holidayLookup: Map<number, Set<string>>;
   openKey: string | null;
   pendingKey: string | null;
   onOpenPopup: (key: string | null) => void;
@@ -23,6 +24,7 @@ export default function AvailabilityMatrix({
   employees,
   filteredDays,
   statusFor,
+  holidayLookup,
   openKey,
   pendingKey,
   onOpenPopup,
@@ -110,9 +112,11 @@ export default function AvailabilityMatrix({
                   const editable = employee.id === currentUserId;
                   const isOpen = openKey === key;
                   const isPending = pendingKey === key;
+                  const isHolidayCell =
+                    typeof employee.locationId === 'number' && holidayLookup.get(employee.locationId)?.has(day) === true;
 
                   return (
-                    <td key={key}>
+                    <td key={key} className={isHolidayCell ? 'holiday-cell' : undefined}>
                       <div className={`cell-wrapper ${editable ? 'editable' : ''}`}>
                         <button
                           type="button"

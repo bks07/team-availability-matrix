@@ -78,6 +78,9 @@ export default function NavBar(): JSX.Element | null {
           </button>
           {open && (
             <div className="navbar-dropdown" role="menu">
+              <Link to="/profile" className="navbar-dropdown-item" role="menuitem" onClick={() => setOpen(false)}>
+                Profile
+              </Link>
               <button type="button" className="navbar-dropdown-item" role="menuitem" onClick={handleLogout}>
                 Log out
               </button>
