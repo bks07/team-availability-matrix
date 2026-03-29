@@ -25,6 +25,15 @@ pub(crate) struct UpdateStatusRequest {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub(crate) struct BulkStatusRequest {
+    pub(crate) dates: Vec<String>,
+    pub(crate) status: Option<StatusValue>,
+    pub(crate) skip_weekends: bool,
+    pub(crate) skip_public_holidays: bool,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct CreateLocationRequest {
     pub(crate) name: String,
 }

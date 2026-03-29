@@ -3,16 +3,17 @@ use axum::{
     http::{HeaderMap, StatusCode},
     Json,
 };
-use chrono::{Datelike, NaiveDate, Utc};
+use chrono::{Datelike, NaiveDate, Utc, Weekday};
 
 use crate::auth::{authorize, get_user_permissions};
 use crate::error::ApiError;
 use crate::helpers::build_day_list;
 use crate::models::{EmployeeRow, PublicHolidayRow, StatusRow, StatusValue, WorkScheduleRow};
 use crate::state::AppState;
-use crate::types::requests::{UpdateStatusRequest, YearQuery};
+use crate::types::requests::{BulkStatusRequest, UpdateStatusRequest, YearQuery};
 use crate::types::responses::{
-    AvailabilityEntry, MatrixResponse, PublicHolidayResponse, PublicUser, WorkScheduleResponse,
+    AvailabilityEntry, BulkStatusResponse, MatrixResponse, PublicHolidayResponse, PublicUser,
+    WorkScheduleResponse,
 };
 
 pub(crate) async fn get_matrix(
@@ -209,6 +210,124 @@ pub(crate) async fn update_status(
         user_id: claims.sub,
         date: parsed_date.to_string(),
         status: payload.status,
+    }))
+}
+
+pub(crate) async fn bulk_status(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(body): Json<BulkStatusRequest>,
+) -> Result<Json<BulkStatusResponse>, ApiError> {
+    let claims = authorize(&headers, &state.jwt_secret)?;
+
+    let parsed_dates = body
+        .dates
+        .iter()
+        .map(|date| {
+            NaiveDate::parse_from_str(date, "%Y-%m-%d")
+                .map_err(|_| ApiError::new(StatusCode::BAD_REQUEST, "Date must use YYYY-MM-DD"))
+        })
+        .collect::<Result<Vec<_>, ApiError>>()?;
+
+    let mut filtered_dates = parsed_dates;
+    if body.skip_weekends {
+        filtered_dates.retain(|date| date.weekday() != Weekday::Sat && date.weekday() != Weekday::Sun);
+    }
+
+    if body.skip_public_holidays && !filtered_dates.is_empty() {
+        let location_id = sqlx::query_scalar::<_, Option<i64>>(
+            "SELECT location_id FROM users WHERE id = $1",
+        )
+        .bind(claims.sub)
+        .fetch_optional(&state.db)
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to load user location for bulk status update: {error}"),
+            )
+        })?
+        .ok_or_else(|| ApiError::new(StatusCode::UNAUTHORIZED, "Current user no longer exists"))?;
+
+        if let Some(location_id) = location_id {
+            let holiday_dates = sqlx::query_scalar::<_, NaiveDate>(
+                "SELECT holiday_date FROM public_holidays WHERE location_id = $1 AND holiday_date = ANY($2::date[])",
+            )
+            .bind(location_id)
+            .bind(&filtered_dates[..])
+            .fetch_all(&state.db)
+            .await
+            .map_err(|error| {
+                ApiError::new(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Failed to load public holidays for bulk status update: {error}"),
+                )
+            })?;
+
+            let holiday_dates: std::collections::HashSet<NaiveDate> = holiday_dates.into_iter().collect();
+            filtered_dates.retain(|date| !holiday_dates.contains(date));
+        }
+    }
+
+    if filtered_dates.is_empty() {
+        return Ok(Json(BulkStatusResponse { updated_count: 0 }));
+    }
+
+    let mut tx = state.db.begin().await.map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Transaction failed: {error}"),
+        )
+    })?;
+
+    let result = if let Some(status) = body.status {
+        sqlx::query(
+            r#"
+            INSERT INTO availability_statuses (user_id, status_date, status)
+            SELECT $1, unnest($2::date[]), $3
+            ON CONFLICT (user_id, status_date)
+            DO UPDATE SET status = excluded.status, updated_at = CURRENT_TIMESTAMP
+            "#,
+        )
+        .bind(claims.sub)
+        .bind(&filtered_dates[..])
+        .bind(status.as_db_value())
+        .execute(&mut *tx)
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to save bulk availability statuses: {error}"),
+            )
+        })?
+    } else {
+        sqlx::query(
+            r#"
+            DELETE FROM availability_statuses
+            WHERE user_id = $1 AND status_date = ANY($2::date[])
+            "#,
+        )
+        .bind(claims.sub)
+        .bind(&filtered_dates[..])
+        .execute(&mut *tx)
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to clear bulk availability statuses: {error}"),
+            )
+        })?
+    };
+
+    tx.commit().await.map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Transaction commit failed: {error}"),
+        )
+    })?;
+
+    Ok(Json(BulkStatusResponse {
+        updated_count: result.rows_affected() as i64,
     }))
 }
 

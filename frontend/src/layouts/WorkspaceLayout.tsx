@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import AvailabilityMatrix from '../components/AvailabilityMatrix';
 import { useAuth } from '../context/AuthContext';
 import type { AvailabilityValue, User, WorkSchedule } from '../lib/api.models';
-import { getMatrix, updateStatus, deleteStatus } from '../services/matrix.service';
+import { getMatrix, updateStatus, deleteStatus, bulkUpdateStatuses } from '../services/matrix.service';
 
 function toIsoDate(date: Date): string {
   return date.toISOString().slice(0, 10);
@@ -38,10 +38,26 @@ export default function WorkspaceLayout(): JSX.Element {
   const [periodEnd, setPeriodEnd] = useState(initialPeriod.end);
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
+  const [selectionAnchor, setSelectionAnchor] = useState<string | null>(null);
+  const [selectionEnd, setSelectionEnd] = useState<string | null>(null);
+  const [bulkPending, setBulkPending] = useState(false);
+  const [, setBulkSkipWeekends] = useState(false);
+  const [, setBulkSkipPublicHolidays] = useState(false);
 
   const [matrixLoading, setMatrixLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+
+  const selectedRange = useMemo((): string[] => {
+    if (!selectionAnchor || !selectionEnd) {
+      return [];
+    }
+
+    const start = selectionAnchor < selectionEnd ? selectionAnchor : selectionEnd;
+    const end = selectionAnchor < selectionEnd ? selectionEnd : selectionAnchor;
+
+    return filteredDays.filter((day) => day >= start && day <= end);
+  }, [selectionAnchor, selectionEnd, filteredDays]);
 
   const cellKey = (userId: number, date: string): string => `${userId}:${date}`;
 
@@ -209,6 +225,86 @@ export default function WorkspaceLayout(): JSX.Element {
     }
   };
 
+  const handleCellClick = useCallback(
+    (day: string, shiftKey: boolean) => {
+      if (shiftKey && selectionAnchor) {
+        setSelectionEnd(day);
+        setOpenKey(null);
+      } else {
+        setSelectionAnchor(day);
+        setSelectionEnd(null);
+      }
+    },
+    [selectionAnchor]
+  );
+
+  const clearSelection = useCallback(() => {
+    setSelectionAnchor(null);
+    setSelectionEnd(null);
+    setBulkSkipWeekends(false);
+    setBulkSkipPublicHolidays(false);
+  }, [setBulkSkipWeekends, setBulkSkipPublicHolidays]);
+
+  const handleBulkAction = useCallback(
+    async (status: AvailabilityValue | null, skipWeekends: boolean, skipPublicHolidays: boolean) => {
+      if (!currentUser || selectedRange.length === 0) {
+        return;
+      }
+
+      setErrorMessage('');
+      setSuccessMessage('');
+      setBulkSkipWeekends(skipWeekends);
+      setBulkSkipPublicHolidays(skipPublicHolidays);
+      setBulkPending(true);
+
+      try {
+        const result = await bulkUpdateStatuses({
+          dates: selectedRange,
+          status,
+          skipWeekends,
+          skipPublicHolidays,
+        });
+
+        let affectedDates = [...selectedRange];
+        if (skipWeekends) {
+          affectedDates = affectedDates.filter((date) => {
+            const dayOfWeek = new Date(`${date}T00:00:00`).getDay();
+            return dayOfWeek !== 0 && dayOfWeek !== 6;
+          });
+        }
+
+        if (skipPublicHolidays && currentUser.locationId != null) {
+          const holidays = holidayLookup.get(currentUser.locationId);
+          if (holidays) {
+            affectedDates = affectedDates.filter((date) => !holidays.has(date));
+          }
+        }
+
+        setEntryMap((prev) => {
+          const next = new Map(prev);
+          for (const date of affectedDates) {
+            const key = cellKey(currentUser.id, date);
+            if (status) {
+              next.set(key, status);
+            } else {
+              next.delete(key);
+            }
+          }
+          return next;
+        });
+
+        const action = status ? `Set ${result.updatedCount} day(s) to ${status}` : `Cleared ${result.updatedCount} day(s)`;
+        setSuccessMessage(`${action}.`);
+        clearSelection();
+      } catch (error) {
+        setErrorMessage(error instanceof Error ? error.message : 'Failed to apply bulk status change.');
+      } finally {
+        setBulkPending(false);
+      }
+    },
+    [currentUser, selectedRange, holidayLookup, clearSelection]
+  );
+
   if (!currentUser) {
     return <main className="workspace-layout page-shell" />;
   }
@@ -255,9 +351,14 @@ export default function WorkspaceLayout(): JSX.Element {
           holidayLookup={holidayLookup}
           openKey={openKey}
           pendingKey={pendingKey}
+          selectedRange={selectedRange}
+          bulkPending={bulkPending}
           onOpenPopup={setOpenKey}
+          onCellClick={handleCellClick}
           onStatusUpdate={handleStatusUpdate}
           onStatusClear={handleStatusClear}
+          onBulkAction={handleBulkAction}
+          onClearSelection={clearSelection}
         />
       )}
     </main>

@@ -49,6 +49,17 @@ export interface BulkAssignLocationRequest {
   locationId: number | null;
 }
 
+export interface BulkStatusRequest {
+  dates: string[];
+  status: AvailabilityValue | null;
+  skipWeekends: boolean;
+  skipPublicHolidays: boolean;
+}
+
+export interface BulkStatusResponse {
+  updatedCount: number;
+}
+
 export interface SelfRegistrationSettings {
   enabled: boolean;
 }

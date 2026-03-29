@@ -1,5 +1,11 @@
 import { httpClient } from '../lib/http.client';
-import type { AvailabilityStatus, AvailabilityValue, MatrixResponse } from '../lib/api.models';
+import type {
+  AvailabilityStatus,
+  AvailabilityValue,
+  BulkStatusRequest,
+  BulkStatusResponse,
+  MatrixResponse
+} from '../lib/api.models';
 
 interface ApiAvailabilityStatus {
   userId: number;
@@ -49,4 +55,8 @@ export async function updateStatus(date: string, status: AvailabilityValue): Pro
 
 export async function deleteStatus(date: string): Promise<void> {
   await httpClient.delete<void>(`/statuses/${date}`);
+}
+
+export async function bulkUpdateStatuses(request: BulkStatusRequest): Promise<BulkStatusResponse> {
+  return httpClient.post<BulkStatusResponse, BulkStatusRequest>('/statuses/bulk', request);
 }

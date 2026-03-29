@@ -96,6 +96,12 @@ pub(crate) struct BulkAssignLocationResponse {
     pub(crate) updated_count: i64,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct BulkStatusResponse {
+    pub(crate) updated_count: i64,
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct SelfRegistrationSettingResponse {

@@ -28,6 +28,7 @@ pub(crate) fn build_router(state: AppState, cors: CorsLayer, upload_dir: &str) -
                 .delete(handlers::profile::delete_profile_photo),
         )
         .route("/api/matrix", get(handlers::matrix::get_matrix))
+        .route("/api/statuses/bulk", post(handlers::matrix::bulk_status))
         .route(
             "/api/statuses/:date",
             put(handlers::matrix::update_status).delete(handlers::matrix::delete_status),

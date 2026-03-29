@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { AvailabilityValue, User } from '../lib/api.models';
 
 interface AvailabilityMatrixProps {
@@ -9,9 +9,18 @@ interface AvailabilityMatrixProps {
   holidayLookup: Map<number, Set<string>>;
   openKey: string | null;
   pendingKey: string | null;
+  selectedRange: string[];
+  bulkPending: boolean;
   onOpenPopup: (key: string | null) => void;
+  onCellClick: (day: string, shiftKey: boolean) => void;
   onStatusUpdate: (date: string, status: AvailabilityValue) => Promise<void>;
   onStatusClear: (date: string) => Promise<void>;
+  onBulkAction: (
+    status: AvailabilityValue | null,
+    skipWeekends: boolean,
+    skipPublicHolidays: boolean
+  ) => Promise<void>;
+  onClearSelection: () => void;
 }
 
 function formatDay(dateStr: string): string {
@@ -28,11 +37,19 @@ export default function AvailabilityMatrix({
   holidayLookup,
   openKey,
   pendingKey,
+  selectedRange,
+  bulkPending,
   onOpenPopup,
+  onCellClick,
   onStatusUpdate,
-  onStatusClear
+  onStatusClear,
+  onBulkAction,
+  onClearSelection
 }: AvailabilityMatrixProps): JSX.Element {
   const popupRef = useRef<HTMLDivElement | null>(null);
+  const bulkOverlayRef = useRef<HTMLDivElement | null>(null);
+  const [skipWeekends, setSkipWeekends] = useState(true);
+  const [skipPublicHolidays, setSkipPublicHolidays] = useState(true);
   const todayStr = useMemo(() => {
     const today = new Date();
     const year = today.getFullYear();
@@ -45,11 +62,12 @@ export default function AvailabilityMatrix({
     const onEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         onOpenPopup(null);
+        onClearSelection();
       }
     };
 
     const onDocumentClick = (event: MouseEvent) => {
-      if (!openKey) {
+      if (!openKey && selectedRange.length === 0) {
         return;
       }
 
@@ -57,7 +75,12 @@ export default function AvailabilityMatrix({
         return;
       }
 
+      if (bulkOverlayRef.current && event.target instanceof Node && bulkOverlayRef.current.contains(event.target)) {
+        return;
+      }
+
       onOpenPopup(null);
+      onClearSelection();
     };
 
     document.addEventListener('keydown', onEscape);
@@ -67,7 +90,7 @@ export default function AvailabilityMatrix({
       document.removeEventListener('keydown', onEscape);
       document.removeEventListener('click', onDocumentClick);
     };
-  }, [openKey, onOpenPopup]);
+  }, [openKey, onOpenPopup, onClearSelection, selectedRange.length]);
 
   const cellKey = (userId: number, date: string): string => `${userId}:${date}`;
 
@@ -82,6 +105,9 @@ export default function AvailabilityMatrix({
     }
     return { userId, date };
   }, [openKey]);
+
+  const bulkMode = selectedRange.length > 1;
+  const selectedSet = useMemo(() => new Set(selectedRange), [selectedRange]);
 
   return (
     <section className="matrix-card">
@@ -119,9 +145,18 @@ export default function AvailabilityMatrix({
                   const ariaLabel = status ? `Set status for ${day}` : `Non-working day. Set status for ${day}`;
                   const isHolidayCell =
                     typeof employee.locationId === 'number' && holidayLookup.get(employee.locationId)?.has(day) === true;
+                  const isBulkSelected = editable && selectedSet.has(day);
+                  const isFirstSelected = isBulkSelected && day === selectedRange[0];
+                  const isLastSelected = isBulkSelected && day === selectedRange[selectedRange.length - 1];
+                  const tdClasses = [
+                    isHolidayCell ? 'holiday-cell' : '',
+                    isBulkSelected ? 'bulk-selected' : '',
+                    isFirstSelected ? 'bulk-selected-first' : '',
+                    isLastSelected ? 'bulk-selected-last' : ''
+                  ].filter(Boolean).join(' ') || undefined;
 
                   return (
-                    <td key={key} className={isHolidayCell ? 'holiday-cell' : undefined}>
+                    <td key={key} className={tdClasses}>
                       <div className={`cell-wrapper ${editable ? 'editable' : ''}`}>
                         <button
                           type="button"
@@ -131,7 +166,12 @@ export default function AvailabilityMatrix({
                               return;
                             }
                             event.stopPropagation();
-                            onOpenPopup(isOpen ? null : key);
+                            if (event.shiftKey) {
+                              onCellClick(day, true);
+                            } else {
+                              onCellClick(day, false);
+                              onOpenPopup(isOpen ? null : key);
+                            }
                           }}
                           tabIndex={editable ? 0 : -1}
                           aria-disabled={!editable}
@@ -140,7 +180,7 @@ export default function AvailabilityMatrix({
                           {displayContent}
                         </button>
 
-                        {isOpen && editable && openPosition?.date === day && openPosition.userId === employee.id && (
+                        {isOpen && editable && !bulkMode && openPosition?.date === day && openPosition.userId === employee.id && (
                           <div
                             className="status-overlay"
                             ref={popupRef}
@@ -178,6 +218,76 @@ export default function AvailabilityMatrix({
           </tbody>
         </table>
       </div>
+      {bulkMode && (
+        <div className="bulk-overlay" ref={bulkOverlayRef} role="dialog" aria-modal="true" aria-labelledby="bulk-title">
+          <div className="bulk-header">
+            <span id="bulk-title">{selectedRange.length} days selected</span>
+            <button
+              type="button"
+              className="overlay-btn close-btn"
+              onClick={onClearSelection}
+              aria-label="Cancel selection"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="bulk-modifiers">
+            <label>
+              <input
+                type="checkbox"
+                checked={skipWeekends}
+                onChange={(event) => setSkipWeekends(event.target.checked)}
+              />
+              Skip weekends
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                checked={skipPublicHolidays}
+                onChange={(event) => setSkipPublicHolidays(event.target.checked)}
+              />
+              Skip public holidays
+            </label>
+          </div>
+          <div className="bulk-actions">
+            <button
+              type="button"
+              className="overlay-btn status-w"
+              disabled={bulkPending}
+              onClick={() => void onBulkAction('W', skipWeekends, skipPublicHolidays)}
+            >
+              W
+            </button>
+            <button
+              type="button"
+              className="overlay-btn status-v"
+              disabled={bulkPending}
+              onClick={() => void onBulkAction('V', skipWeekends, skipPublicHolidays)}
+            >
+              V
+            </button>
+            <button
+              type="button"
+              className="overlay-btn status-a"
+              disabled={bulkPending}
+              onClick={() => void onBulkAction('A', skipWeekends, skipPublicHolidays)}
+            >
+              A
+            </button>
+            <button
+              type="button"
+              className="overlay-btn clear-btn"
+              disabled={bulkPending}
+              onClick={() => void onBulkAction(null, skipWeekends, skipPublicHolidays)}
+              title="Clear status"
+              aria-label="Clear status"
+            >
+              –
+            </button>
+          </div>
+          {bulkPending && <span className="bulk-pending">Applying…</span>}
+        </div>
+      )}
     </section>
   );
 }

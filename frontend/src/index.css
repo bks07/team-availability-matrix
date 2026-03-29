@@ -555,6 +555,96 @@ thead th:first-child {
   color: var(--text-primary);
 }
 
+/* Bulk selection highlighting */
+td.bulk-selected {
+  background-color: color-mix(in srgb, var(--border-focus) 12%, transparent) !important;
+  position: relative;
+}
+
+td.bulk-selected::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-left: 2px solid var(--border-focus);
+  border-right: 2px solid var(--border-focus);
+  pointer-events: none;
+}
+
+td.bulk-selected-first::after {
+  border-top: 2px solid var(--border-focus);
+}
+
+td.bulk-selected-last::after {
+  border-bottom: 2px solid var(--border-focus);
+}
+
+/* Bulk overlay panel */
+.bulk-overlay {
+  position: sticky;
+  bottom: 1rem;
+  left: 50%;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  background: var(--bg-overlay);
+  border: 1px solid var(--border-input);
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: 0 8px 30px color-mix(in srgb, var(--deep-space-blue) 20%, transparent);
+  max-width: 280px;
+  margin: 1rem auto 0;
+}
+
+.bulk-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.bulk-modifiers {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.bulk-modifiers label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.bulk-modifiers input[type='checkbox'] {
+  accent-color: var(--border-focus);
+  width: 16px;
+  height: 16px;
+}
+
+.bulk-actions {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.bulk-actions .overlay-btn {
+  flex: 1;
+  text-align: center;
+}
+
+.bulk-pending {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
 .status-w {
   background: var(--status-w-solid);
   color: var(--text-inverse);
