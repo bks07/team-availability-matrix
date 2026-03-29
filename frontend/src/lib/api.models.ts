@@ -53,6 +53,20 @@ export interface SelfRegistrationSettings {
   enabled: boolean;
 }
 
+export interface WorkSchedule {
+  userId: number;
+  monday: boolean;
+  tuesday: boolean;
+  wednesday: boolean;
+  thursday: boolean;
+  friday: boolean;
+  saturday: boolean;
+  sunday: boolean;
+  hoursPerWeek: number | null;
+  ignoreWeekends: boolean;
+  ignorePublicHolidays: boolean;
+}
+
 export interface AuthResponse {
   token: string;
   user: User;
@@ -68,6 +82,7 @@ export interface MatrixResponse {
   employees: User[];
   entries: AvailabilityStatus[];
   publicHolidays: PublicHoliday[];
+  workSchedules: WorkSchedule[];
   days: string[];
   year: number;
 }

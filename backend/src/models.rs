@@ -82,3 +82,18 @@ pub(crate) struct PublicHolidayRow {
     pub(crate) name: String,
     pub(crate) location_id: i64,
 }
+
+#[derive(Debug, FromRow)]
+pub(crate) struct WorkScheduleRow {
+    pub(crate) user_id: i64,
+    pub(crate) monday: bool,
+    pub(crate) tuesday: bool,
+    pub(crate) wednesday: bool,
+    pub(crate) thursday: bool,
+    pub(crate) friday: bool,
+    pub(crate) saturday: bool,
+    pub(crate) sunday: bool,
+    pub(crate) hours_per_week: Option<f64>,
+    pub(crate) ignore_weekends: bool,
+    pub(crate) ignore_public_holidays: bool,
+}

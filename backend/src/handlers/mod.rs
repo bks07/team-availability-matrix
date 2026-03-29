@@ -7,3 +7,4 @@ pub(crate) mod holidays;
 pub(crate) mod admin_users;
 pub(crate) mod permissions;
 pub(crate) mod settings;
+pub(crate) mod work_schedules;

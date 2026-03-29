@@ -68,6 +68,11 @@ pub(crate) fn build_router(state: AppState, cors: CorsLayer, upload_dir: &str) -
                 .delete(handlers::admin_users::admin_delete_user),
         )
         .route(
+            "/api/admin/users/:id/work-schedule",
+            get(handlers::work_schedules::get_work_schedule)
+                .put(handlers::work_schedules::update_work_schedule),
+        )
+        .route(
             "/api/admin/settings/self-registration",
             put(handlers::settings::update_self_registration_setting),
         )

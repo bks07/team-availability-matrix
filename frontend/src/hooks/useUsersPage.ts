@@ -1,9 +1,24 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Dispatch, FormEvent, RefObject, SetStateAction } from 'react';
 import { useAuth } from '../context/AuthContext';
-import type { CreateUserRequest, Location, UpdateUserRequest, User, UserWithPermissions } from '../lib/api.models';
+import type {
+  CreateUserRequest,
+  Location,
+  UpdateUserRequest,
+  User,
+  UserWithPermissions,
+  WorkSchedule
+} from '../lib/api.models';
 import { getLocations } from '../services/location.service';
-import { bulkAssignLocation, createUser, deleteUser, getUsers, updateUser } from '../services/user.service';
+import {
+  bulkAssignLocation,
+  createUser,
+  deleteUser,
+  getUsers,
+  getWorkSchedule,
+  updateUser,
+  updateWorkSchedule
+} from '../services/user.service';
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message.trim()) {
@@ -26,6 +41,32 @@ const INITIAL_FORM: UserFormState = {
   locationId: null
 };
 
+export interface ScheduleFormState {
+  monday: boolean;
+  tuesday: boolean;
+  wednesday: boolean;
+  thursday: boolean;
+  friday: boolean;
+  saturday: boolean;
+  sunday: boolean;
+  hoursPerWeek: string;
+  ignoreWeekends: boolean;
+  ignorePublicHolidays: boolean;
+}
+
+const INITIAL_SCHEDULE: ScheduleFormState = {
+  monday: true,
+  tuesday: true,
+  wednesday: true,
+  thursday: true,
+  friday: true,
+  saturday: false,
+  sunday: false,
+  hoursPerWeek: '',
+  ignoreWeekends: true,
+  ignorePublicHolidays: true
+};
+
 export interface UseUsersPageResult {
   currentUser: User | null;
   users: UserWithPermissions[];
@@ -35,6 +76,9 @@ export interface UseUsersPageResult {
   editingId: number | null;
   editUserForm: UserFormState;
   setEditUserForm: Dispatch<SetStateAction<UserFormState>>;
+  scheduleForm: ScheduleFormState;
+  setScheduleForm: Dispatch<SetStateAction<ScheduleFormState>>;
+  scheduleLoading: boolean;
   loading: boolean;
   isMutating: boolean;
   isBulkAssigning: boolean;
@@ -53,7 +97,7 @@ export interface UseUsersPageResult {
   toggleSelectAll: () => void;
   handleBulkAssign: () => Promise<void>;
   handleCreateUser: (event: FormEvent<HTMLFormElement>) => Promise<void>;
-  startEditing: (user: UserWithPermissions) => void;
+  startEditing: (user: UserWithPermissions) => Promise<void>;
   cancelEditing: () => void;
   handleSaveEdit: (id: number) => Promise<void>;
   handleDelete: (user: UserWithPermissions) => Promise<void>;
@@ -69,6 +113,8 @@ export function useUsersPage(): UseUsersPageResult {
 
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editUserForm, setEditUserForm] = useState<UserFormState>(INITIAL_FORM);
+  const [scheduleForm, setScheduleForm] = useState<ScheduleFormState>(INITIAL_SCHEDULE);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [isMutating, setIsMutating] = useState(false);
@@ -237,7 +283,7 @@ export function useUsersPage(): UseUsersPageResult {
     }
   };
 
-  const startEditing = (user: UserWithPermissions) => {
+  const startEditing = async (user: UserWithPermissions) => {
     setEditingId(user.id);
     setEditUserForm({
       email: user.email,
@@ -247,11 +293,33 @@ export function useUsersPage(): UseUsersPageResult {
     });
     setError('');
     setSuccess('');
+
+    setScheduleLoading(true);
+    try {
+      const schedule: WorkSchedule = await getWorkSchedule(user.id);
+      setScheduleForm({
+        monday: schedule.monday,
+        tuesday: schedule.tuesday,
+        wednesday: schedule.wednesday,
+        thursday: schedule.thursday,
+        friday: schedule.friday,
+        saturday: schedule.saturday,
+        sunday: schedule.sunday,
+        hoursPerWeek: schedule.hoursPerWeek != null ? String(schedule.hoursPerWeek) : '',
+        ignoreWeekends: schedule.ignoreWeekends,
+        ignorePublicHolidays: schedule.ignorePublicHolidays
+      });
+    } catch {
+      setScheduleForm(INITIAL_SCHEDULE);
+    } finally {
+      setScheduleLoading(false);
+    }
   };
 
   const cancelEditing = () => {
     setEditingId(null);
     setEditUserForm(INITIAL_FORM);
+    setScheduleForm(INITIAL_SCHEDULE);
   };
 
   const handleSaveEdit = async (id: number) => {
@@ -266,6 +334,27 @@ export function useUsersPage(): UseUsersPageResult {
 
     if (!displayName) {
       setError('Display name is required.');
+      setSuccess('');
+      return;
+    }
+
+    const hasAnyWorkday =
+      scheduleForm.monday ||
+      scheduleForm.tuesday ||
+      scheduleForm.wednesday ||
+      scheduleForm.thursday ||
+      scheduleForm.friday ||
+      scheduleForm.saturday ||
+      scheduleForm.sunday;
+    if (!hasAnyWorkday) {
+      setError('At least one working day must be selected.');
+      setSuccess('');
+      return;
+    }
+
+    const parsedHours = scheduleForm.hoursPerWeek.trim() ? Number(scheduleForm.hoursPerWeek) : null;
+    if (parsedHours !== null && (isNaN(parsedHours) || parsedHours <= 0)) {
+      setError('Hours per week must be a positive number.');
       setSuccess('');
       return;
     }
@@ -287,9 +376,22 @@ export function useUsersPage(): UseUsersPageResult {
 
     try {
       const updated = await updateUser(id, payload);
+      await updateWorkSchedule(id, {
+        monday: scheduleForm.monday,
+        tuesday: scheduleForm.tuesday,
+        wednesday: scheduleForm.wednesday,
+        thursday: scheduleForm.thursday,
+        friday: scheduleForm.friday,
+        saturday: scheduleForm.saturday,
+        sunday: scheduleForm.sunday,
+        hoursPerWeek: parsedHours,
+        ignoreWeekends: scheduleForm.ignoreWeekends,
+        ignorePublicHolidays: scheduleForm.ignorePublicHolidays
+      });
       setUsers((previous) => previous.map((user) => (user.id === id ? updated : user)));
       setEditingId(null);
       setEditUserForm(INITIAL_FORM);
+      setScheduleForm(INITIAL_SCHEDULE);
       setSuccess('User updated successfully.');
     } catch (updateError) {
       setError(getErrorMessage(updateError));
@@ -331,6 +433,9 @@ export function useUsersPage(): UseUsersPageResult {
     editingId,
     editUserForm,
     setEditUserForm,
+    scheduleForm,
+    setScheduleForm,
+    scheduleLoading,
     loading,
     isMutating,
     isBulkAssigning,

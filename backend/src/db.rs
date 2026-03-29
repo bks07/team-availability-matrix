@@ -102,5 +102,25 @@ pub(crate) async fn initialize_database(db: &PgPool) -> Result<(), sqlx::Error> 
     .execute(db)
     .await?;
 
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS employee_work_schedules (
+            user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+            monday BOOLEAN NOT NULL DEFAULT TRUE,
+            tuesday BOOLEAN NOT NULL DEFAULT TRUE,
+            wednesday BOOLEAN NOT NULL DEFAULT TRUE,
+            thursday BOOLEAN NOT NULL DEFAULT TRUE,
+            friday BOOLEAN NOT NULL DEFAULT TRUE,
+            saturday BOOLEAN NOT NULL DEFAULT FALSE,
+            sunday BOOLEAN NOT NULL DEFAULT FALSE,
+            hours_per_week NUMERIC(5, 2),
+            ignore_weekends BOOLEAN NOT NULL DEFAULT TRUE,
+            ignore_public_holidays BOOLEAN NOT NULL DEFAULT TRUE
+        );
+        "#,
+    )
+    .execute(db)
+    .await?;
+
     Ok(())
 }

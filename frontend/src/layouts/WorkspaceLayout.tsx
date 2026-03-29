@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import AvailabilityMatrix from '../components/AvailabilityMatrix';
 import { useAuth } from '../context/AuthContext';
-import type { AvailabilityValue, User } from '../lib/api.models';
+import type { AvailabilityValue, User, WorkSchedule } from '../lib/api.models';
 import { getMatrix, updateStatus } from '../services/matrix.service';
 
 function toIsoDate(date: Date): string {
@@ -33,6 +33,7 @@ export default function WorkspaceLayout(): JSX.Element {
   const [filteredDays, setFilteredDays] = useState<string[]>([]);
   const [entryMap, setEntryMap] = useState<Map<string, AvailabilityValue>>(new Map());
   const [holidayLookup, setHolidayLookup] = useState<Map<number, Set<string>>>(new Map());
+  const [scheduleLookup, setScheduleLookup] = useState<Map<number, WorkSchedule>>(new Map());
   const [periodStart, setPeriodStart] = useState(initialPeriod.start);
   const [periodEnd, setPeriodEnd] = useState(initialPeriod.end);
   const [openKey, setOpenKey] = useState<string | null>(null);
@@ -45,8 +46,49 @@ export default function WorkspaceLayout(): JSX.Element {
   const cellKey = (userId: number, date: string): string => `${userId}:${date}`;
 
   const statusFor = useCallback(
-    (userId: number, date: string): AvailabilityValue => entryMap.get(cellKey(userId, date)) ?? 'W',
-    [entryMap]
+    (userId: number, date: string): AvailabilityValue | null => {
+      const explicit = entryMap.get(cellKey(userId, date));
+      if (explicit) {
+        return explicit;
+      }
+
+      const schedule = scheduleLookup.get(userId);
+      const dateObj = new Date(`${date}T00:00:00`);
+      const dayOfWeek = dateObj.getDay();
+
+      const weekdayFlags = schedule
+        ? [
+            schedule.sunday,
+            schedule.monday,
+            schedule.tuesday,
+            schedule.wednesday,
+            schedule.thursday,
+            schedule.friday,
+            schedule.saturday,
+          ]
+        : [false, true, true, true, true, true, false];
+      const isWorkingWeekday = weekdayFlags[dayOfWeek];
+
+      if (!isWorkingWeekday) {
+        return null;
+      }
+
+      const ignoreWeekends = schedule?.ignoreWeekends ?? true;
+      if (ignoreWeekends && (dayOfWeek === 0 || dayOfWeek === 6)) {
+        return null;
+      }
+
+      const ignorePublicHolidays = schedule?.ignorePublicHolidays ?? true;
+      if (ignorePublicHolidays) {
+        const employee = employees.find((e) => e.id === userId);
+        if (employee?.locationId != null && holidayLookup.get(employee.locationId)?.has(date)) {
+          return null;
+        }
+      }
+
+      return 'W';
+    },
+    [entryMap, scheduleLookup, employees, holidayLookup]
   );
 
   const refreshMatrix = useCallback(async () => {
@@ -94,6 +136,14 @@ export default function WorkspaceLayout(): JSX.Element {
         });
 
       setHolidayLookup(nextHolidayLookup);
+
+      const nextScheduleLookup = new Map<number, WorkSchedule>();
+      matrixResults
+        .flatMap((result) => result.workSchedules)
+        .forEach((schedule) => {
+          nextScheduleLookup.set(schedule.userId, schedule);
+        });
+      setScheduleLookup(nextScheduleLookup);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Failed to load the availability matrix.');
     } finally {

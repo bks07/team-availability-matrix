@@ -5,7 +5,7 @@ interface AvailabilityMatrixProps {
   currentUserId: number;
   employees: User[];
   filteredDays: string[];
-  statusFor: (userId: number, day: string) => AvailabilityValue;
+  statusFor: (userId: number, day: string) => AvailabilityValue | null;
   holidayLookup: Map<number, Set<string>>;
   openKey: string | null;
   pendingKey: string | null;
@@ -109,9 +109,12 @@ export default function AvailabilityMatrix({
                 {employees.map((employee) => {
                   const key = cellKey(employee.id, day);
                   const status = statusFor(employee.id, day);
+                  const effectiveStatusClass = status ? `status-${status.toLowerCase()}` : 'status-none';
                   const editable = employee.id === currentUserId;
                   const isOpen = openKey === key;
                   const isPending = pendingKey === key;
+                  const displayContent = isPending ? '…' : (status ?? '–');
+                  const ariaLabel = status ? `Set status for ${day}` : `Non-working day. Set status for ${day}`;
                   const isHolidayCell =
                     typeof employee.locationId === 'number' && holidayLookup.get(employee.locationId)?.has(day) === true;
 
@@ -120,7 +123,7 @@ export default function AvailabilityMatrix({
                       <div className={`cell-wrapper ${editable ? 'editable' : ''}`}>
                         <button
                           type="button"
-                          className={`status-pill status-${status.toLowerCase()}`}
+                          className={`status-pill ${effectiveStatusClass}`}
                           onClick={(event) => {
                             if (!editable) {
                               return;
@@ -130,9 +133,9 @@ export default function AvailabilityMatrix({
                           }}
                           tabIndex={editable ? 0 : -1}
                           aria-disabled={!editable}
-                          aria-label={`Set status for ${day}`}
+                          aria-label={ariaLabel}
                         >
-                          {isPending ? '…' : status}
+                          {displayContent}
                         </button>
 
                         {isOpen && editable && openPosition?.date === day && openPosition.userId === employee.id && (

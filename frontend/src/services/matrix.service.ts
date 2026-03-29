@@ -12,6 +12,7 @@ interface ApiMatrixResponse {
   employees: MatrixResponse['employees'];
   entries: ApiAvailabilityStatus[];
   publicHolidays: MatrixResponse['publicHolidays'];
+  workSchedules: MatrixResponse['workSchedules'];
   days: string[];
   year: number;
 }
@@ -35,6 +36,7 @@ export async function getMatrix(year: number): Promise<MatrixResponse> {
     employees: response.employees,
     entries: response.entries.map(normalizeStatus),
     publicHolidays: response.publicHolidays,
+    workSchedules: response.workSchedules,
     days: response.days,
     year: response.year
   };

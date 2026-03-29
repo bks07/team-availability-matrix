@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import { useUsersPage } from '../../hooks/useUsersPage';
 
 export default function UsersPage(): JSX.Element {
@@ -10,6 +11,9 @@ export default function UsersPage(): JSX.Element {
     editingId,
     editUserForm,
     setEditUserForm,
+    scheduleForm,
+    setScheduleForm,
+    scheduleLoading,
     loading,
     isMutating,
     isBulkAssigning,
@@ -124,119 +128,215 @@ export default function UsersPage(): JSX.Element {
                     : locationNameById.get(user.locationId) ?? `Location #${user.locationId}`;
 
                 return (
-                  <tr key={user.id}>
-                    <td className="checkbox-cell">
-                      <input
-                        type="checkbox"
-                        checked={selectedUserIds.has(user.id)}
-                        onChange={() => toggleUserSelection(user.id)}
-                        aria-label={`Select user ${user.displayName}`}
-                        disabled={isMutating || isBulkAssigning}
-                      />
-                    </td>
+                  <Fragment key={user.id}>
+                    <tr>
+                      <td className="checkbox-cell">
+                        <input
+                          type="checkbox"
+                          checked={selectedUserIds.has(user.id)}
+                          onChange={() => toggleUserSelection(user.id)}
+                          aria-label={`Select user ${user.displayName}`}
+                          disabled={isMutating || isBulkAssigning}
+                        />
+                      </td>
+                      {isEditing ? (
+                        <>
+                          <td>
+                            <input
+                              type="email"
+                              className="edit-input"
+                              value={editUserForm.email}
+                              onChange={(event) =>
+                                setEditUserForm((previous) => ({ ...previous, email: event.target.value }))
+                              }
+                              disabled={isMutating}
+                              aria-label={`Edit email for ${user.displayName}`}
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="text"
+                              className="edit-input"
+                              value={editUserForm.displayName}
+                              onChange={(event) =>
+                                setEditUserForm((previous) => ({ ...previous, displayName: event.target.value }))
+                              }
+                              disabled={isMutating}
+                              aria-label={`Edit display name for ${user.displayName}`}
+                            />
+                          </td>
+                          <td>
+                            <select
+                              className="edit-input"
+                              value={editUserForm.locationId ?? ''}
+                              onChange={(event) => {
+                                const value = event.target.value;
+                                setEditUserForm((previous) => ({
+                                  ...previous,
+                                  locationId: value ? Number(value) : null
+                                }));
+                              }}
+                              disabled={isMutating}
+                              aria-label={`Edit location for ${user.displayName}`}
+                            >
+                              <option value="">No location</option>
+                              {locations.map((location) => (
+                                <option key={location.id} value={location.id}>
+                                  {location.name}
+                                </option>
+                              ))}
+                            </select>
+                            <input
+                              type="password"
+                              className="edit-input"
+                              value={editUserForm.password}
+                              onChange={(event) =>
+                                setEditUserForm((previous) => ({ ...previous, password: event.target.value }))
+                              }
+                              placeholder="New password (optional)"
+                              disabled={isMutating}
+                              aria-label={`Reset password for ${user.displayName}`}
+                            />
+                          </td>
+                          <td>
+                            <div className="entity-actions">
+                              <button
+                                type="button"
+                                className="primary"
+                                onClick={() => void handleSaveEdit(user.id)}
+                                disabled={isMutating || isBulkAssigning}
+                              >
+                                Save
+                              </button>
+                              <button type="button" onClick={cancelEditing} disabled={isMutating || isBulkAssigning}>
+                                Cancel
+                              </button>
+                            </div>
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td>{user.email}</td>
+                          <td>{user.displayName}</td>
+                          <td>{locationName}</td>
+                          <td>
+                            <div className="entity-actions">
+                              <button
+                                type="button"
+                                onClick={() => void startEditing(user)}
+                                disabled={isMutating || isBulkAssigning}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                className="danger"
+                                onClick={() => void handleDelete(user)}
+                                disabled={isMutating || isBulkAssigning || currentUser?.id === user.id}
+                                title={currentUser?.id === user.id ? 'You cannot delete your own user account.' : undefined}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </>
+                      )}
+                    </tr>
                     {isEditing ? (
-                      <>
-                        <td>
-                          <input
-                            type="email"
-                            className="edit-input"
-                            value={editUserForm.email}
-                            onChange={(event) =>
-                              setEditUserForm((previous) => ({ ...previous, email: event.target.value }))
-                            }
-                            disabled={isMutating}
-                            aria-label={`Edit email for ${user.displayName}`}
-                          />
-                        </td>
-                        <td>
-                          <input
-                            type="text"
-                            className="edit-input"
-                            value={editUserForm.displayName}
-                            onChange={(event) =>
-                              setEditUserForm((previous) => ({ ...previous, displayName: event.target.value }))
-                            }
-                            disabled={isMutating}
-                            aria-label={`Edit display name for ${user.displayName}`}
-                          />
-                        </td>
-                        <td>
-                          <select
-                            className="edit-input"
-                            value={editUserForm.locationId ?? ''}
-                            onChange={(event) => {
-                              const value = event.target.value;
-                              setEditUserForm((previous) => ({
-                                ...previous,
-                                locationId: value ? Number(value) : null
-                              }));
-                            }}
-                            disabled={isMutating}
-                            aria-label={`Edit location for ${user.displayName}`}
-                          >
-                            <option value="">No location</option>
-                            {locations.map((location) => (
-                              <option key={location.id} value={location.id}>
-                                {location.name}
-                              </option>
-                            ))}
-                          </select>
-                          <input
-                            type="password"
-                            className="edit-input"
-                            value={editUserForm.password}
-                            onChange={(event) =>
-                              setEditUserForm((previous) => ({ ...previous, password: event.target.value }))
-                            }
-                            placeholder="New password (optional)"
-                            disabled={isMutating}
-                            aria-label={`Reset password for ${user.displayName}`}
-                          />
-                        </td>
-                        <td>
-                          <div className="entity-actions">
-                            <button
-                              type="button"
-                              className="primary"
-                              onClick={() => void handleSaveEdit(user.id)}
-                              disabled={isMutating || isBulkAssigning}
-                            >
-                              Save
-                            </button>
-                            <button type="button" onClick={cancelEditing} disabled={isMutating || isBulkAssigning}>
-                              Cancel
-                            </button>
+                      <tr className="schedule-expansion-row">
+                        <td colSpan={5}>
+                          <div className="schedule-panel">
+                            <h4 className="schedule-panel-title">Work Schedule</h4>
+                            {scheduleLoading ? (
+                              <p className="message">Loading schedule...</p>
+                            ) : (
+                              <>
+                                <div className="schedule-days-group">
+                                  {(
+                                    [
+                                      'monday',
+                                      'tuesday',
+                                      'wednesday',
+                                      'thursday',
+                                      'friday',
+                                      'saturday',
+                                      'sunday'
+                                    ] as const
+                                  ).map((day) => (
+                                    <label key={day} className={`day-toggle ${scheduleForm[day] ? 'active' : ''}`}>
+                                      <input
+                                        type="checkbox"
+                                        className="sr-only"
+                                        checked={scheduleForm[day]}
+                                        onChange={() =>
+                                          setScheduleForm((previous) => ({ ...previous, [day]: !previous[day] }))
+                                        }
+                                        disabled={isMutating}
+                                      />
+                                      {day.slice(0, 3).charAt(0).toUpperCase() + day.slice(1, 3)}
+                                    </label>
+                                  ))}
+                                </div>
+                                <div className="schedule-settings-grid">
+                                  <div className="setting-item">
+                                    <label htmlFor={`hours-${user.id}`}>Hours per week</label>
+                                    <input
+                                      id={`hours-${user.id}`}
+                                      type="number"
+                                      className="edit-input"
+                                      min="0"
+                                      step="0.5"
+                                      value={scheduleForm.hoursPerWeek}
+                                      onChange={(event) =>
+                                        setScheduleForm((previous) => ({
+                                          ...previous,
+                                          hoursPerWeek: event.target.value
+                                        }))
+                                      }
+                                      disabled={isMutating}
+                                      placeholder="e.g. 40"
+                                    />
+                                  </div>
+                                  <div className="setting-item checkbox-setting">
+                                    <label>
+                                      <input
+                                        type="checkbox"
+                                        checked={scheduleForm.ignoreWeekends}
+                                        onChange={(event) =>
+                                          setScheduleForm((previous) => ({
+                                            ...previous,
+                                            ignoreWeekends: event.target.checked
+                                          }))
+                                        }
+                                        disabled={isMutating}
+                                      />
+                                      Ignore weekends
+                                    </label>
+                                  </div>
+                                  <div className="setting-item checkbox-setting">
+                                    <label>
+                                      <input
+                                        type="checkbox"
+                                        checked={scheduleForm.ignorePublicHolidays}
+                                        onChange={(event) =>
+                                          setScheduleForm((previous) => ({
+                                            ...previous,
+                                            ignorePublicHolidays: event.target.checked
+                                          }))
+                                        }
+                                        disabled={isMutating}
+                                      />
+                                      Ignore public holidays
+                                    </label>
+                                  </div>
+                                </div>
+                              </>
+                            )}
                           </div>
                         </td>
-                      </>
-                    ) : (
-                      <>
-                        <td>{user.email}</td>
-                        <td>{user.displayName}</td>
-                        <td>{locationName}</td>
-                        <td>
-                          <div className="entity-actions">
-                            <button
-                              type="button"
-                              onClick={() => startEditing(user)}
-                              disabled={isMutating || isBulkAssigning}
-                            >
-                              Edit
-                            </button>
-                            <button
-                              type="button"
-                              className="danger"
-                              onClick={() => void handleDelete(user)}
-                              disabled={isMutating || isBulkAssigning || currentUser?.id === user.id}
-                              title={currentUser?.id === user.id ? 'You cannot delete your own user account.' : undefined}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </td>
-                      </>
-                    )}
-                  </tr>
+                      </tr>
+                    ) : null}
+                  </Fragment>
                 );
               })}
             </tbody>

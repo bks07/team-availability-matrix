@@ -8,10 +8,12 @@ use chrono::{Datelike, NaiveDate, Utc};
 use crate::auth::{authorize, get_user_permissions};
 use crate::error::ApiError;
 use crate::helpers::build_day_list;
-use crate::models::{EmployeeRow, PublicHolidayRow, StatusRow, StatusValue};
+use crate::models::{EmployeeRow, PublicHolidayRow, StatusRow, StatusValue, WorkScheduleRow};
 use crate::state::AppState;
 use crate::types::requests::{UpdateStatusRequest, YearQuery};
-use crate::types::responses::{AvailabilityEntry, MatrixResponse, PublicHolidayResponse, PublicUser};
+use crate::types::responses::{
+    AvailabilityEntry, MatrixResponse, PublicHolidayResponse, PublicUser, WorkScheduleResponse,
+};
 
 pub(crate) async fn get_matrix(
     State(state): State<AppState>,
@@ -98,6 +100,55 @@ pub(crate) async fn get_matrix(
         })
         .collect();
 
+    let schedule_rows = sqlx::query_as::<_, WorkScheduleRow>(
+        "SELECT user_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, hours_per_week, ignore_weekends, ignore_public_holidays FROM employee_work_schedules",
+    )
+    .fetch_all(&state.db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to load work schedules: {error}"),
+        )
+    })?;
+
+    let mut work_schedules: Vec<WorkScheduleResponse> = schedule_rows
+        .into_iter()
+        .map(|row| WorkScheduleResponse {
+            user_id: row.user_id,
+            monday: row.monday,
+            tuesday: row.tuesday,
+            wednesday: row.wednesday,
+            thursday: row.thursday,
+            friday: row.friday,
+            saturday: row.saturday,
+            sunday: row.sunday,
+            hours_per_week: row.hours_per_week,
+            ignore_weekends: row.ignore_weekends,
+            ignore_public_holidays: row.ignore_public_holidays,
+        })
+        .collect();
+
+    let scheduled_user_ids: std::collections::HashSet<i64> =
+        work_schedules.iter().map(|s| s.user_id).collect();
+    for emp in &employees {
+        if !scheduled_user_ids.contains(&emp.id) {
+            work_schedules.push(WorkScheduleResponse {
+                user_id: emp.id,
+                monday: true,
+                tuesday: true,
+                wednesday: true,
+                thursday: true,
+                friday: true,
+                saturday: false,
+                sunday: false,
+                hours_per_week: None,
+                ignore_weekends: true,
+                ignore_public_holidays: true,
+            });
+        }
+    }
+
     Ok(Json(MatrixResponse {
         year,
         days,
@@ -118,6 +169,7 @@ pub(crate) async fn get_matrix(
         },
         entries,
         public_holidays,
+        work_schedules,
     }))
 }
 
