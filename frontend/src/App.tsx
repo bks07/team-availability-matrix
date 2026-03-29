@@ -11,6 +11,8 @@ import { clearSession, loadSession, saveSession } from './lib/storage';
 import LoginPage from './pages/LoginPage';
 import MyCalendarPage from './pages/MyCalendarPage';
 import ProfilePage from './pages/ProfilePage';
+import TeamDetailPage from './pages/TeamDetailPage';
+import TeamsPage from './pages/TeamsPage';
 import HolidaysPage from './pages/admin/HolidaysPage';
 import LocationsPage from './pages/admin/LocationsPage';
 import PermissionsPage from './pages/admin/PermissionsPage';
@@ -82,6 +84,8 @@ export default function App(): JSX.Element {
               <Route path="/workspace" element={<WorkspaceLayout />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/my-calendar" element={<MyCalendarPage />} />
+              <Route path="/teams" element={<TeamsPage />} />
+              <Route path="/teams/:id" element={<TeamDetailPage />} />
               <Route element={<AdminGuard />}>
                 <Route element={<AdminLayout />}>
                   <Route path="/admin" element={<Navigate to="/admin/locations" replace />} />

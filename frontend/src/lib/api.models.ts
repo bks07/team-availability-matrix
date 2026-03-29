@@ -106,3 +106,54 @@ export interface LoginRequest {
 export interface RegisterRequest extends LoginRequest {
   displayName: string;
 }
+
+// Team Management
+export interface Team {
+  id: number;
+  name: string;
+  description: string;
+  memberCount: number;
+  myRole: string;
+}
+
+export interface TeamDetail {
+  id: number;
+  name: string;
+  description: string;
+  members: TeamMember[];
+}
+
+export interface TeamMember {
+  userId: number;
+  displayName: string;
+  email: string;
+  photoUrl?: string;
+  role: string;
+  joinedAt: string;
+}
+
+export interface TeamInvitation {
+  id: number;
+  teamId: number;
+  teamName: string;
+  inviterName: string;
+  status: string;
+  createdAt: string;
+}
+
+export interface CreateTeamRequest {
+  name: string;
+  description?: string;
+}
+
+export interface UpdateTeamRequest {
+  name: string;
+  description?: string;
+}
+
+export interface UserSearchResult {
+  id: number;
+  displayName: string;
+  email: string;
+  photoUrl?: string;
+}
