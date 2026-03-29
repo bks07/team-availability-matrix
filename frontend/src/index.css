@@ -12,6 +12,7 @@
   --bg-navbar: var(--deep-space-blue);
   --bg-sidebar: #f4f8fb;
   --bg-overlay: #ffffff;
+  --bg-subtle: #eef4f8;
 
   /* Text */
   --text-primary: var(--deep-space-blue);
@@ -540,6 +541,18 @@ thead th:first-child {
 
 .close-btn {
   margin-left: 0.15rem;
+}
+
+.overlay-btn.clear-btn {
+  background-color: transparent;
+  border: 1px dashed var(--text-secondary);
+  color: var(--text-secondary);
+}
+
+.overlay-btn.clear-btn:hover {
+  background-color: var(--bg-subtle);
+  border-color: var(--text-primary);
+  color: var(--text-primary);
 }
 
 .status-w {

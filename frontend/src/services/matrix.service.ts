@@ -46,3 +46,7 @@ export async function updateStatus(date: string, status: AvailabilityValue): Pro
   const response = await httpClient.put<ApiAvailabilityStatus, { status: AvailabilityValue }>(`/statuses/${date}`, { status });
   return normalizeStatus(response);
 }
+
+export async function deleteStatus(date: string): Promise<void> {
+  await httpClient.delete<void>(`/statuses/${date}`);
+}

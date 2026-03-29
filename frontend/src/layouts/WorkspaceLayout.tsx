@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import AvailabilityMatrix from '../components/AvailabilityMatrix';
 import { useAuth } from '../context/AuthContext';
 import type { AvailabilityValue, User, WorkSchedule } from '../lib/api.models';
-import { getMatrix, updateStatus } from '../services/matrix.service';
+import { getMatrix, updateStatus, deleteStatus } from '../services/matrix.service';
 
 function toIsoDate(date: Date): string {
   return date.toISOString().slice(0, 10);
@@ -183,6 +183,32 @@ export default function WorkspaceLayout(): JSX.Element {
     }
   };
 
+  const handleStatusClear = async (date: string) => {
+    if (!currentUser) {
+      return;
+    }
+
+    const key = cellKey(currentUser.id, date);
+    setOpenKey(null);
+    setPendingKey(key);
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    try {
+      await deleteStatus(date);
+      setEntryMap((prev) => {
+        const next = new Map(prev);
+        next.delete(key);
+        return next;
+      });
+      setSuccessMessage(`Cleared status for ${date}.`);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to clear the status.');
+    } finally {
+      setPendingKey(null);
+    }
+  };
+
   if (!currentUser) {
     return <main className="workspace-layout page-shell" />;
   }
@@ -231,6 +257,7 @@ export default function WorkspaceLayout(): JSX.Element {
           pendingKey={pendingKey}
           onOpenPopup={setOpenKey}
           onStatusUpdate={handleStatusUpdate}
+          onStatusClear={handleStatusClear}
         />
       )}
     </main>

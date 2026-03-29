@@ -212,3 +212,32 @@ pub(crate) async fn update_status(
     }))
 }
 
+pub(crate) async fn delete_status(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(date): Path<String>,
+) -> Result<StatusCode, ApiError> {
+    let claims = authorize(&headers, &state.jwt_secret)?;
+    let parsed_date = NaiveDate::parse_from_str(&date, "%Y-%m-%d")
+        .map_err(|_| ApiError::new(StatusCode::BAD_REQUEST, "Date must use YYYY-MM-DD"))?;
+
+    sqlx::query(
+        r#"
+        DELETE FROM availability_statuses
+        WHERE user_id = $1 AND status_date = $2
+        "#,
+    )
+    .bind(claims.sub)
+    .bind(parsed_date)
+    .execute(&state.db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to delete availability status: {error}"),
+        )
+    })?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+

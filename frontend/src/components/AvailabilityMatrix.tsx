@@ -11,6 +11,7 @@ interface AvailabilityMatrixProps {
   pendingKey: string | null;
   onOpenPopup: (key: string | null) => void;
   onStatusUpdate: (date: string, status: AvailabilityValue) => Promise<void>;
+  onStatusClear: (date: string) => Promise<void>;
 }
 
 function formatDay(dateStr: string): string {
@@ -28,7 +29,8 @@ export default function AvailabilityMatrix({
   openKey,
   pendingKey,
   onOpenPopup,
-  onStatusUpdate
+  onStatusUpdate,
+  onStatusClear
 }: AvailabilityMatrixProps): JSX.Element {
   const popupRef = useRef<HTMLDivElement | null>(null);
   const todayStr = useMemo(() => {
@@ -152,6 +154,14 @@ export default function AvailabilityMatrix({
                             </button>
                             <button className="overlay-btn status-a" onClick={() => void onStatusUpdate(day, 'A')}>
                               A
+                            </button>
+                            <button
+                              className="overlay-btn clear-btn"
+                              onClick={() => void onStatusClear(day)}
+                              title="Clear status"
+                              aria-label="Clear status"
+                            >
+                              –
                             </button>
                             <button className="overlay-btn close-btn" onClick={() => onOpenPopup(null)} title="Close">
                               ✕
