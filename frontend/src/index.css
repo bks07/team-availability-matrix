@@ -423,14 +423,14 @@ td {
   background: var(--bg-card);
 }
 
-thead th {
+.matrix-card thead th {
   position: sticky;
   top: var(--navbar-height);
   z-index: 2;
   background: var(--row-today-bg);
 }
 
-thead th:first-child {
+.matrix-card thead th:first-child {
   top: var(--navbar-height);
 }
 
