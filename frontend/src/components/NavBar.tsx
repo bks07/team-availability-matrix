@@ -1,5 +1,5 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { Link, NavLink } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import logo from '../assets/logo.svg';
 import { AuthContext } from '../context/AuthContext';
 import type { AvailabilityValue } from '../lib/api.models';
@@ -34,7 +34,6 @@ export default function NavBar(): JSX.Element | null {
     return null;
   }
 
-  const hasAdminPermission = currentUser.permissions.includes('admin');
 
   const photoSrc = useMemo(() => {
     if (!currentUser.photoUrl) {
@@ -223,16 +222,6 @@ export default function NavBar(): JSX.Element | null {
           <Link to="/workspace" className="navbar-logo">
             <img src={logo} alt="Availability Matrix" height="32" />
           </Link>
-          <nav className="navbar-nav">
-            <NavLink to="/workspace" className={({ isActive }) => (isActive ? 'navbar-link active' : 'navbar-link')}>
-              Workspace
-            </NavLink>
-            {hasAdminPermission && (
-              <NavLink to="/admin" className={({ isActive }) => (isActive ? 'navbar-link active' : 'navbar-link')}>
-                Admin
-              </NavLink>
-            )}
-          </nav>
         </div>
 
         <div className="navbar-right">
