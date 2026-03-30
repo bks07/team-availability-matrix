@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import logo from '../assets/logo.svg';
 import { AuthContext } from '../context/AuthContext';
@@ -35,6 +35,15 @@ export default function NavBar(): JSX.Element | null {
   }
 
   const hasAdminPermission = currentUser.permissions.includes('admin');
+
+  const photoSrc = useMemo(() => {
+    if (!currentUser.photoUrl) {
+      return null;
+    }
+
+    const separator = currentUser.photoUrl.includes('?') ? '&' : '?';
+    return `${currentUser.photoUrl}${separator}t=${Date.now()}`;
+  }, [currentUser.photoUrl]);
 
   useEffect(() => {
     const handleMouseDown = (event: MouseEvent) => {
@@ -236,8 +245,8 @@ export default function NavBar(): JSX.Element | null {
               aria-haspopup="true"
               aria-expanded={open}
             >
-              {currentUser.photoUrl ? (
-                <img src={currentUser.photoUrl} alt="" className="navbar-user-avatar" />
+              {photoSrc ? (
+                <img src={photoSrc} alt="" className="navbar-user-avatar" />
               ) : (
                 <span className="navbar-user-initials">{getInitials(currentUser.displayName)}</span>
               )}
@@ -247,8 +256,8 @@ export default function NavBar(): JSX.Element | null {
             {open && (
               <div className="navbar-dropdown" role="menu" onKeyDown={handleDropdownKeyDown}>
                 <Link to="/profile" className="navbar-dropdown-header" onClick={() => setOpen(false)}>
-                  {currentUser.photoUrl ? (
-                    <img src={currentUser.photoUrl} alt="" className="navbar-dropdown-avatar" />
+                  {photoSrc ? (
+                    <img src={photoSrc} alt="" className="navbar-dropdown-avatar" />
                   ) : (
                     <span className="navbar-dropdown-initials">{getInitials(currentUser.displayName)}</span>
                   )}
