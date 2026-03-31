@@ -59,11 +59,19 @@ export default function UsersPage(): JSX.Element {
         />
         <input
           type="text"
-          value={newUserForm.displayName}
-          onChange={(event) => setNewUserForm((previous) => ({ ...previous, displayName: event.target.value }))}
-          placeholder="Display name"
+          value={newUserForm.firstName}
+          onChange={(event) => setNewUserForm((previous) => ({ ...previous, firstName: event.target.value }))}
+          placeholder="First name"
           disabled={isMutating}
-          aria-label="Display name"
+          aria-label="First name"
+        />
+        <input
+          type="text"
+          value={newUserForm.lastName}
+          onChange={(event) => setNewUserForm((previous) => ({ ...previous, lastName: event.target.value }))}
+          placeholder="Last name"
+          disabled={isMutating}
+          aria-label="Last name"
         />
         <input
           type="password"
@@ -157,12 +165,22 @@ export default function UsersPage(): JSX.Element {
                             <input
                               type="text"
                               className="edit-input"
-                              value={editUserForm.displayName}
+                              value={editUserForm.firstName}
                               onChange={(event) =>
-                                setEditUserForm((previous) => ({ ...previous, displayName: event.target.value }))
+                                setEditUserForm((previous) => ({ ...previous, firstName: event.target.value }))
                               }
                               disabled={isMutating}
-                              aria-label={`Edit display name for ${user.displayName}`}
+                              aria-label={`Edit first name for ${user.displayName}`}
+                            />
+                            <input
+                              type="text"
+                              className="edit-input"
+                              value={editUserForm.lastName}
+                              onChange={(event) =>
+                                setEditUserForm((previous) => ({ ...previous, lastName: event.target.value }))
+                              }
+                              disabled={isMutating}
+                              aria-label={`Edit last name for ${user.displayName}`}
                             />
                           </td>
                           <td>

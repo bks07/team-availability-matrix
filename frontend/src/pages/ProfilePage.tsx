@@ -1,6 +1,6 @@
 import PhotoCropModal from '../components/PhotoCropModal';
 import { useProfilePage } from '../hooks/useProfilePage';
-import { getInitials } from '../lib/name.utils';
+import { deriveDisplayName, getInitials } from '../lib/name.utils';
 
 export default function ProfilePage(): JSX.Element {
   const {
@@ -8,8 +8,14 @@ export default function ProfilePage(): JSX.Element {
     fileInputRef,
     locations,
     locationsLoading,
-    displayName,
-    setDisplayName,
+    title,
+    setTitle,
+    firstName,
+    setFirstName,
+    middleName,
+    setMiddleName,
+    lastName,
+    setLastName,
     email,
     setEmail,
     locationIdValue,
@@ -45,6 +51,13 @@ export default function ProfilePage(): JSX.Element {
   if (!currentUser) {
     return <main className="page-shell" />;
   }
+
+  const previewDisplayName = deriveDisplayName({
+    title,
+    firstName,
+    middleName,
+    lastName
+  });
 
   return (
     <main className="page-shell profile-layout">
@@ -112,6 +125,7 @@ export default function ProfilePage(): JSX.Element {
 
       <section className="profile-card">
         <h2>Profile Information</h2>
+        <p>{previewDisplayName}</p>
 
         <div aria-live="polite">
           {profileSuccess ? <p className="message success">{profileSuccess}</p> : null}
@@ -119,16 +133,55 @@ export default function ProfilePage(): JSX.Element {
         </div>
 
         <form className="profile-form" onSubmit={handleProfileSubmit}>
-          <label>
-            Display Name
-            <input
-              type="text"
-              value={displayName}
-              onChange={(event) => setDisplayName(event.target.value)}
-              disabled={isSavingProfile}
-              required
-            />
-          </label>
+          <fieldset>
+            <legend>Name</legend>
+            <div className="name-fields">
+              <label>
+                Title
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                  disabled={isSavingProfile}
+                  size={8}
+                  placeholder="Dr"
+                  maxLength={30}
+                />
+              </label>
+
+              <label>
+                First Name
+                <input
+                  type="text"
+                  value={firstName}
+                  onChange={(event) => setFirstName(event.target.value)}
+                  disabled={isSavingProfile}
+                  required
+                />
+              </label>
+
+              <label>
+                Middle Name
+                <input
+                  type="text"
+                  value={middleName}
+                  onChange={(event) => setMiddleName(event.target.value)}
+                  disabled={isSavingProfile}
+                />
+              </label>
+
+              <label>
+                Last Name
+                <input
+                  type="text"
+                  value={lastName}
+                  onChange={(event) => setLastName(event.target.value)}
+                  disabled={isSavingProfile}
+                  required
+                />
+              </label>
+            </div>
+          </fieldset>
 
           <label>
             Email

@@ -23,12 +23,6 @@ type ApiUserShape = {
   permissions?: string[];
 };
 
-interface LegacyUpdateProfileRequest {
-  email: string;
-  displayName: string;
-  locationId?: number | null;
-}
-
 interface StructuredUpdateProfileRequest {
   title: string;
   firstName: string;
@@ -69,27 +63,9 @@ function normalizeUser(response: User | ApiUserShape): User {
   };
 }
 
-function splitDisplayName(displayName: string): { firstName: string; middleName: string; lastName: string } {
-  const parts = displayName.trim().split(/\s+/).filter(Boolean);
-  const firstName = parts[0] ?? '';
-  const lastName = parts.length > 1 ? parts[parts.length - 1] : firstName;
-  const middleName = parts.length > 2 ? parts.slice(1, -1).join(' ') : '';
-
-  return { firstName, middleName, lastName };
-}
-
-export function updateProfile(data: StructuredUpdateProfileRequest | LegacyUpdateProfileRequest): Promise<User> {
-  const payload: StructuredUpdateProfileRequest = 'displayName' in data
-    ? {
-        title: '',
-        ...splitDisplayName(data.displayName),
-        email: data.email,
-        locationId: data.locationId,
-      }
-    : data;
-
+export function updateProfile(data: StructuredUpdateProfileRequest): Promise<User> {
   return httpClient
-    .put<User | ApiUserShape, StructuredUpdateProfileRequest>('/profile', payload)
+    .put<User | ApiUserShape, StructuredUpdateProfileRequest>('/profile', data)
     .then(normalizeUser);
 }
 

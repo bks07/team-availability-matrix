@@ -11,13 +11,15 @@ interface AuthCardProps {
 }
 
 interface AuthFormState {
-  displayName: string;
+  firstName: string;
+  lastName: string;
   email: string;
   password: string;
 }
 
 const INITIAL_FORM: AuthFormState = {
-  displayName: '',
+  firstName: '',
+  lastName: '',
   email: '',
   password: ''
 };
@@ -61,7 +63,7 @@ export default function AuthCard({ onAuthSuccess }: AuthCardProps): JSX.Element 
       const session =
         authMode === 'login'
           ? await login({ email: form.email, password: form.password })
-          : await register({ displayName: form.displayName, email: form.email, password: form.password });
+          : await register({ firstName: form.firstName, lastName: form.lastName, email: form.email, password: form.password });
 
       setForm((prev) => ({ ...prev, password: '' }));
       setSuccessMessage(authMode === 'login' ? 'Welcome back.' : 'Account created successfully.');
@@ -92,18 +94,32 @@ export default function AuthCard({ onAuthSuccess }: AuthCardProps): JSX.Element 
 
       <form className="auth-form" onSubmit={submitAuth}>
         {authMode === 'register' && (
+          <>
           <label>
-            <span>Name</span>
+            <span>First Name</span>
             <input
-              name="displayName"
-              value={form.displayName}
+              name="firstName"
+              value={form.firstName}
               required
-              minLength={2}
+              minLength={1}
               maxLength={80}
-              placeholder="Jane Doe"
-              onChange={(event) => setForm((prev) => ({ ...prev, displayName: event.target.value }))}
+              placeholder="Jane"
+              onChange={(event) => setForm((prev) => ({ ...prev, firstName: event.target.value }))}
             />
           </label>
+          <label>
+            <span>Last Name</span>
+            <input
+              name="lastName"
+              value={form.lastName}
+              required
+              minLength={1}
+              maxLength={80}
+              placeholder="Doe"
+              onChange={(event) => setForm((prev) => ({ ...prev, lastName: event.target.value }))}
+            />
+          </label>
+          </>
         )}
 
         <label>
