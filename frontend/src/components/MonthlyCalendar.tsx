@@ -8,6 +8,7 @@ export interface CalendarDay {
 }
 
 export interface CalendarWeek {
+  weekNumber: number;
   days: CalendarDay[];
 }
 
@@ -103,8 +104,9 @@ export default function MonthlyCalendar({
       </div>
 
       <div className="monthly-calendar-wrapper">
-        <div className="monthly-calendar-grid">
+        <div className="monthly-calendar-grid has-week-nums">
           <div className="monthly-header-row" role="row">
+            <div className="monthly-header-cell monthly-header-cell-weeknum" aria-hidden="true" />
             {DAY_NAMES.map((dayName) => (
               <div key={dayName} className="monthly-header-cell" role="columnheader">
                 {dayName}
@@ -112,8 +114,11 @@ export default function MonthlyCalendar({
             ))}
           </div>
 
-          {weeks.map((week, weekIndex) =>
-            week.days.map((day, dayIndex) => {
+          {weeks.map((week) => [
+            <div key={`week-num-${week.days[0]?.date ?? week.weekNumber}`} className="monthly-week-num" aria-hidden="true">
+              {week.weekNumber}
+            </div>,
+            ...week.days.map((day) => {
               const status = statusFor(day.date);
               const explicit = isExplicit(day.date);
               const holidayName = holidayNameFor(day.date);
@@ -133,8 +138,11 @@ export default function MonthlyCalendar({
 
               const badgeClassName = [
                 'calendar-status-badge',
-                explicit ? `status-${status.toLowerCase()}` : 'status-default',
-              ].join(' ');
+                `status-${status.toLowerCase()}`,
+                explicit ? '' : 'status-default',
+              ]
+                .filter(Boolean)
+                .join(' ');
 
               return (
                 <article
@@ -150,7 +158,6 @@ export default function MonthlyCalendar({
                     }
                   }}
                   aria-label={day.date}
-                  style={{ gridColumn: weekIndex === 0 ? dayIndex + 1 : undefined }}
                 >
                   <div className="calendar-cell-header">
                     <span className="calendar-cell-date">{day.dayOfMonth}</span>
@@ -204,8 +211,8 @@ export default function MonthlyCalendar({
                   ) : null}
                 </article>
               );
-            })
-          )}
+            }),
+          ])}
         </div>
       </div>
     </section>

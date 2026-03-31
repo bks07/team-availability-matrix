@@ -47,6 +47,22 @@ function addDays(date: Date, days: number): Date {
   return next;
 }
 
+function getISOWeekNumber(date: Date): number {
+  const target = new Date(date);
+  target.setHours(0, 0, 0, 0);
+
+  const isoDay = (target.getDay() + 6) % 7;
+  target.setDate(target.getDate() + 3 - isoDay);
+
+  const firstThursday = new Date(target.getFullYear(), 0, 4);
+  firstThursday.setHours(0, 0, 0, 0);
+  const firstThursdayIsoDay = (firstThursday.getDay() + 6) % 7;
+  firstThursday.setDate(firstThursday.getDate() + 3 - firstThursdayIsoDay);
+
+  const weekOffset = (target.getTime() - firstThursday.getTime()) / (7 * 24 * 60 * 60 * 1000);
+  return 1 + Math.round(weekOffset);
+}
+
 function isWorkingDay(schedule: WorkSchedule | null, date: string): boolean {
   const dayOfWeek = new Date(`${date}T00:00:00`).getDay();
   const fallback = [false, true, true, true, true, true, false];
@@ -108,7 +124,10 @@ export default function MyCalendarPage(): JSX.Element {
         };
       });
 
-      computedWeeks.push({ days });
+      computedWeeks.push({
+        weekNumber: getISOWeekNumber(cursor),
+        days,
+      });
       cursor = addDays(cursor, 7);
     }
 

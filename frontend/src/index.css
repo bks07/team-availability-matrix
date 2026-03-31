@@ -1429,8 +1429,21 @@ td.bulk-selected-last::after {
 
 .monthly-calendar-wrapper { overflow-x: auto; }
 .monthly-calendar-grid { min-width: 768px; display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+.monthly-calendar-grid.has-week-nums { grid-template-columns: 40px repeat(7, 1fr); }
 .monthly-header-row { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; padding-bottom: 8px; }
+.monthly-calendar-grid.has-week-nums .monthly-header-row { grid-template-columns: 40px repeat(7, 1fr); }
 .monthly-header-cell { font-weight: 600; font-size: 0.85rem; color: var(--text-secondary); text-align: center; }
+.monthly-week-num {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  pointer-events: none;
+}
 
 .calendar-cell { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; min-height: 100px; padding: 8px; display: flex; flex-direction: column; cursor: pointer; position: relative; transition: box-shadow 0.15s; }
 .calendar-cell.monthly-cell { min-height: 100px; }
@@ -1450,7 +1463,10 @@ td.bulk-selected-last::after {
 .calendar-status-badge.status-w { background: var(--status-w-bg); color: var(--status-w-text); }
 .calendar-status-badge.status-v { background: var(--status-v-bg); color: var(--status-v-text); }
 .calendar-status-badge.status-a { background: var(--status-a-bg); color: var(--status-a-text); }
-.calendar-status-badge.status-default { background: transparent; border: 2px dashed var(--border-input); color: var(--text-muted); }
+.calendar-status-badge.status-default { background: transparent; border: 2px dashed; color: var(--text-muted); font-weight: 400; }
+.calendar-status-badge.status-default.status-w { border-color: var(--status-w-solid); }
+.calendar-status-badge.status-default.status-v { border-color: var(--status-v-solid); }
+.calendar-status-badge.status-default.status-a { border-color: var(--status-a-solid); }
 
 .calendar-picker { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px; display: flex; gap: 6px; box-shadow: var(--dropdown-shadow); z-index: 20; }
 .calendar-picker button { border: 1px solid transparent; border-radius: 6px; padding: 8px 12px; cursor: pointer; font-weight: 500; font-size: 0.8rem; }
