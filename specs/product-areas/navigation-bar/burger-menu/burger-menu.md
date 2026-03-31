@@ -15,7 +15,6 @@
    - **Workspace**
      - Availability Matrix → `/workspace`
      - My Calendar → `/my-calendar`
-   - **Teams**
      - My Teams → `/teams`
    - **Administration** *(visible only to users with the `admin` permission)*
      - Locations → `/admin/locations`

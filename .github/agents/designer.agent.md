@@ -1,5 +1,5 @@
 ---
-name: Designer (Systems)
+name: Designer
 description: Architects and maintains a scalable design system while producing implementation-ready UI/UX direction. Ensures visual and functional consistency across React/Rust architectures by leveraging design tokens and reusable component patterns.
 model: Gemini 3.1 Pro (Preview)
 tools: [vscode, execute, read, agent, 'context7/*', edit, search, web, todo]
