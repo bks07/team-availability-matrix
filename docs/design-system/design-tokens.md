@@ -2,7 +2,7 @@
 
 ## 1. Color Palette
 
-The base color palette defines the literal hex values used across the application. These should primarily be referenced via semantic tokens.
+The base color palette defines the literal hex values used across the application. These are referenced via semantic CSS Custom Properties (`var(--token-name)`).
 
 ### Brand & Accents
 - **Blue-Green** (Teal): `#219ebc` *(Used for W status solid accent)*
@@ -11,30 +11,35 @@ The base color palette defines the literal hex values used across the applicatio
 - **Sky Blue Light**: `#8ecae6`
 - **Deep Space Blue**: `#023047` *(Used for Dark text on pale backgrounds)*
 - **Accent Primary**: `#1a73e8` (Light) / `#4a9eff` (Dark)
+- **Accent Primary Hover**: `#1557b0` (Light) / `#3a8eef` (Dark)
 
 ### Base Neutrals (Light Mode)
-- **Backgrounds**: `#ffffff` (Primary), `#f5f5f5` (Secondary), `#fafafa` (Tertiary)
-- **Text**: `#333333` (Primary), `#666666` (Secondary), `#999999` (Muted)
+- **Backgrounds**: `#ffffff` (Primary), `#f5f5f5` (Secondary), `#fafafa` (Tertiary), `#f0f0f0` (Hover)
+- **Text**: `#333333` (Primary), `#666666` (Secondary), `#999999` (Muted), `#1a1a2e` (Navbar text)
 - **Borders**: `#e0e0e0` (Default), `#eee` (Light), `#d0d0d0` (Input)
+- **Shadows**: `rgba(0, 0, 0, 0.1)` (Base), `rgba(0, 0, 0, 0.15)` (Heavy)
+- **Overlays**: `rgba(0, 0, 0, 0.5)`
 
 ### Base Neutrals (Dark Mode)
-- **Backgrounds**: `#1a1a2e` (Primary), `#16213e` (Secondary), `#1e2a45` (Tertiary)
+- **Backgrounds**: `#1a1a2e` (Primary), `#16213e` (Secondary), `#1e2a45` (Tertiary), `#253352` (Hover)
 - **Text**: `#e0e0e0` (Primary), `#b0b0b0` (Secondary), `#808080` (Muted)
 - **Borders**: `#2a3a55` (Default), `#253352` (Light)
+- **Shadows**: `rgba(0, 0, 0, 0.3)` (Base), `rgba(0, 0, 0, 0.4)` (Heavy)
+- **Overlays**: `rgba(0, 0, 0, 0.7)`
 
 ---
 
 ## 2. Status Colors (Unified W/V/A)
 
-**Important Update:** Status colors have been unified across the Matrix, Calendar badges, and Navbar buttons. The canonical style uses a pale background with dark readable text and a solid accent icon/border.
+Status colors are unified across the Matrix, Calendar badges, and Navbar buttons. The canonical style uses a pale background with dark readable text and a solid accent icon/border.
 
 | Status | Background Token (`--status-*-bg`) | Text Token (`--status-*-text`) | Solid / Accent Token (`--status-*-solid`) |
 | --- | --- | --- | --- |
-| **W (Working)** | `#e6f5fb` *(pale blue-green)* | `var(--deep-space-blue)` | `var(--blue-green)` |
-| **V (Vacation)**| `#fff8e6` *(pale cream)* | `var(--deep-space-blue)` | `var(--amber-flame)` |
-| **A (Absence)** | `#fff0e6` *(pale orange)* | `#b35e00` | `var(--princeton-orange)` |
+| **W (Working)** | `#e6f5fb` | `var(--deep-space-blue)` | `var(--blue-green)` |
+| **V (Vacation)**| `#fff8e6` | `var(--deep-space-blue)` | `var(--amber-flame)` |
+| **A (Absence)** | `#fff0e6` | `#b35e00` | `var(--princeton-orange)` |
 
-*Dark mode values for status backgrounds should be adjusted (e.g., color-mix with dark background or specialized hexes like `#13384a` for W) in subsequent implementation phases. Currently, dark mode relies on the global semantic overrides where applicable.*
+*Note: The status colors scale effectively across both themes currently, so no dark-mode specific overrides exist for status UI outside of structural container updates.*
 
 ---
 
@@ -70,16 +75,16 @@ Use these variables (`var(--token-name)`) for all styling.
 - **Secondary**: `--btn-secondary-bg`, `--btn-secondary-border`, `--btn-secondary-text`, `--btn-secondary-hover`
 - **Danger**: `--btn-danger-bg`, `--btn-danger-border`, `--btn-danger-text`, `--btn-danger-hover`
 
-### Grid & Matrix Specific
-- `--row-today-bg`: Background highlight for today's column/row
-- `--row-weekend-bg`: Background highlight for weekends
-- `--row-today-weekend-bg`: Intersect background for today falling on a weekend
-- `--holiday-cell-bg`: Standardized holiday color (currently hardcoded `#fff3cd`)
+### Grid, Matrix & Calendar
+- `--row-today-bg`: `#e5f4fa`
+- `--row-weekend-bg`: `#f4f8fb`
+- `--row-today-weekend-bg`: `#dcf0f8`
+- `--holiday-bg`: `#fff3cd` (Light) / `#4b4426` (Dark)
 
 ### Elevation & Shadow
-- `--shadow-color`: Baseline shadow RGB
-- `--shadow-heavy`: Deep popover shadow RGB
-- `--dropdown-shadow`: standard UI popover shadow composite
+- `--shadow-color`: Baseline shadow styling RGB mapping
+- `--shadow-heavy`: Deep popover shadow styling RGB mapping
+- `--dropdown-shadow`: Standard UI popover shadow composite (`0 4px 16px var(--shadow-color)`)
 
 ---
 
@@ -88,47 +93,31 @@ Use these variables (`var(--token-name)`) for all styling.
 | Component | Target Tokens used | Notes |
 | --- | --- | --- |
 | **Cards (`.auth-card`, `.matrix-card`)** | `--bg-card`, `--shadow-color`, `--text-primary` | Ensures dark-mode contrast. |
-| **Navbar** | `--navbar-bg`, `--navbar-text`, `--border-color` | Fixed dark palette natively. |
-| **Burger Menu (Dropdown)** | `--bg-card`, `--text-primary`, `--border-color`, `--bg-hover`, `--dropdown-shadow` | Needs refactoring from hardcoded hex. |
-| **Inputs / Selects** | `--input-bg`, `--border-input`, `--text-primary`, `--border-focus` | |
+| **Navbar** | `--navbar-bg`, `--navbar-text`, `--border-color` | Fixed dark palette natively (`#1a1a2e` in light, `#0f0f1e` in dark). |
+| **Burger Menu (Dropdown)** | `--bg-card`, `--text-primary`, `--border-color`, `--bg-hover`, `--dropdown-shadow` | Fully refactored and semantic. |
+| **Inputs / Selects** | `--input-bg`, `--border-input`, `--text-primary`, `--border-focus` | Standard input treatments. |
 | **Status Pills / Badges** | `--status-*-bg`, `--status-*-text`, `--status-*-solid` | Unifies W/V/A logic across UI. |
-| **WeeklyCalendar Badges** | `--status-*-bg`, `--status-*-text`, `--status-*-solid` | *Requires update* from hardcoded Tailwind colors. |
+| **WeeklyCalendar Badges** | `--status-*-bg`, `--status-*-text`, `--status-*-solid` | Refactored from hardcoded Tailwind colors. |
 | **Matrix Grid Layout** | `--bg-card`, `--border-light`, `--row-today-bg`, `--row-weekend-bg` | Ensure sticky headers use appropriate solid tokens. |
 
 ---
 
-## 5. Hardcoded Color Inventory & Remap Rules
+## 5. Resolved Hardcoded Color Inventory
 
-The following existing hardcoded colors need to be replaced with their respective semantic tokens during implementation:
+**Implementation Status: Complete**
 
-1. **Burger Menu Dropdown**
-   - Background `#ffffff` ➡ `var(--bg-card)`
-   - Border `#e5e7eb` ➡ `var(--border-color)`
-   - Text `#374151` ➡ `var(--text-primary)`
-   - Hover background `#f3f4f6` ➡ `var(--bg-hover)`
+The previous list of hardcoded colors has been fully resolved and replaced with semantic tokens across the application.
 
-2. **Weekly Calendar Badges (`.calendar-status-badge`)**
-   - Green (W) `#dcfce7`/`#166534` ➡ `var(--status-w-bg)` / `var(--status-w-text)`
-   - Blue (V) `#dbeafe`/`#1e40af` ➡ `var(--status-v-bg)` / `var(--status-v-text)`
-   - Orange (A) `#ffedd5`/`#9a3412` ➡ `var(--status-a-bg)` / `var(--status-a-text)`
-
-3. **Navbar Buttons (`.navbar-status-btn`)**
-   - Green `#4caf50` ➡ `var(--status-w-solid)`
-   - Blue `#2196f3` ➡ `var(--status-v-solid)`
-   - Orange `#f57c00` ➡ `var(--status-a-solid)`
-
-4. **Holiday Cells / Rows**
-   - Highlight `#fff3cd` ➡ Needs a new token: `--holiday-bg: #fff3cd;` (and dark mode equivalent).
-   - Mixed holiday backgrounds (e.g., `color-mix(in srgb, #fff3cd 70%, var(--row-weekend-bg))`) ➡ Utilize `--holiday-bg` instead of `#fff3cd`.
-
-5. **Inline Styles in `.tsx`**
-   - `SettingsPage.tsx`: `border: '1px solid var(--border-light)'` ➡ Should be a standard CSS utility class, but token is correct.
-   - `HolidaysPage.tsx`: `marginBottom: '1rem'` ➡ Replace with `var(--spacing-md)` or leave structural inline styles as needed if not tokenizing spacing yet.
+1. **Burger Menu Dropdown** ➡ Replaced with `--bg-card`, `--border-color`, `--text-primary`, and `--bg-hover`. Theme toggling now natively supported.
+2. **Weekly Calendar Badges (`.calendar-status-badge`)** ➡ Replaced hardcoded Tailwind-esque colors with unified `--status-*-bg` and `--status-*-text` tokens.
+3. **Navbar Buttons (`.navbar-status-btn`)** ➡ Replaced generic HEX greens/blues with standardized `--status-*-solid` definitions.
+4. **Holiday Cells / Rows** ➡ Added and adopted `--holiday-bg` ensuring dark-mode accessibility (`#4b4426` in dark theme).
+5. **Inline Styles in `.tsx`** ➡ Resolved global component level color injections to token system usage.
 
 ---
 
 ## 6. Key Design Decisions
 
-1. **Burger Menu Light/Dark Compliance**: The Burger menu currently lacks dark mode support. It must adopt standard component tokens (`--bg-card`, `--text-primary`, `--border-color`) to guarantee light/dark toggle compliance.
-2. **Unified Status Colors (The Canonical Pill)**: To reduce cognitive load and design debt, the pale-background + heavy-text combination native to the Availability Matrix will be the single source of truth for all status indicators across the app (Matrix, Weekly Calendar, Nav Toggles). Extraneous green, deep blue, Tailwind-esque combinations are deprecated.
-3. **Semantic Override Approach over Duplication**: Theme toggling will continue to rely entirely on CSS Custom Properties (`[data-theme="dark"]`). Component class names will remain strictly semantic (i.e., `.matrix-card`, `.status-pill`) without hardcoded visual states.
+1. **Burger Menu Light/Dark Compliance**: Adopted standard component tokens (`--bg-card`, `--text-primary`, `--border-color`) to guarantee seamless light/dark toggle capability.
+2. **Unified Status Colors (The Canonical Pill)**: Extraneous visual styles for status (green, deep blue, Tailwind combinations) have been completely deprecated. The pale-background + heavy-text combination native to the Availability Matrix is established as the single source of truth for all status indicators across the app (Matrix, Weekly Calendar, Nav Toggles).
+3. **Semantic Override Approach over Duplication**: Theme toggling strictly relies on CSS Custom Properties inside `[data-theme="dark"]`. Component class names remain strictly semantic (i.e., `.matrix-card`, `.status-pill`) avoiding duplication or hardcoded visual behaviors.
