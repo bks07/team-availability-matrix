@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, Dispatch, FormEvent, RefObject, SetStateAction } from 'react';
 import { useAuth } from '../context/AuthContext';
 import type { Location, User } from '../lib/api.models';
-import { loadSession } from '../lib/storage';
 import { getLocations } from '../services/location.service';
 import { changePassword, deleteProfilePhoto, updateProfile, uploadProfilePhoto } from '../services/profile.service';
 
@@ -60,7 +59,7 @@ export interface UseProfilePageResult {
 }
 
 export function useProfilePage(): UseProfilePageResult {
-  const { currentUser, onAuthSuccess } = useAuth();
+  const { currentUser, updateSessionUser } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [locations, setLocations] = useState<Location[]>([]);
@@ -140,13 +139,6 @@ export function useProfilePage(): UseProfilePageResult {
     }
 
     setPhotoCropSource(null);
-  };
-
-  const updateSessionUser = (updatedUser: User) => {
-    const session = loadSession();
-    if (session) {
-      onAuthSuccess({ token: session.token, user: updatedUser }, 'login');
-    }
   };
 
   const handleOpenPhotoPicker = () => {
@@ -241,10 +233,7 @@ export function useProfilePage(): UseProfilePageResult {
         locationId: selectedLocationId
       });
 
-      const session = loadSession();
-      if (session) {
-        onAuthSuccess({ token: session.token, user: updatedUser as User }, 'login');
-      }
+      updateSessionUser(updatedUser);
 
       setProfileSuccess('Profile updated successfully.');
     } catch (error) {

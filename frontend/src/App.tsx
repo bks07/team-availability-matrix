@@ -51,6 +51,17 @@ export default function App(): JSX.Element {
     setCurrentUser(session.user);
   };
 
+  const handleSessionUserUpdate = (user: User) => {
+    setCurrentUser(user);
+
+    const session = loadSession();
+    if (!session) {
+      return;
+    }
+
+    saveSession({ ...session, user });
+  };
+
   const handleLogout = () => {
     clearSession();
     setCurrentUser(null);
@@ -60,6 +71,7 @@ export default function App(): JSX.Element {
     () => ({
       currentUser,
       onAuthSuccess: handleAuthSuccess,
+      updateSessionUser: handleSessionUserUpdate,
       onLogout: handleLogout
     }),
     [currentUser]

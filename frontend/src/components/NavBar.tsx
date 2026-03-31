@@ -27,6 +27,7 @@ export default function NavBar(): JSX.Element | null {
   const [todayDefault, setTodayDefault] = useState<AvailabilityValue>('W');
   const [todayLoading, setTodayLoading] = useState(false);
   const [todayFetched, setTodayFetched] = useState(false);
+  const [photoUpdatedAt, setPhotoUpdatedAt] = useState<number>(Date.now());
   const dropdownRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
@@ -41,7 +42,11 @@ export default function NavBar(): JSX.Element | null {
     }
 
     const separator = currentUser.photoUrl.includes('?') ? '&' : '?';
-    return `${currentUser.photoUrl}${separator}t=${Date.now()}`;
+    return `${currentUser.photoUrl}${separator}t=${photoUpdatedAt}`;
+  }, [currentUser.photoUrl, photoUpdatedAt]);
+
+  useEffect(() => {
+    setPhotoUpdatedAt(Date.now());
   }, [currentUser.photoUrl]);
 
   useEffect(() => {
