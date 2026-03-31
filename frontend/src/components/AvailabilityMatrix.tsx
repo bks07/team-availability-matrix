@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { AvailabilityValue, User } from '../lib/api.models';
+import { getDisplayLabel, getInitials } from '../lib/name.utils';
 
 interface AvailabilityMatrixProps {
   currentUserId: number;
@@ -48,8 +49,10 @@ export default function AvailabilityMatrix({
 }: AvailabilityMatrixProps): JSX.Element {
   const popupRef = useRef<HTMLDivElement | null>(null);
   const bulkOverlayRef = useRef<HTMLDivElement | null>(null);
+  const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [skipWeekends, setSkipWeekends] = useState(true);
   const [skipPublicHolidays, setSkipPublicHolidays] = useState(true);
+  const [hoveredEmployeeId, setHoveredEmployeeId] = useState<number | null>(null);
   const todayStr = useMemo(() => {
     const today = new Date();
     const year = today.getFullYear();
@@ -92,7 +95,33 @@ export default function AvailabilityMatrix({
     };
   }, [openKey, onOpenPopup, onClearSelection, selectedRange.length]);
 
+  useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const cellKey = (userId: number, date: string): string => `${userId}:${date}`;
+
+  const handleMouseEnter = (employeeId: number) => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+
+    hoverTimeoutRef.current = setTimeout(() => {
+      setHoveredEmployeeId(employeeId);
+    }, 150);
+  };
+
+  const handleMouseLeave = () => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+    hoverTimeoutRef.current = null;
+    setHoveredEmployeeId(null);
+  };
 
   const openPosition = useMemo(() => {
     if (!openKey) {
@@ -117,9 +146,39 @@ export default function AvailabilityMatrix({
             <tr>
               <th className="sticky-column sticky-header">Date</th>
               {employees.map((employee) => (
-                <th key={employee.id} className="sticky-header">
-                  <div className="employee-name">{employee.displayName}</div>
-                  <div className="employee-email">{employee.email}</div>
+                <th
+                  key={employee.id}
+                  className="sticky-header matrix-header-cell"
+                  onMouseEnter={() => handleMouseEnter(employee.id)}
+                  onMouseLeave={handleMouseLeave}
+                  tabIndex={0}
+                  onFocus={() => handleMouseEnter(employee.id)}
+                  onBlur={handleMouseLeave}
+                >
+                  <div className="matrix-header-content">
+                    {employee.photoUrl ? (
+                      <img src={employee.photoUrl} className="avatar-sm" alt={getDisplayLabel(employee)} />
+                    ) : (
+                      <div className="avatar-placeholder avatar-sm">{getInitials(employee)}</div>
+                    )}
+                    <span className="matrix-header-name">{getDisplayLabel(employee)}</span>
+                  </div>
+                  {hoveredEmployeeId === employee.id && (
+                    <div className="profile-hover-card">
+                      <div className="profile-hover-card-avatar">
+                        {employee.photoUrl ? (
+                          <img src={employee.photoUrl} className="avatar-md" alt={employee.displayName} />
+                        ) : (
+                          <div className="avatar-placeholder avatar-md">{getInitials(employee)}</div>
+                        )}
+                      </div>
+                      <div className="profile-hover-card-name">{employee.displayName}</div>
+                      <div className="profile-hover-card-email">{employee.email}</div>
+                      <div className="profile-hover-card-location">
+                        {employee.locationName || <em>No location</em>}
+                      </div>
+                    </div>
+                  )}
                 </th>
               ))}
             </tr>

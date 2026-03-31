@@ -510,6 +510,76 @@ td {
   font-weight: 700;
 }
 
+/* --- Matrix Header Cells --- */
+.matrix-header-cell {
+  position: relative;
+  min-width: 80px;
+  max-width: 120px;
+  text-align: center;
+  vertical-align: middle;
+  cursor: default;
+  padding: 8px 4px;
+}
+
+.matrix-header-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.matrix-header-name {
+  width: 100%;
+  max-width: 80px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* --- Hover Profile Card --- */
+.profile-hover-card {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 4px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 16px;
+  z-index: 50;
+  width: max-content;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: default;
+  pointer-events: none;
+}
+
+.profile-hover-card-avatar {
+  display: flex;
+  justify-content: center;
+}
+
+.profile-hover-card-name {
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.profile-hover-card-email,
+.profile-hover-card-location {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
 .cell-wrapper {
   position: relative;
   display: flex;
@@ -1255,6 +1325,25 @@ td.bulk-selected-last::after {
   justify-content: center;
   font-size: 2.5rem;
   font-weight: bold;
+}
+
+/* --- Avatar size variants --- */
+.avatar-sm,
+.avatar-placeholder.avatar-sm {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  font-size: 0.85rem;
+}
+
+.avatar-md,
+.avatar-placeholder.avatar-md {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  font-size: 1.25rem;
 }
 
 .avatar-clickable {
