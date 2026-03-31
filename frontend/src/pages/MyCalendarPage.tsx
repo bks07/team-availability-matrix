@@ -1,29 +1,43 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
-import WeeklyCalendar from '../components/WeeklyCalendar';
+import MonthlyCalendar, { type CalendarWeek } from '../components/MonthlyCalendar';
 import { AuthContext } from '../context/AuthContext';
 import type { AvailabilityValue, PublicHoliday, WorkSchedule } from '../lib/api.models';
 import * as matrixService from '../services/matrix.service';
 
-interface WeekDayView {
-  date: string;
-  dayName: string;
-  dayNumber: number;
-  monthName: string;
+interface CurrentMonth {
+  year: number;
+  month: number;
 }
 
-const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTH_NAMES = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
 
 function toIsoDate(date: Date): string {
-  return date.toISOString().slice(0, 10);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
-function startOfWeekMonday(baseDate: Date): Date {
-  const monday = new Date(baseDate);
+function startOfWeekMonday(date: Date): Date {
+  const monday = new Date(date);
+  monday.setHours(0, 0, 0, 0);
+
   const day = monday.getDay();
   const delta = day === 0 ? -6 : 1 - day;
   monday.setDate(monday.getDate() + delta);
-  monday.setHours(0, 0, 0, 0);
   return monday;
 }
 
@@ -31,10 +45,6 @@ function addDays(date: Date, days: number): Date {
   const next = new Date(date);
   next.setDate(next.getDate() + days);
   return next;
-}
-
-function weekDatesFromStart(start: Date): string[] {
-  return Array.from({ length: 7 }, (_, index) => toIsoDate(addDays(start, index)));
 }
 
 function isWorkingDay(schedule: WorkSchedule | null, date: string): boolean {
@@ -60,7 +70,10 @@ function isWorkingDay(schedule: WorkSchedule | null, date: string): boolean {
 
 export default function MyCalendarPage(): JSX.Element {
   const { currentUser } = useContext(AuthContext);
-  const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() => startOfWeekMonday(new Date()));
+  const [currentMonth, setCurrentMonth] = useState<CurrentMonth>(() => {
+    const today = new Date();
+    return { year: today.getFullYear(), month: today.getMonth() };
+  });
   const [entryMap, setEntryMap] = useState<Map<string, AvailabilityValue>>(new Map());
   const [userSchedule, setUserSchedule] = useState<WorkSchedule | null>(null);
   const [holidayNameMap, setHolidayNameMap] = useState<Map<string, string>>(new Map());
@@ -69,29 +82,48 @@ export default function MyCalendarPage(): JSX.Element {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  const weekDates = useMemo(() => weekDatesFromStart(currentWeekStart), [currentWeekStart]);
+  const weeks = useMemo<CalendarWeek[]>(() => {
+    const firstOfMonth = new Date(currentMonth.year, currentMonth.month, 1);
+    firstOfMonth.setHours(0, 0, 0, 0);
 
-  const days = useMemo<WeekDayView[]>(
-    () =>
-      weekDates.map((date) => {
-        const parsed = new Date(`${date}T00:00:00`);
+    const lastOfMonth = new Date(currentMonth.year, currentMonth.month + 1, 0);
+    lastOfMonth.setHours(0, 0, 0, 0);
+
+    const gridStart = startOfWeekMonday(firstOfMonth);
+    const gridEnd = new Date(lastOfMonth);
+    const endDay = gridEnd.getDay();
+    const daysUntilSunday = endDay === 0 ? 0 : 7 - endDay;
+    gridEnd.setDate(gridEnd.getDate() + daysUntilSunday);
+
+    const computedWeeks: CalendarWeek[] = [];
+    let cursor = new Date(gridStart);
+
+    while (cursor <= gridEnd) {
+      const days = Array.from({ length: 7 }, (_, index) => {
+        const dayDate = addDays(cursor, index);
         return {
-          date,
-          dayName: DAY_NAMES[parsed.getDay()],
-          dayNumber: parsed.getDate(),
-          monthName: MONTH_NAMES[parsed.getMonth()],
+          date: toIsoDate(dayDate),
+          dayOfMonth: dayDate.getDate(),
+          isCurrentMonth: dayDate.getMonth() === currentMonth.month,
         };
-      }),
-    [weekDates]
+      });
+
+      computedWeeks.push({ days });
+      cursor = addDays(cursor, 7);
+    }
+
+    return computedWeeks;
+  }, [currentMonth]);
+
+  const visibleDates = useMemo(
+    () => weeks.flatMap((week) => week.days.map((day) => day.date)),
+    [weeks]
   );
 
-  const weekLabel = useMemo(() => {
-    const first = new Date(`${weekDates[0]}T00:00:00`);
-    const last = new Date(`${weekDates[6]}T00:00:00`);
-    const startLabel = `${MONTH_NAMES[first.getMonth()]} ${first.getDate()}`;
-    const endLabel = `${MONTH_NAMES[last.getMonth()]} ${last.getDate()}, ${last.getFullYear()}`;
-    return `${startLabel} - ${endLabel}`;
-  }, [weekDates]);
+  const monthLabel = useMemo(
+    () => `${MONTH_NAMES[currentMonth.month]} ${currentMonth.year}`,
+    [currentMonth]
+  );
 
   useEffect(() => {
     if (!currentUser) {
@@ -100,24 +132,24 @@ export default function MyCalendarPage(): JSX.Element {
 
     let cancelled = false;
 
-    const fetchWeekData = async () => {
+    const fetchMonthData = async () => {
       setIsLoading(true);
       setErrorMessage('');
 
       try {
-        const years = Array.from(new Set(weekDates.map((date) => Number(date.slice(0, 4)))));
+        const years = Array.from(new Set(visibleDates.map((date) => Number(date.slice(0, 4)))));
         const matrices = await Promise.all(years.map((year) => matrixService.getMatrix(year)));
 
         if (cancelled) {
           return;
         }
 
-        const weekSet = new Set(weekDates);
+        const visibleDateSet = new Set(visibleDates);
         const nextEntryMap = new Map<string, AvailabilityValue>();
 
         matrices
           .flatMap((matrix) => matrix.entries)
-          .filter((entry) => entry.userId === currentUser.id && weekSet.has(entry.statusDate))
+          .filter((entry) => entry.userId === currentUser.id && visibleDateSet.has(entry.statusDate))
           .forEach((entry) => {
             nextEntryMap.set(entry.statusDate, entry.status);
           });
@@ -137,7 +169,7 @@ export default function MyCalendarPage(): JSX.Element {
             ? []
             : matrices
                 .flatMap((matrix) => matrix.publicHolidays)
-                .filter((holiday) => holiday.locationId === locationId && weekSet.has(holiday.holidayDate));
+                .filter((holiday) => holiday.locationId === locationId && visibleDateSet.has(holiday.holidayDate));
 
         const nextHolidayMap = new Map<string, string>();
         holidays.forEach((holiday: PublicHoliday) => {
@@ -153,12 +185,12 @@ export default function MyCalendarPage(): JSX.Element {
       }
     };
 
-    void fetchWeekData();
+    void fetchMonthData();
 
     return () => {
       cancelled = true;
     };
-  }, [currentUser, weekDates]);
+  }, [currentUser, visibleDates]);
 
   if (!currentUser) {
     return <main className="my-calendar-page" />;
@@ -188,7 +220,9 @@ export default function MyCalendarPage(): JSX.Element {
   const todayIso = toIsoDate(new Date());
   const isToday = (date: string): boolean => date === todayIso;
 
-  const holidayName = (date: string): string | null => holidayNameMap.get(date) ?? null;
+  const holidayNameFor = (date: string): string | null => holidayNameMap.get(date) ?? null;
+
+  const isHoliday = (date: string): boolean => holidayNameMap.has(date);
 
   const handleSetStatus = async (date: string, status: AvailabilityValue) => {
     const previous = entryMap.get(date);
@@ -250,43 +284,50 @@ export default function MyCalendarPage(): JSX.Element {
     }
   };
 
-  const showPreviousWeek = () => {
-    setCurrentWeekStart((prev) => addDays(prev, -7));
+  const goToPreviousMonth = () => {
+    setCurrentMonth((prev) => {
+      const monthDate = new Date(prev.year, prev.month - 1, 1);
+      return { year: monthDate.getFullYear(), month: monthDate.getMonth() };
+    });
   };
 
-  const showNextWeek = () => {
-    setCurrentWeekStart((prev) => addDays(prev, 7));
+  const goToNextMonth = () => {
+    setCurrentMonth((prev) => {
+      const monthDate = new Date(prev.year, prev.month + 1, 1);
+      return { year: monthDate.getFullYear(), month: monthDate.getMonth() };
+    });
+  };
+
+  const goToToday = () => {
+    const today = new Date();
+    setCurrentMonth({ year: today.getFullYear(), month: today.getMonth() });
   };
 
   return (
     <main className="my-calendar-page">
       <header className="my-calendar-header">
         <h1>My Calendar</h1>
-        <div className="my-calendar-nav">
-          <button type="button" onClick={showPreviousWeek}>
-            Previous
-          </button>
-          <span>{weekLabel}</span>
-          <button type="button" onClick={showNextWeek}>
-            Next
-          </button>
-        </div>
       </header>
 
       {errorMessage ? <p className="message error">{errorMessage}</p> : null}
       {successMessage ? <p className="message success">{successMessage}</p> : null}
       {isLoading ? <p className="message">Loading calendar...</p> : null}
 
-      <WeeklyCalendar
-        days={days}
+      <MonthlyCalendar
+        monthLabel={monthLabel}
+        weeks={weeks}
         statusFor={statusFor}
         isExplicit={isExplicit}
         isWeekend={isWeekend}
         isToday={isToday}
-        holidayName={holidayName}
+        isHoliday={isHoliday}
+        holidayNameFor={holidayNameFor}
         onSetStatus={handleSetStatus}
         onClearStatus={handleClearStatus}
         pendingDate={pendingDate}
+        onPreviousMonth={goToPreviousMonth}
+        onNextMonth={goToNextMonth}
+        onToday={goToToday}
       />
     </main>
   );
