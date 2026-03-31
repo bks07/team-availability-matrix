@@ -1,21 +1,40 @@
 import { httpClient } from '../lib/http.client';
 import type { User } from '../lib/api.models';
+import { deriveDisplayName } from '../lib/name.utils';
 
 type ApiUserShape = {
   id?: number;
   email?: string;
+  title?: string;
+  firstName?: string;
+  first_name?: string;
+  middleName?: string;
+  middle_name?: string;
+  lastName?: string;
+  last_name?: string;
   displayName?: string;
   display_name?: string;
   locationId?: number | null;
   location_id?: number | null;
+  locationName?: string | null;
+  location_name?: string | null;
   photoUrl?: string | null;
   photo_url?: string | null;
   permissions?: string[];
 };
 
-interface UpdateProfileRequest {
+interface LegacyUpdateProfileRequest {
   email: string;
   displayName: string;
+  locationId?: number | null;
+}
+
+interface StructuredUpdateProfileRequest {
+  title: string;
+  firstName: string;
+  middleName: string;
+  lastName: string;
+  email: string;
   locationId?: number | null;
 }
 
@@ -30,19 +49,47 @@ interface ChangePasswordResponse {
 
 function normalizeUser(response: User | ApiUserShape): User {
   const normalized = response as ApiUserShape;
+  const firstName = normalized.firstName ?? normalized.first_name ?? '';
+  const middleName = normalized.middleName ?? normalized.middle_name ?? '';
+  const lastName = normalized.lastName ?? normalized.last_name ?? '';
+  const title = normalized.title ?? '';
+  const computedDisplayName = deriveDisplayName({ title, firstName, middleName, lastName }).trim();
 
   return {
     ...(response as User),
-    displayName: normalized.displayName ?? normalized.display_name ?? '',
+    title,
+    firstName,
+    middleName,
+    lastName,
+    displayName: normalized.displayName ?? normalized.display_name ?? computedDisplayName,
     locationId: normalized.locationId ?? normalized.location_id ?? null,
+    locationName: normalized.locationName ?? normalized.location_name ?? null,
     photoUrl: normalized.photoUrl ?? normalized.photo_url ?? null,
     permissions: normalized.permissions ?? (response as User).permissions ?? []
   };
 }
 
-export function updateProfile(data: UpdateProfileRequest): Promise<User> {
+function splitDisplayName(displayName: string): { firstName: string; middleName: string; lastName: string } {
+  const parts = displayName.trim().split(/\s+/).filter(Boolean);
+  const firstName = parts[0] ?? '';
+  const lastName = parts.length > 1 ? parts[parts.length - 1] : firstName;
+  const middleName = parts.length > 2 ? parts.slice(1, -1).join(' ') : '';
+
+  return { firstName, middleName, lastName };
+}
+
+export function updateProfile(data: StructuredUpdateProfileRequest | LegacyUpdateProfileRequest): Promise<User> {
+  const payload: StructuredUpdateProfileRequest = 'displayName' in data
+    ? {
+        title: '',
+        ...splitDisplayName(data.displayName),
+        email: data.email,
+        locationId: data.locationId,
+      }
+    : data;
+
   return httpClient
-    .put<User | ApiUserShape, UpdateProfileRequest>('/profile', data)
+    .put<User | ApiUserShape, StructuredUpdateProfileRequest>('/profile', payload)
     .then(normalizeUser);
 }
 

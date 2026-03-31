@@ -1,17 +1,6 @@
 import PhotoCropModal from '../components/PhotoCropModal';
 import { useProfilePage } from '../hooks/useProfilePage';
-
-function getInitials(displayName: string): string {
-  const initials = displayName
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? '')
-    .join('');
-
-  return initials || '?';
-}
+import { getInitials } from '../lib/name.utils';
 
 export default function ProfilePage(): JSX.Element {
   const {
@@ -75,7 +64,7 @@ export default function ProfilePage(): JSX.Element {
             disabled={isPhotoBusy}
             aria-label="Upload profile photo"
           >
-            {getInitials(currentUser.displayName)}
+            {getInitials(currentUser) || '?'}
           </button>
         )}
 
