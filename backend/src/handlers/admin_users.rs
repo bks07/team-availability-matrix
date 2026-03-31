@@ -10,7 +10,7 @@ use crate::auth::{
 use crate::error::ApiError;
 use crate::helpers::{
     delete_photo_file_best_effort, ensure_location_exists, ensure_user_exists,
-    normalize_display_name, normalize_email,
+    derive_display_name, normalize_email, normalize_name_fields,
 };
 use crate::models::EmployeeRow;
 use crate::state::AppState;
@@ -32,7 +32,7 @@ pub(crate) async fn list_admin_users(
     .await?;
 
     let users = sqlx::query_as::<_, EmployeeRow>(
-        "SELECT id, email, display_name, location_id, photo_url FROM users ORDER BY LOWER(display_name) ASC",
+        "SELECT u.id, u.email, u.display_name, u.title, u.first_name, u.middle_name, u.last_name, u.location_id, u.photo_url, l.name AS location_name FROM users u LEFT JOIN locations l ON u.location_id = l.id ORDER BY LOWER(u.display_name) ASC",
     )
     .fetch_all(&state.db)
     .await
@@ -50,7 +50,12 @@ pub(crate) async fn list_admin_users(
             id: user.id,
             email: user.email,
             display_name: user.display_name,
+            title: user.title,
+            first_name: user.first_name,
+            middle_name: user.middle_name,
+            last_name: user.last_name,
             location_id: user.location_id,
+            location_name: user.location_name,
             photo_url: user.photo_url,
             permissions,
         });
@@ -69,7 +74,9 @@ pub(crate) async fn admin_create_user(
     require_permission(&headers, &state.db, &state.jwt_secret, PERMISSION_ADMIN).await?;
 
     let email = normalize_email(&payload.email)?;
-    let display_name = normalize_display_name(&payload.display_name)?;
+    let (title, first_name, middle_name, last_name) =
+        normalize_name_fields("", &payload.first_name, "", &payload.last_name)?;
+    let display_name = derive_display_name(&title, &first_name, &middle_name, &last_name);
     validate_password(&payload.password)?;
 
     if let Some(location_id) = payload.location_id {
@@ -78,17 +85,21 @@ pub(crate) async fn admin_create_user(
 
     let password_hash = hash_password(&payload.password)?;
 
-    let created_user = sqlx::query_as::<_, EmployeeRow>(
-        "INSERT INTO users (email, display_name, password_hash, location_id) VALUES ($1, $2, $3, $4) RETURNING id, email, display_name, location_id, photo_url, created_at",
+    let created_user_id = sqlx::query_scalar::<_, i64>(
+        "INSERT INTO users (email, display_name, password_hash, title, first_name, middle_name, last_name, location_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
     )
     .bind(&email)
     .bind(&display_name)
     .bind(password_hash)
+    .bind(&title)
+    .bind(&first_name)
+    .bind(&middle_name)
+    .bind(&last_name)
     .bind(payload.location_id)
     .fetch_one(&state.db)
     .await;
 
-    let created_user = match created_user {
+    let created_user_id = match created_user_id {
         Ok(user) => user,
         Err(error) => {
             if error
@@ -108,6 +119,19 @@ pub(crate) async fn admin_create_user(
         }
     };
 
+    let created_user = sqlx::query_as::<_, EmployeeRow>(
+        "SELECT u.id, u.email, u.display_name, u.title, u.first_name, u.middle_name, u.last_name, u.location_id, u.photo_url, l.name AS location_name FROM users u LEFT JOIN locations l ON u.location_id = l.id WHERE u.id = $1",
+    )
+    .bind(created_user_id)
+    .fetch_one(&state.db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to load created user: {error}"),
+        )
+    })?;
+
     let permissions = get_user_permissions(&state.db, created_user.id).await?;
 
     Ok((
@@ -116,7 +140,12 @@ pub(crate) async fn admin_create_user(
             id: created_user.id,
             email: created_user.email,
             display_name: created_user.display_name,
+            title: created_user.title,
+            first_name: created_user.first_name,
+            middle_name: created_user.middle_name,
+            last_name: created_user.last_name,
             location_id: created_user.location_id,
+            location_name: created_user.location_name,
             photo_url: created_user.photo_url,
             permissions,
         }),
@@ -136,7 +165,9 @@ pub(crate) async fn admin_update_user(
     ensure_user_exists(&state.db, id).await?;
 
     let email = normalize_email(&payload.email)?;
-    let display_name = normalize_display_name(&payload.display_name)?;
+    let (title, first_name, middle_name, last_name) =
+        normalize_name_fields("", &payload.first_name, "", &payload.last_name)?;
+    let display_name = derive_display_name(&title, &first_name, &middle_name, &last_name);
 
     if let Some(location_id) = payload.location_id {
         ensure_location_exists(&state.db, location_id).await?;
@@ -147,19 +178,29 @@ pub(crate) async fn admin_update_user(
         let password_hash = hash_password(password)?;
 
         sqlx::query(
-            "UPDATE users SET email = $1, display_name = $2, location_id = $3, password_hash = $4 WHERE id = $5",
+            "UPDATE users SET email = $1, display_name = $2, title = $3, first_name = $4, middle_name = $5, last_name = $6, location_id = $7, password_hash = $8 WHERE id = $9",
         )
         .bind(&email)
         .bind(&display_name)
+        .bind(&title)
+        .bind(&first_name)
+        .bind(&middle_name)
+        .bind(&last_name)
         .bind(payload.location_id)
         .bind(password_hash)
         .bind(id)
         .execute(&state.db)
         .await
     } else {
-        sqlx::query("UPDATE users SET email = $1, display_name = $2, location_id = $3 WHERE id = $4")
+        sqlx::query(
+            "UPDATE users SET email = $1, display_name = $2, title = $3, first_name = $4, middle_name = $5, last_name = $6, location_id = $7 WHERE id = $8",
+        )
             .bind(&email)
             .bind(&display_name)
+            .bind(&title)
+            .bind(&first_name)
+            .bind(&middle_name)
+            .bind(&last_name)
             .bind(payload.location_id)
             .bind(id)
             .execute(&state.db)
@@ -184,7 +225,7 @@ pub(crate) async fn admin_update_user(
     }
 
     let user = sqlx::query_as::<_, EmployeeRow>(
-        "SELECT id, email, display_name, location_id, photo_url FROM users WHERE id = $1",
+        "SELECT u.id, u.email, u.display_name, u.title, u.first_name, u.middle_name, u.last_name, u.location_id, u.photo_url, l.name AS location_name FROM users u LEFT JOIN locations l ON u.location_id = l.id WHERE u.id = $1",
     )
     .bind(id)
     .fetch_one(&state.db)
@@ -202,7 +243,12 @@ pub(crate) async fn admin_update_user(
         id: user.id,
         email: user.email,
         display_name: user.display_name,
+        title: user.title,
+        first_name: user.first_name,
+        middle_name: user.middle_name,
+        last_name: user.last_name,
         location_id: user.location_id,
+        location_name: user.location_name,
         photo_url: user.photo_url,
         permissions,
     }))

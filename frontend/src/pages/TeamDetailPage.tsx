@@ -2,22 +2,18 @@ import { useContext, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import type { TeamDetail, TeamMember, UserSearchResult } from '../lib/api.models';
+import { getInitials } from '../lib/name.utils';
 import { teamService } from '../services/team.service';
 
 function normalizeRole(role: string): string {
   return role.trim().toLowerCase();
 }
 
-function getInitials(displayName: string): string {
-  const initials = displayName
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? '')
-    .join('');
-
-  return initials || '?';
+function getNamePartsFromDisplayName(displayName: string): { firstName: string; lastName: string } {
+  const parts = displayName.trim().split(/\s+/).filter(Boolean);
+  const firstName = parts[0] ?? '';
+  const lastName = parts.length > 1 ? parts[parts.length - 1] : '';
+  return { firstName, lastName };
 }
 
 function formatJoinedAt(value: string): string {
@@ -417,7 +413,7 @@ export default function TeamDetailPage(): JSX.Element {
                     {member.photoUrl ? (
                       <img src={member.photoUrl} alt={member.displayName} className="team-member-avatar" />
                     ) : (
-                      <div className="team-member-avatar team-member-avatar--fallback">{getInitials(member.displayName)}</div>
+                      <div className="team-member-avatar team-member-avatar--fallback">{getInitials(getNamePartsFromDisplayName(member.displayName)) || '?'}</div>
                     )}
 
                     <div className="team-member-text">

@@ -30,7 +30,7 @@ pub(crate) async fn get_matrix(
         .ok_or_else(|| ApiError::new(StatusCode::BAD_REQUEST, "Year is invalid"))?;
 
     let employees = sqlx::query_as::<_, EmployeeRow>(
-        "SELECT id, email, display_name, location_id, photo_url FROM users ORDER BY LOWER(display_name) ASC",
+        "SELECT u.id, u.email, u.display_name, u.title, u.first_name, u.middle_name, u.last_name, u.location_id, u.photo_url, l.name AS location_name FROM users u LEFT JOIN locations l ON u.location_id = l.id ORDER BY LOWER(u.display_name) ASC",
     )
     .fetch_all(&state.db)
     .await
@@ -161,7 +161,12 @@ pub(crate) async fn get_matrix(
                     id: user.id,
                     email: user.email,
                     display_name: user.display_name,
+                    title: user.title,
+                    first_name: user.first_name,
+                    middle_name: user.middle_name,
+                    last_name: user.last_name,
                     location_id: user.location_id,
+                    location_name: user.location_name,
                     photo_url: user.photo_url,
                     permissions,
                 });

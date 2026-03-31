@@ -29,14 +29,16 @@ function getErrorMessage(error: unknown): string {
 
 export interface UserFormState {
   email: string;
-  displayName: string;
+  firstName: string;
+  lastName: string;
   password: string;
   locationId: number | null;
 }
 
 const INITIAL_FORM: UserFormState = {
   email: '',
-  displayName: '',
+  firstName: '',
+  lastName: '',
   password: '',
   locationId: null
 };
@@ -239,7 +241,8 @@ export function useUsersPage(): UseUsersPageResult {
     event.preventDefault();
 
     const email = newUserForm.email.trim();
-    const displayName = newUserForm.displayName.trim();
+    const firstName = newUserForm.firstName.trim();
+    const lastName = newUserForm.lastName.trim();
     const password = newUserForm.password;
 
     if (!email) {
@@ -248,8 +251,14 @@ export function useUsersPage(): UseUsersPageResult {
       return;
     }
 
-    if (!displayName) {
-      setError('Display name is required.');
+    if (!firstName) {
+      setError('First name is required.');
+      setSuccess('');
+      return;
+    }
+
+    if (!lastName) {
+      setError('Last name is required.');
       setSuccess('');
       return;
     }
@@ -266,7 +275,8 @@ export function useUsersPage(): UseUsersPageResult {
 
     const payload: CreateUserRequest = {
       email,
-      displayName,
+      firstName,
+      lastName,
       password,
       locationId: newUserForm.locationId
     };
@@ -287,7 +297,8 @@ export function useUsersPage(): UseUsersPageResult {
     setEditingId(user.id);
     setEditUserForm({
       email: user.email,
-      displayName: user.displayName,
+      firstName: user.firstName,
+      lastName: user.lastName,
       password: '',
       locationId: user.locationId ?? null
     });
@@ -324,7 +335,8 @@ export function useUsersPage(): UseUsersPageResult {
 
   const handleSaveEdit = async (id: number) => {
     const email = editUserForm.email.trim();
-    const displayName = editUserForm.displayName.trim();
+    const firstName = editUserForm.firstName.trim();
+    const lastName = editUserForm.lastName.trim();
 
     if (!email) {
       setError('Email is required.');
@@ -332,8 +344,14 @@ export function useUsersPage(): UseUsersPageResult {
       return;
     }
 
-    if (!displayName) {
-      setError('Display name is required.');
+    if (!firstName) {
+      setError('First name is required.');
+      setSuccess('');
+      return;
+    }
+
+    if (!lastName) {
+      setError('Last name is required.');
       setSuccess('');
       return;
     }
@@ -365,7 +383,8 @@ export function useUsersPage(): UseUsersPageResult {
 
     const payload: UpdateUserRequest = {
       email,
-      displayName,
+      firstName,
+      lastName,
       locationId: editUserForm.locationId
     };
 

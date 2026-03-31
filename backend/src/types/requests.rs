@@ -5,7 +5,8 @@ use crate::models::StatusValue;
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct RegisterRequest {
-    pub(crate) display_name: String,
+    pub(crate) first_name: String,
+    pub(crate) last_name: String,
     pub(crate) email: String,
     pub(crate) password: String,
 }
@@ -77,7 +78,10 @@ pub(crate) struct ChangePasswordRequest {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct UpdateProfileRequest {
     pub(crate) email: String,
-    pub(crate) display_name: String,
+    pub(crate) title: String,
+    pub(crate) first_name: String,
+    pub(crate) middle_name: String,
+    pub(crate) last_name: String,
     pub(crate) location_id: Option<i64>,
 }
 
@@ -85,7 +89,8 @@ pub(crate) struct UpdateProfileRequest {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct AdminCreateUserRequest {
     pub(crate) email: String,
-    pub(crate) display_name: String,
+    pub(crate) first_name: String,
+    pub(crate) last_name: String,
     pub(crate) password: String,
     pub(crate) location_id: Option<i64>,
 }
@@ -94,7 +99,8 @@ pub(crate) struct AdminCreateUserRequest {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct AdminUpdateUserRequest {
     pub(crate) email: String,
-    pub(crate) display_name: String,
+    pub(crate) first_name: String,
+    pub(crate) last_name: String,
     pub(crate) location_id: Option<i64>,
     pub(crate) password: Option<String>,
 }

@@ -3,18 +3,9 @@ import { Link } from 'react-router-dom';
 import logo from '../assets/logo.svg';
 import { AuthContext } from '../context/AuthContext';
 import type { AvailabilityValue } from '../lib/api.models';
+import { getInitials } from '../lib/name.utils';
 import { getMatrix, updateStatus } from '../services/matrix.service';
 import BurgerMenu from './BurgerMenu';
-
-function getInitials(name: string): string {
-  return name
-    .split(' ')
-    .filter(Boolean)
-    .map((part) => part[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
-}
 
 export default function NavBar(): JSX.Element | null {
   const { currentUser, onLogout } = useContext(AuthContext);
@@ -242,7 +233,7 @@ export default function NavBar(): JSX.Element | null {
               {photoSrc ? (
                 <img src={photoSrc} alt="" className="navbar-user-avatar" />
               ) : (
-                <span className="navbar-user-initials">{getInitials(currentUser.displayName)}</span>
+                <span className="navbar-user-initials">{getInitials(currentUser)}</span>
               )}
               <span className="navbar-user-name">{currentUser.displayName}</span>
               <span className="navbar-user-chevron">▾</span>
@@ -253,7 +244,7 @@ export default function NavBar(): JSX.Element | null {
                   {photoSrc ? (
                     <img src={photoSrc} alt="" className="navbar-dropdown-avatar" />
                   ) : (
-                    <span className="navbar-dropdown-initials">{getInitials(currentUser.displayName)}</span>
+                    <span className="navbar-dropdown-initials">{getInitials(currentUser)}</span>
                   )}
                   <div className="navbar-dropdown-user-info">
                     <span className="navbar-dropdown-user-name">{currentUser.displayName}</span>

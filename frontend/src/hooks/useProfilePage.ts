@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import type { Location, User } from '../lib/api.models';
 import { getLocations } from '../services/location.service';
 import { changePassword, deleteProfilePhoto, updateProfile, uploadProfilePhoto } from '../services/profile.service';
+import { deriveDisplayName } from '../lib/name.utils';
 
 const MAX_PHOTO_SIZE_BYTES = 2 * 1024 * 1024;
 
@@ -24,8 +25,14 @@ export interface UseProfilePageResult {
   fileInputRef: RefObject<HTMLInputElement>;
   locations: Location[];
   locationsLoading: boolean;
-  displayName: string;
-  setDisplayName: Dispatch<SetStateAction<string>>;
+  title: string;
+  setTitle: Dispatch<SetStateAction<string>>;
+  firstName: string;
+  setFirstName: Dispatch<SetStateAction<string>>;
+  middleName: string;
+  setMiddleName: Dispatch<SetStateAction<string>>;
+  lastName: string;
+  setLastName: Dispatch<SetStateAction<string>>;
   email: string;
   setEmail: Dispatch<SetStateAction<string>>;
   locationIdValue: string;
@@ -65,7 +72,10 @@ export function useProfilePage(): UseProfilePageResult {
   const [locations, setLocations] = useState<Location[]>([]);
   const [locationsLoading, setLocationsLoading] = useState(true);
 
-  const [displayName, setDisplayName] = useState('');
+  const [title, setTitle] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [middleName, setMiddleName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [locationIdValue, setLocationIdValue] = useState('');
 
@@ -92,7 +102,10 @@ export function useProfilePage(): UseProfilePageResult {
       return;
     }
 
-    setDisplayName(currentUser.displayName);
+    setTitle(currentUser.title ?? '');
+    setFirstName(currentUser.firstName);
+    setMiddleName(currentUser.middleName ?? '');
+    setLastName(currentUser.lastName);
     setEmail(currentUser.email);
     setLocationIdValue(currentUser.locationId ? String(currentUser.locationId) : '');
   }, [currentUser]);
@@ -228,12 +241,22 @@ export function useProfilePage(): UseProfilePageResult {
 
     try {
       const updatedUser = await updateProfile({
+        title,
+        firstName,
+        middleName,
+        lastName,
         email,
-        displayName,
         locationId: selectedLocationId
       });
 
-      updateSessionUser(updatedUser);
+      updateSessionUser({
+        ...updatedUser,
+        title,
+        firstName,
+        middleName,
+        lastName,
+        displayName: updatedUser.displayName || deriveDisplayName({ title, firstName, middleName, lastName })
+      });
 
       setProfileSuccess('Profile updated successfully.');
     } catch (error) {
@@ -272,8 +295,14 @@ export function useProfilePage(): UseProfilePageResult {
     fileInputRef,
     locations,
     locationsLoading,
-    displayName,
-    setDisplayName,
+    title,
+    setTitle,
+    firstName,
+    setFirstName,
+    middleName,
+    setMiddleName,
+    lastName,
+    setLastName,
     email,
     setEmail,
     locationIdValue,

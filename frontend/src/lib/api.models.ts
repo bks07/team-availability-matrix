@@ -4,7 +4,12 @@ export interface User {
   id: number;
   email: string;
   displayName: string;
+  title?: string;
+  firstName: string;
+  middleName?: string;
+  lastName: string;
   locationId?: number | null;
+  locationName?: string | null;
   photoUrl?: string | null;
   permissions: string[];
 }
@@ -25,23 +30,32 @@ export interface UserWithPermissions {
   id: number;
   email: string;
   displayName: string;
+  title?: string;
+  firstName: string;
+  middleName?: string;
+  lastName: string;
   locationId?: number | null;
+  locationName?: string | null;
   photoUrl?: string | null;
   permissions: string[];
 }
 
 export interface CreateUserRequest {
   email: string;
-  displayName: string;
+  firstName?: string;
+  lastName?: string;
   password: string;
   locationId?: number | null;
+  [key: string]: unknown;
 }
 
 export interface UpdateUserRequest {
   email: string;
-  displayName: string;
+  firstName?: string;
+  lastName?: string;
   locationId?: number | null;
   password?: string;
+  [key: string]: unknown;
 }
 
 export interface BulkAssignLocationRequest {
@@ -104,7 +118,8 @@ export interface LoginRequest {
 }
 
 export interface RegisterRequest extends LoginRequest {
-  displayName: string;
+  firstName: string;
+  lastName: string;
 }
 
 // Team Management

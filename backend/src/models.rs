@@ -42,6 +42,10 @@ pub(crate) struct UserRecord {
     pub(crate) id: i64,
     pub(crate) email: String,
     pub(crate) display_name: String,
+    pub(crate) title: String,
+    pub(crate) first_name: String,
+    pub(crate) middle_name: String,
+    pub(crate) last_name: String,
     pub(crate) location_id: Option<i64>,
     pub(crate) photo_url: Option<String>,
     pub(crate) password_hash: String,
@@ -52,7 +56,12 @@ pub(crate) struct EmployeeRow {
     pub(crate) id: i64,
     pub(crate) email: String,
     pub(crate) display_name: String,
+    pub(crate) title: String,
+    pub(crate) first_name: String,
+    pub(crate) middle_name: String,
+    pub(crate) last_name: String,
     pub(crate) location_id: Option<i64>,
+    pub(crate) location_name: Option<String>,
     pub(crate) photo_url: Option<String>,
 }
 

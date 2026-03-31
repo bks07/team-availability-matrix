@@ -36,6 +36,35 @@ pub(crate) async fn initialize_database(db: &PgPool) -> Result<(), sqlx::Error> 
         .execute(db)
         .await?;
 
+    sqlx::query("ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name TEXT NOT NULL DEFAULT ''")
+        .execute(db)
+        .await?;
+
+    sqlx::query("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name TEXT NOT NULL DEFAULT ''")
+        .execute(db)
+        .await?;
+
+    sqlx::query("ALTER TABLE users ADD COLUMN IF NOT EXISTS title TEXT NOT NULL DEFAULT ''")
+        .execute(db)
+        .await?;
+
+    sqlx::query("ALTER TABLE users ADD COLUMN IF NOT EXISTS middle_name TEXT NOT NULL DEFAULT ''")
+        .execute(db)
+        .await?;
+
+    sqlx::query(
+        r#"
+        UPDATE users
+        SET first_name = split_part(display_name, ' ', 1),
+            last_name = CASE WHEN position(' ' in display_name) > 0
+                             THEN substring(display_name from position(' ' in display_name)+1)
+                             ELSE '' END
+        WHERE first_name = '' AND display_name != '';
+        "#,
+    )
+    .execute(db)
+    .await?;
+
     sqlx::query(
         r#"
         CREATE TABLE IF NOT EXISTS availability_statuses (

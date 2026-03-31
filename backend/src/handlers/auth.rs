@@ -9,7 +9,9 @@ use crate::auth::{
     verify_password, FIRST_USER_PERMISSIONS,
 };
 use crate::error::ApiError;
-use crate::helpers::{find_public_user, normalize_display_name, normalize_email};
+use crate::helpers::{
+    derive_display_name, find_public_user, normalize_email, normalize_name_fields,
+};
 use crate::models::UserRecord;
 use crate::state::AppState;
 use crate::types::requests::{LoginRequest, RegisterRequest};
@@ -39,17 +41,23 @@ pub(crate) async fn register(
     }
 
     let email = normalize_email(&payload.email)?;
-    let display_name = normalize_display_name(&payload.display_name)?;
+    let (title, first_name, middle_name, last_name) =
+        normalize_name_fields("", &payload.first_name, "", &payload.last_name)?;
+    let display_name = derive_display_name(&title, &first_name, &middle_name, &last_name);
     validate_password(&payload.password)?;
 
     let password_hash = hash_password(&payload.password)?;
 
     let inserted_id = sqlx::query_scalar::<_, i64>(
-        "INSERT INTO users (email, display_name, password_hash) VALUES ($1, $2, $3) RETURNING id",
+        "INSERT INTO users (email, display_name, password_hash, title, first_name, middle_name, last_name) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
     )
     .bind(&email)
     .bind(&display_name)
     .bind(password_hash)
+    .bind(&title)
+    .bind(&first_name)
+    .bind(&middle_name)
+    .bind(&last_name)
     .fetch_one(&state.db)
     .await;
 
@@ -74,7 +82,7 @@ pub(crate) async fn register(
     };
 
     let user = sqlx::query_as::<_, UserRecord>(
-        "SELECT id, email, display_name, location_id, photo_url, password_hash FROM users WHERE email = $1",
+        "SELECT id, email, display_name, title, first_name, middle_name, last_name, location_id, photo_url, password_hash FROM users WHERE email = $1",
     )
     .bind(&email)
     .fetch_one(&state.db)
@@ -114,7 +122,12 @@ pub(crate) async fn register(
             id: user.id,
             email: user.email,
             display_name: user.display_name,
+            title: user.title,
+            first_name: user.first_name,
+            middle_name: user.middle_name,
+            last_name: user.last_name,
             location_id: user.location_id,
+            location_name: None,
             photo_url: user.photo_url,
             permissions: permissions.clone(),
         },
@@ -131,7 +144,7 @@ pub(crate) async fn login(
     let email = normalize_email(&payload.email)?;
 
     let user = sqlx::query_as::<_, UserRecord>(
-        "SELECT id, email, display_name, location_id, photo_url, password_hash FROM users WHERE email = $1",
+        "SELECT id, email, display_name, title, first_name, middle_name, last_name, location_id, photo_url, password_hash FROM users WHERE email = $1",
     )
     .bind(&email)
     .fetch_optional(&state.db)
@@ -146,6 +159,18 @@ pub(crate) async fn login(
 
     verify_password(&payload.password, &user.password_hash)?;
     let permissions = get_user_permissions(&state.db, user.id).await?;
+    let location_name = sqlx::query_scalar::<_, String>(
+        "SELECT l.name FROM users u LEFT JOIN locations l ON u.location_id = l.id WHERE u.id = $1",
+    )
+    .bind(user.id)
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to load user location: {error}"),
+        )
+    })?;
     let token = issue_token(user.id, &state.jwt_secret)?;
 
     Ok(Json(AuthResponse {
@@ -154,7 +179,12 @@ pub(crate) async fn login(
             id: user.id,
             email: user.email,
             display_name: user.display_name,
+            title: user.title,
+            first_name: user.first_name,
+            middle_name: user.middle_name,
+            last_name: user.last_name,
             location_id: user.location_id,
+            location_name,
             photo_url: user.photo_url,
             permissions: permissions.clone(),
         },
