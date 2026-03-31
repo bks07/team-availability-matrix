@@ -1,6 +1,6 @@
-# Documentation Index
+# Specification Index
 
-The `docs` folder is the source of truth for agent execution.
+The `specs` folder is the source of truth for agent execution.
 Each folder in the folder hierarchy contains markdown documents that describe features, technical changes, or changes to the user interface.
 Each markdown document defines work that agents should plan and implement.
 
@@ -16,7 +16,7 @@ Every implementation document should use the following templates so agents can e
 
 Folder: `./bugfixing`
 
-Bugfixing docs describe errors found and reported by end users.
+Bugfixing specs describe errors found and reported by end users.
 
 Typical outputs:
 
@@ -55,7 +55,7 @@ If any section is missing, agents must ask clarifying questions before implement
 
 Folder: `./product-areas`
 
-Product area docs describe user-facing functionality.
+Product area specs describe user-facing functionality.
 They define behavior that users can see and use.
 
 Typical outputs:
@@ -187,7 +187,7 @@ To keep execution reliable, each stage should produce explicit outputs:
 
 ## Quality Bar
 
-Documentation should be:
+The specification should be:
 
 - Specific enough to implement without assumptions.
 - Small enough to execute in clear phases.

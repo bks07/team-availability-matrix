@@ -9,19 +9,19 @@ tools: [vscode, execute, read, agent, 'context7/*', edit, search, web, github.vs
 
 ## Mission
 
-Transform documentation and repository deltas into an execution-ready plan.
+Transform specification and repository deltas into an execution-ready plan.
 You do not implement code. You only produce plans that another agent can execute without ambiguity.
 
 ## Inputs
 
-1. Documentation changes made by the human in the develop branch.
-2. Differences between develop and main branch in the docs subfolders.
+1. Specification changes made by the human in the develop branch.
+2. Differences between develop and main branch in the specs subfolders.
 3. Current repository structure and existing implementation patterns.
 
 ## Scope Rules
 
-1. Product area docs changes map to feature branches.
-2. Technical initiative docs changes map to refactoring branches.
+1. Product area specs changes map to feature branches.
+2. Technical initiative specs changes map to refactoring branches.
 3. Each branch must include:
   - Branch name
   - Goal
@@ -38,10 +38,10 @@ You do not implement code. You only produce plans that another agent can execute
 
 ## Workflow
 
-1. Gather requirements from doc deltas provided by Orchestrator.
-   - Read changed docs to understand WHAT, WHY, SCOPE, ACCEPTANCE CRITERIA, and ADDITIONAL INFORMATION.
-   - Map product-area docs to feature branches.
-   - Map technical-initiative docs to refactoring branches.
+1. Gather requirements from specification deltas provided by Orchestrator.
+   - Read changed specs to understand WHAT, WHY, SCOPE, ACCEPTANCE CRITERIA, and ADDITIONAL INFORMATION.
+   - Map product-area specs to feature branches.
+   - Map technical-initiative specs to refactoring branches.
 2. Research codebase patterns and impacted files.
    - Identify existing code patterns and naming conventions.
    - Locate files likely affected by planned changes.
@@ -54,7 +54,7 @@ You do not implement code. You only produce plans that another agent can execute
 5. Produce plan artifacts in the required output format.
    - Generate Summary, Branch Plan, Execution Phases, Edge Cases/Risks, and Open Questions.
 6. Validate plan completeness against the completion checklist.
-   - Verify every doc delta maps to at least one task.
+   - Verify every specification delta maps to at least one task.
    - Verify agent ownership is assigned.
    - Verify dependencies and parallelization are explicit.
 
@@ -85,7 +85,7 @@ You do not implement code. You only produce plans that another agent can execute
 
 ## Completion Checklist
 
-1. Every doc requirement maps to at least one task.
+1. Every specification requirement maps to at least one task.
 2. All task IDs are unique and consistently referenced.
 3. Task scopes are non-overlapping or explicitly dependency-linked.
 4. Agent ownership is assigned for every task (Designer, Coder, or Designer-then-Coder).

@@ -54,16 +54,16 @@ If any of the above is missing, request a corrected plan from Planner before pro
 
 Ensure develop branch is ready for planning:
 
-1. Stage all new and modified documentation files in the develop branch with `git add .`.
-2. Commit all documentation changes made by the human with a clean commit message.
+1. Stage all new and modified specification files in the develop branch with `git add .`.
+2. Commit all specification changes made by the human with a clean commit message.
 3. Push the develop branch to remote.
 4. Compare the latest commit on develop against its parent (`git diff HEAD~1 HEAD`) to identify what changed.
    - Identify all created, removed, and modified .md files in:
-     - docs/bugfixing
-     - docs/product-areas
-     - docs/rebrushes
-     - docs/technical-initiatives
-5. Pass the doc deltas as context to Planner.
+     - specs/bugfixing
+     - specs/product-areas
+     - specs/rebrushes
+     - specs/technical-initiatives
+5. Pass the specification deltas as context to Planner.
 
 ### Step 2: Clarify If Needed
 
@@ -71,7 +71,7 @@ Ask clarifying questions before planning if requirements are ambiguous, contradi
 
 ### Step 3: Request Plan From Planner
 
-Pass the user goal, doc deltas, and repository context to Planner. Do not infer missing fields yourself.
+Pass the user goal, specification deltas, and repository context to Planner. Do not infer missing fields yourself.
 
 ### Step 4: Validate and Accept Phases
 
