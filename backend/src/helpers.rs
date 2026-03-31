@@ -9,7 +9,7 @@ use crate::types::responses::PublicUser;
 
 pub(crate) async fn find_public_user(db: &PgPool, user_id: i64) -> Result<PublicUser, ApiError> {
     let row = sqlx::query_as::<_, EmployeeRow>(
-        "SELECT id, email, display_name, location_id, photo_url FROM users WHERE id = $1",
+        "SELECT u.id, u.email, u.display_name, u.title, u.first_name, u.middle_name, u.last_name, u.location_id, u.photo_url, l.name AS location_name FROM users u LEFT JOIN locations l ON u.location_id = l.id WHERE u.id = $1",
     )
     .bind(user_id)
     .fetch_optional(db)
@@ -27,7 +27,12 @@ pub(crate) async fn find_public_user(db: &PgPool, user_id: i64) -> Result<Public
         id: row.id,
         email: row.email,
         display_name: row.display_name,
+        title: row.title,
+        first_name: row.first_name,
+        middle_name: row.middle_name,
+        last_name: row.last_name,
         location_id: row.location_id,
+        location_name: row.location_name,
         photo_url: row.photo_url,
         permissions,
     })
@@ -58,16 +63,55 @@ pub(crate) fn normalize_email(email: &str) -> Result<String, ApiError> {
     Ok(normalized)
 }
 
-pub(crate) fn normalize_display_name(display_name: &str) -> Result<String, ApiError> {
-    let normalized = display_name.trim();
-    if normalized.len() < 2 || normalized.len() > 80 {
+pub(crate) fn derive_display_name(
+    title: &str,
+    first_name: &str,
+    middle_name: &str,
+    last_name: &str,
+) -> String {
+    let mut parts = Vec::new();
+    let t = title.trim();
+    let f = first_name.trim();
+    let m = middle_name.trim();
+    let l = last_name.trim();
+    if !t.is_empty() {
+        parts.push(t);
+    }
+    if !f.is_empty() {
+        parts.push(f);
+    }
+    if !m.is_empty() {
+        parts.push(m);
+    }
+    if !l.is_empty() {
+        parts.push(l);
+    }
+    parts.join(" ")
+}
+
+pub(crate) fn normalize_name_fields(
+    title: &str,
+    first_name: &str,
+    middle_name: &str,
+    last_name: &str,
+) -> Result<(String, String, String, String), ApiError> {
+    let t = title.trim().to_string();
+    let f = first_name.trim().to_string();
+    let m = middle_name.trim().to_string();
+    let l = last_name.trim().to_string();
+    if f.is_empty() {
         return Err(ApiError::new(
             StatusCode::BAD_REQUEST,
-            "Display name must be between 2 and 80 characters",
+            "First name is required",
         ));
     }
-
-    Ok(normalized.to_string())
+    if l.is_empty() {
+        return Err(ApiError::new(
+            StatusCode::BAD_REQUEST,
+            "Last name is required",
+        ));
+    }
+    Ok((t, f, m, l))
 }
 
 pub(crate) fn normalize_location_name(name: &str) -> Result<String, ApiError> {

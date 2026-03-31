@@ -10,7 +10,7 @@ use crate::auth::{authorize, get_user_permissions, hash_password, validate_passw
 use crate::error::ApiError;
 use crate::helpers::{
     delete_photo_file_best_effort, ensure_location_exists, find_public_user,
-    normalize_display_name, normalize_email,
+    derive_display_name, normalize_email, normalize_name_fields,
 };
 use crate::models::EmployeeRow;
 use crate::state::AppState;
@@ -24,17 +24,44 @@ pub(crate) async fn update_profile(
 ) -> Result<Json<PublicUser>, ApiError> {
     let claims = authorize(&headers, &state.jwt_secret)?;
     let email = normalize_email(&payload.email)?;
-    let display_name = normalize_display_name(&payload.display_name)?;
+    let (title, first_name, middle_name, last_name) = normalize_name_fields(
+        &payload.title,
+        &payload.first_name,
+        &payload.middle_name,
+        &payload.last_name,
+    )?;
+    let display_name = derive_display_name(&title, &first_name, &middle_name, &last_name);
 
     if let Some(location_id) = payload.location_id {
         ensure_location_exists(&state.db, location_id).await?;
     }
 
     let updated = sqlx::query_as::<_, EmployeeRow>(
-        "UPDATE users SET email = $1, display_name = $2, location_id = $3 WHERE id = $4 RETURNING id, email, display_name, location_id, photo_url",
+        r#"
+        WITH updated AS (
+            UPDATE users
+            SET title = $1,
+                first_name = $2,
+                middle_name = $3,
+                last_name = $4,
+                display_name = $5,
+                email = $6,
+                location_id = $7
+            WHERE id = $8
+            RETURNING id
+        )
+        SELECT u.id, u.email, u.display_name, u.title, u.first_name, u.middle_name, u.last_name, u.location_id, u.photo_url, l.name AS location_name
+        FROM users u
+        LEFT JOIN locations l ON u.location_id = l.id
+        WHERE u.id = (SELECT id FROM updated)
+        "#,
     )
-    .bind(&email)
+    .bind(&title)
+    .bind(&first_name)
+    .bind(&middle_name)
+    .bind(&last_name)
     .bind(&display_name)
+    .bind(&email)
     .bind(payload.location_id)
     .bind(claims.sub)
     .fetch_optional(&state.db)
@@ -71,7 +98,12 @@ pub(crate) async fn update_profile(
         id: updated.id,
         email: updated.email,
         display_name: updated.display_name,
+        title: updated.title,
+        first_name: updated.first_name,
+        middle_name: updated.middle_name,
+        last_name: updated.last_name,
         location_id: updated.location_id,
+        location_name: updated.location_name,
         photo_url: updated.photo_url,
         permissions,
     }))
