@@ -32,7 +32,7 @@
 
 ### Assumptions
 
-- The calendar view is loaded and displaying the employee's current week.
+- The monthly calendar view is loaded and displaying the employee's current month.
 - The same PUT /api/statuses/:date endpoint is used as in the availability matrix.
 
 ### Dependencies

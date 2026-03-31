@@ -31,7 +31,7 @@
 
 ### Assumptions
 
-- The calendar view is loaded and displaying the employee's current week.
+- The monthly calendar view is loaded and displaying the employee's current month.
 - The same DELETE /api/statuses/:date endpoint is used as in the availability matrix.
 - A cleared day displays whatever the employee's work schedule dictates.
 
