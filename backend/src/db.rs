@@ -142,7 +142,7 @@ pub(crate) async fn initialize_database(db: &PgPool) -> Result<(), sqlx::Error> 
             friday BOOLEAN NOT NULL DEFAULT TRUE,
             saturday BOOLEAN NOT NULL DEFAULT FALSE,
             sunday BOOLEAN NOT NULL DEFAULT FALSE,
-            hours_per_week NUMERIC(5, 2),
+            hours_per_week DOUBLE PRECISION,
             ignore_weekends BOOLEAN NOT NULL DEFAULT TRUE,
             ignore_public_holidays BOOLEAN NOT NULL DEFAULT TRUE
         );
@@ -150,6 +150,10 @@ pub(crate) async fn initialize_database(db: &PgPool) -> Result<(), sqlx::Error> 
     )
     .execute(db)
     .await?;
+
+    sqlx::query("ALTER TABLE employee_work_schedules ALTER COLUMN hours_per_week TYPE DOUBLE PRECISION;")
+        .execute(db)
+        .await?;
 
     sqlx::query(
         r#"
