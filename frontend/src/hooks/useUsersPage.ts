@@ -72,7 +72,14 @@ const INITIAL_SCHEDULE: ScheduleFormState = {
 export interface UseUsersPageResult {
   currentUser: User | null;
   users: UserWithPermissions[];
+  filteredUsers: UserWithPermissions[];
   locations: Location[];
+  searchQuery: string;
+  setSearchQuery: Dispatch<SetStateAction<string>>;
+  filterLocationId: number | null;
+  setFilterLocationId: Dispatch<SetStateAction<number | null>>;
+  isCreateModalOpen: boolean;
+  setIsCreateModalOpen: Dispatch<SetStateAction<boolean>>;
   newUserForm: UserFormState;
   setNewUserForm: Dispatch<SetStateAction<UserFormState>>;
   editingId: number | null;
@@ -110,7 +117,10 @@ export function useUsersPage(): UseUsersPageResult {
 
   const [users, setUsers] = useState<UserWithPermissions[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterLocationId, setFilterLocationId] = useState<number | null>(null);
 
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newUserForm, setNewUserForm] = useState<UserFormState>(INITIAL_FORM);
 
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -133,6 +143,21 @@ export function useUsersPage(): UseUsersPageResult {
     return new Map(locations.map((location) => [location.id, location.name]));
   }, [locations]);
 
+  const filteredUsers = useMemo(() => {
+    let result = users;
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.trim().toLowerCase();
+      result = result.filter((user) => user.displayName.toLowerCase().includes(query));
+    }
+
+    if (filterLocationId !== null) {
+      result = result.filter((user) => user.locationId === filterLocationId);
+    }
+
+    return result;
+  }, [users, searchQuery, filterLocationId]);
+
   useEffect(() => {
     const loadInitialData = async () => {
       setLoading(true);
@@ -153,7 +178,10 @@ export function useUsersPage(): UseUsersPageResult {
   }, []);
 
   const selectedCount = selectedUserIds.size;
-  const allSelected = users.length > 0 && selectedCount === users.length;
+  const allSelected =
+    filteredUsers.length > 0 &&
+    selectedCount === filteredUsers.length &&
+    filteredUsers.every((user) => selectedUserIds.has(user.id));
   const partiallySelected = selectedCount > 0 && !allSelected;
 
   useEffect(() => {
@@ -174,6 +202,11 @@ export function useUsersPage(): UseUsersPageResult {
       return next.size === previous.size ? previous : next;
     });
   }, [users]);
+
+  useEffect(() => {
+    setSelectedUserIds(new Set());
+    setBulkLocationValue('');
+  }, [searchQuery, filterLocationId]);
 
   useEffect(() => {
     if (selectedCount === 0) {
@@ -207,7 +240,7 @@ export function useUsersPage(): UseUsersPageResult {
       return;
     }
 
-    setSelectedUserIds(new Set(users.map((user) => user.id)));
+    setSelectedUserIds(new Set(filteredUsers.map((user) => user.id)));
   };
 
   const handleBulkAssign = async () => {
@@ -286,6 +319,7 @@ export function useUsersPage(): UseUsersPageResult {
       setUsers((previous) => [created, ...previous]);
       setNewUserForm(INITIAL_FORM);
       setSuccess('User created successfully.');
+      setIsCreateModalOpen(false);
     } catch (createError) {
       setError(getErrorMessage(createError));
     } finally {
@@ -446,7 +480,14 @@ export function useUsersPage(): UseUsersPageResult {
   return {
     currentUser,
     users,
+    filteredUsers,
     locations,
+    searchQuery,
+    setSearchQuery,
+    filterLocationId,
+    setFilterLocationId,
+    isCreateModalOpen,
+    setIsCreateModalOpen,
     newUserForm,
     setNewUserForm,
     editingId,
