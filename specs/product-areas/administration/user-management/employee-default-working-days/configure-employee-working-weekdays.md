@@ -1,3 +1,10 @@
+---
+status: DONE
+---
+
+---
+status: DONE
+---
 # Configure employee working weekdays
 
 ## STORY

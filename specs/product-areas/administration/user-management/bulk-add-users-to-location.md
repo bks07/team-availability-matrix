@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Bulk add users to a location
 
 ## STORY

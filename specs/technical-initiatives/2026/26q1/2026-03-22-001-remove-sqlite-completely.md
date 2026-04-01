@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Technical Initiative: Replace SQLite with PostgreSQL
 
 ## WHAT

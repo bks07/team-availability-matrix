@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Set vacation day
 
 ## STORY

@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Show user photo and name in header row
 
 ## STORY

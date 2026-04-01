@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Redundant navigation links in administration area
 
 ## CURRENT BEHAVIOR

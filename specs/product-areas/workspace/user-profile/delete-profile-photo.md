@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Delete profile photo
 
 ## STORY

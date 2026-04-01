@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Keyboard accessibility
 
 ## STORY

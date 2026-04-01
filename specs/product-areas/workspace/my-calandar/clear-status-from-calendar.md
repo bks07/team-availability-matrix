@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Clear status from calendar
 
 ## STORY

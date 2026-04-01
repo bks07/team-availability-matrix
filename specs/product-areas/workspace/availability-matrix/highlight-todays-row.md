@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Highlight the row of the current day
 
 ## STORY

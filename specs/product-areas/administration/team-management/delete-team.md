@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Delete Team
 
 ## Story

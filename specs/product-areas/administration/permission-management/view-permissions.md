@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # View System-Defined Permissions
 
 ## Story

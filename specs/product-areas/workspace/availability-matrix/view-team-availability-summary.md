@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # View Team Availability Summary
 
 ## Story

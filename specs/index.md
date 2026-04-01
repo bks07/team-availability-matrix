@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Specification Index
 
 The `specs` folder is the source of truth for agent execution.

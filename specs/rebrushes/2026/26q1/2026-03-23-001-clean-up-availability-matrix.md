@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Clean up availability matrix
 
 ## WHAT

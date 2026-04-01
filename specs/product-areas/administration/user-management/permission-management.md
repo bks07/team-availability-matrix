@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Permission management
 
 ## STORY
@@ -38,7 +42,6 @@
 ### Assumptions
 
 - A super admin role exists and is distinct from the admin role and the regular user role.
-- A defined set of permissions exists that can be assigned to users.
 
 ### Dependencies
 

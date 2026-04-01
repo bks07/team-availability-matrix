@@ -1,3 +1,10 @@
+---
+status: DONE
+---
+
+---
+status: DONE
+---
 # Configure ignore weekends
 
 ## STORY

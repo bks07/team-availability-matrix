@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Failed to load availability data
 
 ## CURRENT BEHAVIOR

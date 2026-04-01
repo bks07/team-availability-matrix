@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Manage profile photo
 
 ## STORY

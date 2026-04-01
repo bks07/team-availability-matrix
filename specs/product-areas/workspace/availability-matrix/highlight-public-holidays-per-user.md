@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Highlight public holidays per user
 
 ## STORY

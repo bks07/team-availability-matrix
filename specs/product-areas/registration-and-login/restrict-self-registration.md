@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Restrict self-registration
 
 ## STORY

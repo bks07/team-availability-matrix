@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Display name derivation
 
 ## STORY

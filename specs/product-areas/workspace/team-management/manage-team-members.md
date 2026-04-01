@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Manage team members
 
 ## STORY

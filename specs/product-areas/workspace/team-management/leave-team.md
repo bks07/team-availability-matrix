@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Leave team
 
 ## STORY

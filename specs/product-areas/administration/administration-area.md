@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Administration area
 
 ## STORY

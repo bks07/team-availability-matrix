@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Apply default working days to matrix
 
 ## STORY

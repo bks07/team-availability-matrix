@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Remove user
 
 ## STORY

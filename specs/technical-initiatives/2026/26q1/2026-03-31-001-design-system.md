@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Technical Initiative: Introduce a consistent design system
 
 ## WHAT

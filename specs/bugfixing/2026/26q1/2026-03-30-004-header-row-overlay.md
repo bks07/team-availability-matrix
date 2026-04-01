@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Header row in tables in administration area overlays first row of table body
 
 ## CURRENT BEHAVIOR

@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Fallback View for User Without Team
 
 ## Story

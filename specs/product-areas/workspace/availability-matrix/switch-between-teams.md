@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Switch Between Teams in Workspace View
 
 ## Story

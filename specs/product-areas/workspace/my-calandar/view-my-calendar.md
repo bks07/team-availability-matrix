@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # View my calendar
 
 ## STORY

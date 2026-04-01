@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Permission-based menu items
 
 ## STORY

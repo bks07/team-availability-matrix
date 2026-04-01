@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Highlight weekend days
 
 ## STORY

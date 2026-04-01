@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Notification for Teamless Users
 
 ## Story

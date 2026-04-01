@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Set status from calendar
 
 ## STORY

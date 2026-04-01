@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Availability Filters
 
 ## Story

@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Profile picture not shown after upload
 
 ## CURRENT BEHAVIOR

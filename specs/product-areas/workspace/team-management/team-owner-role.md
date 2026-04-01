@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Team owner role
 
 ## STORY

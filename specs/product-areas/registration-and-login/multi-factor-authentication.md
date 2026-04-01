@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Multi-Factor Authentication
 
 ## Story

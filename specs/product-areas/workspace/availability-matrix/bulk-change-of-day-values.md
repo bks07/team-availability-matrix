@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Bulk change of day values
 
 ## STORY

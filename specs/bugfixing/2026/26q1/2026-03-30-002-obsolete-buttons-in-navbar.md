@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Obsolete buttons in header navigation bar
 
 ## CURRENT BEHAVIOR

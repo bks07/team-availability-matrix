@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Edit team details
 
 ## STORY

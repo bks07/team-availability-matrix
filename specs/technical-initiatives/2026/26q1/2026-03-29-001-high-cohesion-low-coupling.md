@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Technical Initiative: Enforce High Cohesion and Low Coupling
 
 ## WHAT

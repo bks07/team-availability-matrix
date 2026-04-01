@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Quick-Navigate from Matrix to Team Detail Page
 
 ## Story

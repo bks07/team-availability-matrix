@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Active page indicator
 
 ## STORY

@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Transfer team ownership
 
 ## STORY

@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Show user details on header photo hover
 
 ## STORY

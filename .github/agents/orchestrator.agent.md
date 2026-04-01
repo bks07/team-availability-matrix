@@ -19,6 +19,7 @@ Use only these exact agent names:
 - Planner: creates implementation strategy and task decomposition.
 - Coder: implements logic, fixes bugs, and updates tests.
 - Designer: handles UI/UX, styling, visual polish, and interaction design.
+- spec-status: sets YAML `status` frontmatter on spec files (sub-agent, status updates only).
 
 Never call any other agent.
 
@@ -115,16 +116,24 @@ If a delegated task fails or returns incomplete output:
 1. Retry once with tighter scope and explicit missing criteria.
 2. If still failing, stop that branch of execution and report blocker details with a concrete resolution question.
 
-### Step 8: Final Consolidation
+### Step 8: Mark Specs Done
+
+After all implementation tasks are complete and merged:
+
+1. Identify every spec file (user story, rebrush, bugfix, technical initiative) that was implemented in this workflow.
+2. Delegate to `spec-status` for each file with status `DONE`.
+
+### Step 9: Final Consolidation
 
 Before reporting done, verify:
 
 1. All planned tasks are completed or explicitly marked blocked.
 2. Dependency order was respected.
 3. Acceptance criteria were evaluated per task.
-4. Remaining risks and open questions are captured.
+4. All implemented specs have been marked `DONE` via `spec-status`.
+5. Remaining risks and open questions are captured.
 
-### Step 9: Final Verification
+### Step 10: Final Verification
 
 After all phases are complete and all merges are done:
 

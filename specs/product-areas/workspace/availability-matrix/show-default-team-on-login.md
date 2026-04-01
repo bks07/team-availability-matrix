@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Show Default Team on Login
 
 ## Story

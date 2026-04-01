@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Technical Initiative: Migrate Frontend from Angular to React
 
 ## WHAT

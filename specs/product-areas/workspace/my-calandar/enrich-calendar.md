@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Enrich calendar with week numbers and status provenance
 
 ## STORY

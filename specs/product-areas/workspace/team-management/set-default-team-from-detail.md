@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Set as Default Team from Team Detail Page
 
 ## Story

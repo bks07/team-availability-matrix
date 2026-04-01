@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Log out
 
 ## STORY

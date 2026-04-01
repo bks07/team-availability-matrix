@@ -1,3 +1,7 @@
+---
+status: DONE
+---
+
 # Auto-Set Default Team on First Team Join
 
 ## Story
