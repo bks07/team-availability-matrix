@@ -43,6 +43,7 @@ export default function BurgerMenu({ isOpen, onClose, permissions }: BurgerMenuP
 
   const hasAdminPermission = permissions.length > 0;
   const hasSuperAdminPermission = permissions.includes('permission_profiles.view');
+  const hasTeamsViewPermission = permissions.includes('teams.view');
 
   const workspaceItems: NavItem[] = useMemo(
     () => [
@@ -65,13 +66,17 @@ export default function BurgerMenu({ isOpen, onClose, permissions }: BurgerMenuP
       { label: 'Users', to: '/admin/users' }
     ];
 
+    if (hasTeamsViewPermission) {
+      items.push({ label: 'Teams', to: '/admin/teams' });
+    }
+
     if (hasSuperAdminPermission) {
       items.push({ label: 'Permissions', to: '/admin/permissions' });
       items.push({ label: 'Settings', to: '/admin/settings' });
     }
 
     return items;
-  }, [hasAdminPermission, hasSuperAdminPermission]);
+  }, [hasAdminPermission, hasSuperAdminPermission, hasTeamsViewPermission]);
 
   const shouldShowAdministration = administrationItems.length > 0;
 

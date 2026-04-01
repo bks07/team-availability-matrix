@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { API_BASE_URL } from '../../lib/api.config';
 import type {
+  AuditLogEntry,
   PermissionCatalogEntry,
   PermissionProfile,
   UsageReportEntry,
@@ -16,6 +17,7 @@ import {
   getAdminUsers,
   getPermissionCatalog,
   getPermissionProfiles,
+  getAuditLog,
   createPermissionProfile,
   updatePermissionProfile,
   deletePermissionProfile,
@@ -29,7 +31,7 @@ function getErrorMessage(error: unknown): string {
   return 'Something went wrong. Please try again.';
 }
 
-type Tab = 'profiles' | 'users' | 'usage-report';
+type Tab = 'profiles' | 'users' | 'usage-report' | 'audit-log';
 
 interface ProfileFormState {
   name: string;
@@ -53,6 +55,16 @@ export default function PermissionsPage(): JSX.Element {
 
   const [usageProfileName, setUsageProfileName] = useState('');
   const [usageUserName, setUsageUserName] = useState('');
+
+  const [auditEntries, setAuditEntries] = useState<AuditLogEntry[]>([]);
+  const [auditTotal, setAuditTotal] = useState(0);
+  const [auditPage, setAuditPage] = useState(1);
+  const [auditPageSize] = useState(25);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditEventType, setAuditEventType] = useState('');
+  const [auditDateFrom, setAuditDateFrom] = useState('');
+  const [auditDateTo, setAuditDateTo] = useState('');
+  const [auditSearch, setAuditSearch] = useState('');
 
   // Profile form
   const [editingProfileId, setEditingProfileId] = useState<number | null>(null);
@@ -117,6 +129,33 @@ export default function PermissionsPage(): JSX.Element {
       void loadUsageReport();
     }
   }, [activeTab, canManageProfiles, loadUsageReport, usageLoading, usageReport.length]);
+
+  const loadAuditLog = useCallback(async (page?: number) => {
+    setAuditLoading(true);
+    setError('');
+    try {
+      const result = await getAuditLog({
+        page: page ?? auditPage,
+        pageSize: auditPageSize,
+        eventType: auditEventType.trim() || undefined,
+        dateFrom: auditDateFrom || undefined,
+        dateTo: auditDateTo || undefined,
+        search: auditSearch.trim() || undefined,
+      });
+      setAuditEntries(result.entries);
+      setAuditTotal(result.total);
+      setAuditPage(result.page);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setAuditLoading(false);
+    }
+  }, [auditPage, auditPageSize, auditEventType, auditDateFrom, auditDateTo, auditSearch]);
+
+  useEffect(() => {
+    if (!canManageProfiles || activeTab !== 'audit-log') return;
+    void loadAuditLog();
+  }, [activeTab, canManageProfiles]);
 
   const categories = catalog.reduce<Map<string, PermissionCatalogEntry[]>>((acc, entry) => {
     const list = acc.get(entry.category) ?? [];
@@ -518,6 +557,119 @@ export default function PermissionsPage(): JSX.Element {
     </div>
   );
 
+  const eventTypeOptions = ['profile_created', 'profile_updated', 'profile_deleted', 'profile_assigned', 'profile_unassigned'];
+
+  const totalPages = Math.ceil(auditTotal / auditPageSize);
+
+  const formatEventType = (type: string): string => {
+    return type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  };
+
+  const renderAuditLogTab = () => (
+    <div className="users-tab">
+      <div className="tab-header">
+        <div className="assign-form">
+          <select
+            value={auditEventType}
+            onChange={(e) => setAuditEventType(e.target.value)}
+            disabled={auditLoading}
+          >
+            <option value="">All event types</option>
+            {eventTypeOptions.map((type) => (
+              <option key={type} value={type}>{formatEventType(type)}</option>
+            ))}
+          </select>
+          <input
+            type="date"
+            value={auditDateFrom}
+            onChange={(e) => setAuditDateFrom(e.target.value)}
+            disabled={auditLoading}
+            placeholder="From date"
+          />
+          <input
+            type="date"
+            value={auditDateTo}
+            onChange={(e) => setAuditDateTo(e.target.value)}
+            disabled={auditLoading}
+            placeholder="To date"
+          />
+          <input
+            type="text"
+            value={auditSearch}
+            onChange={(e) => setAuditSearch(e.target.value)}
+            disabled={auditLoading}
+            placeholder="Search admin, user, or profile"
+          />
+          <button type="button" onClick={() => { setAuditPage(1); void loadAuditLog(1); }} disabled={auditLoading}>
+            {auditLoading ? 'Loading...' : 'Apply'}
+          </button>
+          <button type="button" onClick={() => {
+            setAuditEventType('');
+            setAuditDateFrom('');
+            setAuditDateTo('');
+            setAuditSearch('');
+            setAuditPage(1);
+            void loadAuditLog(1);
+          }} disabled={auditLoading}>
+            Reset
+          </button>
+        </div>
+      </div>
+
+      <div className="matrix-wrapper">
+        <table className="permission-table">
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>Admin</th>
+              <th>Event</th>
+              <th>Profile</th>
+              <th>User</th>
+              <th>Details</th>
+            </tr>
+          </thead>
+          <tbody>
+            {auditEntries.map((entry) => (
+              <tr key={entry.id}>
+                <td>{new Date(entry.createdAt).toLocaleString()}</td>
+                <td>{entry.adminName}</td>
+                <td>{formatEventType(entry.eventType)}</td>
+                <td>{entry.profileName ?? <em>-</em>}</td>
+                <td>{entry.targetUserName ?? <em>-</em>}</td>
+                <td>
+                  <details>
+                    <summary>View</summary>
+                    <pre style={{ fontSize: '0.75rem', maxWidth: '300px', overflow: 'auto' }}>
+                      {JSON.stringify(entry.details, null, 2)}
+                    </pre>
+                  </details>
+                </td>
+              </tr>
+            ))}
+            {!auditLoading && auditEntries.length === 0 && (
+              <tr><td colSpan={6}>No audit log entries found.</td></tr>
+            )}
+            {auditLoading && (
+              <tr><td colSpan={6}>Loading audit log...</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {totalPages > 1 && (
+        <div className="form-actions" style={{ justifyContent: 'center', gap: '0.5rem', marginTop: '1rem' }}>
+          <button type="button" disabled={auditPage <= 1 || auditLoading} onClick={() => { setAuditPage(p => p - 1); void loadAuditLog(auditPage - 1); }}>
+            Previous
+          </button>
+          <span>Page {auditPage} of {totalPages} ({auditTotal} entries)</span>
+          <button type="button" disabled={auditPage >= totalPages || auditLoading} onClick={() => { setAuditPage(p => p + 1); void loadAuditLog(auditPage + 1); }}>
+            Next
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <section className="admin-management">
       <h2>Permission Management</h2>
@@ -551,10 +703,18 @@ export default function PermissionsPage(): JSX.Element {
             >
               Usage Report
             </button>
+            <button
+              type="button"
+              className={activeTab === 'audit-log' ? 'tab active' : 'tab'}
+              onClick={() => setActiveTab('audit-log')}
+            >
+              Audit Log
+            </button>
           </div>
           {activeTab === 'profiles' && renderProfilesTab()}
           {activeTab === 'users' && renderUsersTab()}
           {activeTab === 'usage-report' && renderUsageReportTab()}
+          {activeTab === 'audit-log' && renderAuditLogTab()}
         </>
       )}
     </section>

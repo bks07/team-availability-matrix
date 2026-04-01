@@ -1,5 +1,6 @@
 import { httpClient } from '../lib/http.client';
 import type {
+  AuditLogResponse,
   PermissionCatalogEntry,
   PermissionProfile,
   UsageReportEntry,
@@ -71,4 +72,18 @@ export function getUsageReport(params?: {
 
 export function getUsageReportCsvUrl(): string {
   return '/admin/permission-usage-report/csv';
+}
+
+export async function getAuditLog(params?: {
+  page?: number;
+  pageSize?: number;
+  eventType?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  search?: string;
+}): Promise<AuditLogResponse> {
+  return httpClient.get(
+    '/admin/permission-audit-log',
+    params as Record<string, string | number | boolean>
+  );
 }

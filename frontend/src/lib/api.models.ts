@@ -134,6 +134,14 @@ export interface Team {
   myRole: string;
 }
 
+export interface AdminTeam {
+  id: number;
+  name: string;
+  description: string;
+  memberCount: number;
+  createdAt: string;
+}
+
 export interface TeamDetail {
   id: number;
   name: string;
@@ -203,4 +211,21 @@ export interface UsageReportEntry {
   email: string;
   profileName: string | null;
   permissions: string[];
+}
+
+export interface AuditLogEntry {
+  id: number;
+  adminName: string;
+  eventType: string;
+  profileName: string | null;
+  targetUserName: string | null;
+  details: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface AuditLogResponse {
+  entries: AuditLogEntry[];
+  total: number;
+  page: number;
+  pageSize: number;
 }

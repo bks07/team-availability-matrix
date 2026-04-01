@@ -17,6 +17,7 @@ import HolidaysPage from './pages/admin/HolidaysPage';
 import LocationsPage from './pages/admin/LocationsPage';
 import PermissionsPage from './pages/admin/PermissionsPage';
 import SettingsPage from './pages/admin/SettingsPage';
+import TeamsAdminPage from './pages/admin/TeamsAdminPage';
 import UsersPage from './pages/admin/UsersPage';
 import { me } from './services/auth.service';
 
@@ -103,6 +104,7 @@ export default function App(): JSX.Element {
                   <Route path="/admin" element={<Navigate to="/admin/locations" replace />} />
                   <Route path="/admin/locations" element={<LocationsPage />} />
                   <Route path="/admin/public-holidays" element={<HolidaysPage />} />
+                  <Route path="/admin/teams" element={<TeamsAdminPage />} />
                   <Route path="/admin/users" element={<UsersPage />} />
                   <Route path="/admin/permissions" element={<PermissionsPage />} />
                   <Route path="/admin/settings" element={<SettingsPage />} />
