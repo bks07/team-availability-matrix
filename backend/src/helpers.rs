@@ -9,7 +9,7 @@ use crate::types::responses::PublicUser;
 
 pub(crate) async fn find_public_user(db: &PgPool, user_id: i64) -> Result<PublicUser, ApiError> {
     let row = sqlx::query_as::<_, EmployeeRow>(
-        "SELECT u.id, u.email, u.display_name, u.title, u.first_name, u.middle_name, u.last_name, u.location_id, u.photo_url, l.name AS location_name FROM users u LEFT JOIN locations l ON u.location_id = l.id WHERE u.id = $1",
+        "SELECT u.id, u.email, u.display_name, u.title, u.first_name, u.middle_name, u.last_name, u.default_team_id, u.location_id, u.photo_url, l.name AS location_name FROM users u LEFT JOIN locations l ON u.location_id = l.id WHERE u.id = $1",
     )
     .bind(user_id)
     .fetch_optional(db)
@@ -31,6 +31,7 @@ pub(crate) async fn find_public_user(db: &PgPool, user_id: i64) -> Result<Public
         first_name: row.first_name,
         middle_name: row.middle_name,
         last_name: row.last_name,
+        default_team_id: row.default_team_id,
         location_id: row.location_id,
         location_name: row.location_name,
         photo_url: row.photo_url,

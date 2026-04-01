@@ -20,6 +20,7 @@ pub(crate) struct PublicUser {
     pub(crate) first_name: String,
     pub(crate) middle_name: String,
     pub(crate) last_name: String,
+    pub(crate) default_team_id: Option<i64>,
     pub(crate) location_id: Option<i64>,
     pub(crate) location_name: Option<String>,
     pub(crate) photo_url: Option<String>,

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, Dispatch, FormEvent, RefObject, SetStateAction } from 'react';
 import { useAuth } from '../context/AuthContext';
-import type { Location, User } from '../lib/api.models';
+import type { Location, Team, User } from '../lib/api.models';
 import { getLocations } from '../services/location.service';
 import { changePassword, deleteProfilePhoto, updateProfile, uploadProfilePhoto } from '../services/profile.service';
+import { teamService } from '../services/team.service';
 import { deriveDisplayName } from '../lib/name.utils';
 
 const MAX_PHOTO_SIZE_BYTES = 2 * 1024 * 1024;
@@ -25,6 +26,8 @@ export interface UseProfilePageResult {
   fileInputRef: RefObject<HTMLInputElement>;
   locations: Location[];
   locationsLoading: boolean;
+  teams: Team[];
+  teamsLoading: boolean;
   title: string;
   setTitle: Dispatch<SetStateAction<string>>;
   firstName: string;
@@ -37,6 +40,8 @@ export interface UseProfilePageResult {
   setEmail: Dispatch<SetStateAction<string>>;
   locationIdValue: string;
   setLocationIdValue: Dispatch<SetStateAction<string>>;
+  defaultTeamIdValue: string;
+  setDefaultTeamIdValue: Dispatch<SetStateAction<string>>;
   currentPassword: string;
   setCurrentPassword: Dispatch<SetStateAction<string>>;
   newPassword: string;
@@ -71,6 +76,8 @@ export function useProfilePage(): UseProfilePageResult {
 
   const [locations, setLocations] = useState<Location[]>([]);
   const [locationsLoading, setLocationsLoading] = useState(true);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [teamsLoading, setTeamsLoading] = useState(true);
 
   const [title, setTitle] = useState('');
   const [firstName, setFirstName] = useState('');
@@ -78,6 +85,7 @@ export function useProfilePage(): UseProfilePageResult {
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [locationIdValue, setLocationIdValue] = useState('');
+  const [defaultTeamIdValue, setDefaultTeamIdValue] = useState('');
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -108,6 +116,7 @@ export function useProfilePage(): UseProfilePageResult {
     setLastName(currentUser.lastName);
     setEmail(currentUser.email);
     setLocationIdValue(currentUser.locationId ? String(currentUser.locationId) : '');
+    setDefaultTeamIdValue(currentUser.defaultTeamId ? String(currentUser.defaultTeamId) : '');
   }, [currentUser]);
 
   useEffect(() => {
@@ -125,6 +134,23 @@ export function useProfilePage(): UseProfilePageResult {
     };
 
     void loadLocations();
+  }, []);
+
+  useEffect(() => {
+    const loadTeams = async () => {
+      setTeamsLoading(true);
+
+      try {
+        const loaded = await teamService.getMyTeams();
+        setTeams(loaded);
+      } catch (error) {
+        setProfileError(getErrorMessage(error));
+      } finally {
+        setTeamsLoading(false);
+      }
+    };
+
+    void loadTeams();
   }, []);
 
   const selectedLocationId = useMemo(() => {
@@ -246,7 +272,8 @@ export function useProfilePage(): UseProfilePageResult {
         middleName,
         lastName,
         email,
-        locationId: selectedLocationId
+        locationId: selectedLocationId,
+        defaultTeamId: defaultTeamIdValue ? Number(defaultTeamIdValue) : null
       });
 
       updateSessionUser({
@@ -295,6 +322,8 @@ export function useProfilePage(): UseProfilePageResult {
     fileInputRef,
     locations,
     locationsLoading,
+    teams,
+    teamsLoading,
     title,
     setTitle,
     firstName,
@@ -307,6 +336,8 @@ export function useProfilePage(): UseProfilePageResult {
     setEmail,
     locationIdValue,
     setLocationIdValue,
+    defaultTeamIdValue,
+    setDefaultTeamIdValue,
     currentPassword,
     setCurrentPassword,
     newPassword,

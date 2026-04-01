@@ -32,7 +32,7 @@ pub(crate) async fn list_admin_users(
     .await?;
 
     let users = sqlx::query_as::<_, EmployeeRow>(
-        "SELECT u.id, u.email, u.display_name, u.title, u.first_name, u.middle_name, u.last_name, u.location_id, u.photo_url, l.name AS location_name FROM users u LEFT JOIN locations l ON u.location_id = l.id ORDER BY LOWER(u.display_name) ASC",
+        "SELECT u.id, u.email, u.display_name, u.title, u.first_name, u.middle_name, u.last_name, u.default_team_id, u.location_id, u.photo_url, l.name AS location_name FROM users u LEFT JOIN locations l ON u.location_id = l.id ORDER BY LOWER(u.display_name) ASC",
     )
     .fetch_all(&state.db)
     .await
@@ -120,7 +120,7 @@ pub(crate) async fn admin_create_user(
     };
 
     let created_user = sqlx::query_as::<_, EmployeeRow>(
-        "SELECT u.id, u.email, u.display_name, u.title, u.first_name, u.middle_name, u.last_name, u.location_id, u.photo_url, l.name AS location_name FROM users u LEFT JOIN locations l ON u.location_id = l.id WHERE u.id = $1",
+        "SELECT u.id, u.email, u.display_name, u.title, u.first_name, u.middle_name, u.last_name, u.default_team_id, u.location_id, u.photo_url, l.name AS location_name FROM users u LEFT JOIN locations l ON u.location_id = l.id WHERE u.id = $1",
     )
     .bind(created_user_id)
     .fetch_one(&state.db)
@@ -225,7 +225,7 @@ pub(crate) async fn admin_update_user(
     }
 
     let user = sqlx::query_as::<_, EmployeeRow>(
-        "SELECT u.id, u.email, u.display_name, u.title, u.first_name, u.middle_name, u.last_name, u.location_id, u.photo_url, l.name AS location_name FROM users u LEFT JOIN locations l ON u.location_id = l.id WHERE u.id = $1",
+        "SELECT u.id, u.email, u.display_name, u.title, u.first_name, u.middle_name, u.last_name, u.default_team_id, u.location_id, u.photo_url, l.name AS location_name FROM users u LEFT JOIN locations l ON u.location_id = l.id WHERE u.id = $1",
     )
     .bind(id)
     .fetch_one(&state.db)

@@ -36,8 +36,12 @@ function normalizeStatus(entry: ApiAvailabilityStatus): AvailabilityStatus {
   };
 }
 
-export async function getMatrix(year: number): Promise<MatrixResponse> {
-  const response = await httpClient.get<ApiMatrixResponse>('/matrix', { year });
+export async function getMatrix(year: number, teamId?: number): Promise<MatrixResponse> {
+  const queryParams: Record<string, string | number | boolean> = { year };
+  if (teamId !== undefined) {
+    queryParams.team_id = teamId;
+  }
+  const response = await httpClient.get<ApiMatrixResponse>('/matrix', queryParams);
   return {
     employees: response.employees,
     entries: response.entries.map(normalizeStatus),

@@ -8,6 +8,8 @@ export default function ProfilePage(): JSX.Element {
     fileInputRef,
     locations,
     locationsLoading,
+    teams,
+    teamsLoading,
     title,
     setTitle,
     firstName,
@@ -20,6 +22,8 @@ export default function ProfilePage(): JSX.Element {
     setEmail,
     locationIdValue,
     setLocationIdValue,
+    defaultTeamIdValue,
+    setDefaultTeamIdValue,
     currentPassword,
     setCurrentPassword,
     newPassword,
@@ -208,6 +212,29 @@ export default function ProfilePage(): JSX.Element {
                 </option>
               ))}
             </select>
+          </label>
+
+          <label>
+            Default Team
+            <select
+              value={defaultTeamIdValue}
+              onChange={(event) => setDefaultTeamIdValue(event.target.value)}
+              disabled={isSavingProfile || teamsLoading || teams.length === 0}
+            >
+              {teams.length === 0 ? (
+                <option value="">No teams available</option>
+              ) : (
+                <>
+                  <option value="">None</option>
+                  {teams.map((team) => (
+                    <option key={team.id} value={String(team.id)}>
+                      {team.name}
+                    </option>
+                  ))}
+                </>
+              )}
+            </select>
+            {teams.length === 0 && <span className="field-hint">Join a team to set a default.</span>}
           </label>
 
           <div className="profile-actions">

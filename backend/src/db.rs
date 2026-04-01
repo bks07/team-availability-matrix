@@ -169,6 +169,12 @@ pub(crate) async fn initialize_database(db: &PgPool) -> Result<(), sqlx::Error> 
     .await?;
 
     sqlx::query(
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS default_team_id BIGINT REFERENCES teams(id) ON DELETE SET NULL;",
+    )
+    .execute(db)
+    .await?;
+
+    sqlx::query(
         r#"
         CREATE TABLE IF NOT EXISTS team_members (
             id BIGSERIAL PRIMARY KEY,

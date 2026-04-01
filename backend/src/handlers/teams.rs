@@ -607,6 +607,18 @@ pub(crate) async fn remove_member(
             )
         })?;
 
+    sqlx::query("UPDATE users SET default_team_id = NULL WHERE id = $1 AND default_team_id = $2")
+        .bind(user_id)
+        .bind(id)
+        .execute(&state.db)
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to clear removed member default team: {error}"),
+            )
+        })?;
+
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -636,6 +648,18 @@ pub(crate) async fn leave_team(
             ApiError::new(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("Failed to leave team: {error}"),
+            )
+        })?;
+
+    sqlx::query("UPDATE users SET default_team_id = NULL WHERE id = $1 AND default_team_id = $2")
+        .bind(claims.sub)
+        .bind(id)
+        .execute(&state.db)
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to clear default team after leaving: {error}"),
             )
         })?;
 

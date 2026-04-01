@@ -21,7 +21,7 @@ pub(crate) async fn get_matrix(
     headers: HeaderMap,
     Query(query): Query<YearQuery>,
 ) -> Result<Json<MatrixResponse>, ApiError> {
-    authorize(&headers, &state.jwt_secret)?;
+    let claims = authorize(&headers, &state.jwt_secret)?;
 
     let year = query.year.unwrap_or_else(|| Utc::now().year());
     let start = NaiveDate::from_ymd_opt(year, 1, 1)
@@ -29,36 +29,80 @@ pub(crate) async fn get_matrix(
     let next_year_start = NaiveDate::from_ymd_opt(year + 1, 1, 1)
         .ok_or_else(|| ApiError::new(StatusCode::BAD_REQUEST, "Year is invalid"))?;
 
-    let employees = sqlx::query_as::<_, EmployeeRow>(
-        "SELECT u.id, u.email, u.display_name, u.title, u.first_name, u.middle_name, u.last_name, u.location_id, u.photo_url, l.name AS location_name FROM users u LEFT JOIN locations l ON u.location_id = l.id ORDER BY LOWER(u.display_name) ASC",
-    )
-    .fetch_all(&state.db)
-    .await
-    .map_err(|error| {
-        ApiError::new(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to load employees: {error}"),
+    let employees = if let Some(team_id) = query.team_id {
+        let member_check = sqlx::query_scalar::<_, i32>(
+            "SELECT 1 FROM team_members WHERE team_id = $1 AND user_id = $2 LIMIT 1",
         )
-    })?;
+        .bind(team_id)
+        .bind(claims.sub)
+        .fetch_optional(&state.db)
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to verify team membership: {error}"),
+            )
+        })?;
 
-    let status_rows = sqlx::query_as::<_, StatusRow>(
-        r#"
-        SELECT user_id, status_date, status
-        FROM availability_statuses
-        WHERE status_date >= $1 AND status_date < $2
-        ORDER BY status_date ASC, user_id ASC
-        "#,
-    )
-    .bind(start)
-    .bind(next_year_start)
-    .fetch_all(&state.db)
-    .await
-    .map_err(|error| {
-        ApiError::new(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to load availability data: {error}"),
+        if member_check.is_none() {
+            return Err(ApiError::new(
+                StatusCode::FORBIDDEN,
+                "Not a member of this team",
+            ));
+        }
+
+        sqlx::query_as::<_, EmployeeRow>(
+            "SELECT u.id, u.email, u.display_name, u.title, u.first_name, u.middle_name, u.last_name, u.default_team_id, u.location_id, u.photo_url, l.name AS location_name FROM users u INNER JOIN team_members tm ON tm.user_id = u.id LEFT JOIN locations l ON u.location_id = l.id WHERE tm.team_id = $1 ORDER BY LOWER(u.display_name) ASC",
         )
-    })?;
+        .bind(team_id)
+        .fetch_all(&state.db)
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to load employees: {error}"),
+            )
+        })?
+    } else {
+        sqlx::query_as::<_, EmployeeRow>(
+            "SELECT u.id, u.email, u.display_name, u.title, u.first_name, u.middle_name, u.last_name, u.default_team_id, u.location_id, u.photo_url, l.name AS location_name FROM users u LEFT JOIN locations l ON u.location_id = l.id WHERE u.id = $1",
+        )
+        .bind(claims.sub)
+        .fetch_all(&state.db)
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to load employees: {error}"),
+            )
+        })?
+    };
+
+    let employee_ids: Vec<i64> = employees.iter().map(|employee| employee.id).collect();
+
+    let status_rows = if employee_ids.is_empty() {
+        Vec::new()
+    } else {
+        sqlx::query_as::<_, StatusRow>(
+            r#"
+            SELECT user_id, status_date, status
+            FROM availability_statuses
+            WHERE status_date >= $1 AND status_date < $2 AND user_id = ANY($3::BIGINT[])
+            ORDER BY status_date ASC, user_id ASC
+            "#,
+        )
+        .bind(start)
+        .bind(next_year_start)
+        .bind(&employee_ids[..])
+        .fetch_all(&state.db)
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to load availability data: {error}"),
+            )
+        })?
+    };
 
     let days = build_day_list(year)?;
     let entries = status_rows
@@ -72,24 +116,36 @@ pub(crate) async fn get_matrix(
         })
         .collect::<Result<Vec<_>, ApiError>>()?;
 
-    let public_holiday_rows = sqlx::query_as::<_, PublicHolidayRow>(
-        r#"
-        SELECT id, holiday_date, name, location_id
-        FROM public_holidays
-        WHERE holiday_date >= $1 AND holiday_date < $2
-        ORDER BY holiday_date ASC
-        "#,
-    )
-    .bind(start)
-    .bind(next_year_start)
-    .fetch_all(&state.db)
-    .await
-    .map_err(|error| {
-        ApiError::new(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to load public holidays for matrix: {error}"),
+    let location_ids: Vec<i64> = employees
+        .iter()
+        .filter_map(|employee| employee.location_id)
+        .collect::<std::collections::HashSet<_>>()
+        .into_iter()
+        .collect();
+
+    let public_holiday_rows = if location_ids.is_empty() {
+        Vec::new()
+    } else {
+        sqlx::query_as::<_, PublicHolidayRow>(
+            r#"
+            SELECT id, holiday_date, name, location_id
+            FROM public_holidays
+            WHERE holiday_date >= $1 AND holiday_date < $2 AND location_id = ANY($3::BIGINT[])
+            ORDER BY holiday_date ASC
+            "#,
         )
-    })?;
+        .bind(start)
+        .bind(next_year_start)
+        .bind(&location_ids[..])
+        .fetch_all(&state.db)
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to load public holidays for matrix: {error}"),
+            )
+        })?
+    };
 
     let public_holidays = public_holiday_rows
         .into_iter()
@@ -101,17 +157,22 @@ pub(crate) async fn get_matrix(
         })
         .collect();
 
-    let schedule_rows = sqlx::query_as::<_, WorkScheduleRow>(
-        "SELECT user_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, hours_per_week, ignore_weekends, ignore_public_holidays FROM employee_work_schedules",
-    )
-    .fetch_all(&state.db)
-    .await
-    .map_err(|error| {
-        ApiError::new(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to load work schedules: {error}"),
+    let schedule_rows = if employee_ids.is_empty() {
+        Vec::new()
+    } else {
+        sqlx::query_as::<_, WorkScheduleRow>(
+            "SELECT user_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, hours_per_week, ignore_weekends, ignore_public_holidays FROM employee_work_schedules WHERE user_id = ANY($1::BIGINT[])",
         )
-    })?;
+        .bind(&employee_ids[..])
+        .fetch_all(&state.db)
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to load work schedules: {error}"),
+            )
+        })?
+    };
 
     let mut work_schedules: Vec<WorkScheduleResponse> = schedule_rows
         .into_iter()
@@ -165,6 +226,7 @@ pub(crate) async fn get_matrix(
                     first_name: user.first_name,
                     middle_name: user.middle_name,
                     last_name: user.last_name,
+                    default_team_id: user.default_team_id,
                     location_id: user.location_id,
                     location_name: user.location_name,
                     photo_url: user.photo_url,

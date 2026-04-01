@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import AvailabilityMatrix from '../components/AvailabilityMatrix';
+import TeamSelector from '../components/TeamSelector';
+import { TeamlessNotification } from '../components/TeamlessNotification';
 import { useAuth } from '../context/AuthContext';
-import type { AvailabilityValue, User, WorkSchedule } from '../lib/api.models';
+import type { AvailabilityValue, Team, User, WorkSchedule } from '../lib/api.models';
 import { getMatrix, updateStatus, deleteStatus, bulkUpdateStatuses } from '../services/matrix.service';
+import { teamService } from '../services/team.service';
 
 function toIsoDate(date: Date): string {
   return date.toISOString().slice(0, 10);
@@ -30,6 +33,10 @@ export default function WorkspaceLayout(): JSX.Element {
   const initialPeriod = useMemo(() => defaultPeriod(), []);
 
   const [employees, setEmployees] = useState<User[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
+  const [isLoadingTeams, setIsLoadingTeams] = useState(false);
+  const [hasLoadedTeams, setHasLoadedTeams] = useState(false);
   const [filteredDays, setFilteredDays] = useState<string[]>([]);
   const [entryMap, setEntryMap] = useState<Map<string, AvailabilityValue>>(new Map());
   const [holidayLookup, setHolidayLookup] = useState<Map<number, Set<string>>>(new Map());
@@ -107,8 +114,63 @@ export default function WorkspaceLayout(): JSX.Element {
     [entryMap, scheduleLookup, employees, holidayLookup]
   );
 
+  useEffect(() => {
+    if (!currentUser) {
+      setTeams([]);
+      setSelectedTeamId(null);
+      setHasLoadedTeams(false);
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadTeams = async () => {
+      setIsLoadingTeams(true);
+      setHasLoadedTeams(false);
+
+      try {
+        const nextTeams = await teamService.getMyTeams();
+        if (!isMounted) {
+          return;
+        }
+
+        setTeams(nextTeams);
+
+        if (nextTeams.length === 0) {
+          setSelectedTeamId(null);
+          return;
+        }
+
+        const defaultTeamId = currentUser.defaultTeamId ?? null;
+        const hasDefaultTeam = defaultTeamId != null && nextTeams.some((team) => team.id === defaultTeamId);
+        setSelectedTeamId(hasDefaultTeam ? defaultTeamId : nextTeams[0].id);
+      } catch (error) {
+        if (!isMounted) {
+          return;
+        }
+
+        setTeams([]);
+        setSelectedTeamId(null);
+        setErrorMessage(error instanceof Error ? error.message : 'Failed to load your teams.');
+      } finally {
+        if (!isMounted) {
+          return;
+        }
+
+        setIsLoadingTeams(false);
+        setHasLoadedTeams(true);
+      }
+    };
+
+    void loadTeams();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentUser]);
+
   const refreshMatrix = useCallback(async () => {
-    if (!currentUser || !periodStart || !periodEnd) {
+    if (!currentUser || !periodStart || !periodEnd || isLoadingTeams || !hasLoadedTeams) {
       return;
     }
 
@@ -126,7 +188,9 @@ export default function WorkspaceLayout(): JSX.Element {
       const endYear = Number(periodEnd.slice(0, 4));
       const years = startYear === endYear ? [startYear] : [startYear, endYear];
 
-      const matrixResults = await Promise.all(years.map((year) => getMatrix(year)));
+      const matrixResults = await Promise.all(
+        years.map((year) => (selectedTeamId != null ? getMatrix(year, selectedTeamId) : getMatrix(year)))
+      );
       setEmployees(matrixResults[0]?.employees ?? []);
 
       const days = matrixResults
@@ -165,13 +229,19 @@ export default function WorkspaceLayout(): JSX.Element {
     } finally {
       setMatrixLoading(false);
     }
-  }, [currentUser, periodStart, periodEnd]);
+  }, [currentUser, periodStart, periodEnd, selectedTeamId, isLoadingTeams, hasLoadedTeams]);
 
   useEffect(() => {
-    if (currentUser) {
+    if (currentUser && hasLoadedTeams) {
       void refreshMatrix();
     }
-  }, [currentUser, periodStart, periodEnd, refreshMatrix]);
+  }, [currentUser, periodStart, periodEnd, selectedTeamId, hasLoadedTeams, refreshMatrix]);
+
+  const handleTeamChange = useCallback((teamId: number) => {
+    setSelectedTeamId(teamId);
+    setErrorMessage('');
+    setSuccessMessage('');
+  }, []);
 
   const handleStatusUpdate = async (date: string, status: AvailabilityValue) => {
     if (!currentUser) {
@@ -314,6 +384,12 @@ export default function WorkspaceLayout(): JSX.Element {
       <section className="toolbar-card">
         <div className="toolbar-actions">
           <div className="period-controls">
+            <TeamSelector
+              teams={teams}
+              selectedTeamId={selectedTeamId}
+              defaultTeamId={currentUser.defaultTeamId}
+              onTeamChange={handleTeamChange}
+            />
             <label className="period-label">
               From
               <input type="date" value={periodStart} onChange={(event) => setPeriodStart(event.target.value)} />
@@ -331,7 +407,9 @@ export default function WorkspaceLayout(): JSX.Element {
 
       {errorMessage && <p className="message error">{errorMessage}</p>}
       {successMessage && <p className="message success">{successMessage}</p>}
+      {isLoadingTeams && <p className="message">Loading teams...</p>}
       {matrixLoading && <p className="message">Loading matrix...</p>}
+      {!isLoadingTeams && hasLoadedTeams && teams.length === 0 && <TeamlessNotification />}
 
       <div className="matrix-legend">
         <span className="legend-hint">You can only edit your own column</span>

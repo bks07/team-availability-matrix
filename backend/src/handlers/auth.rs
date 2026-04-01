@@ -82,7 +82,7 @@ pub(crate) async fn register(
     };
 
     let user = sqlx::query_as::<_, UserRecord>(
-        "SELECT id, email, display_name, title, first_name, middle_name, last_name, location_id, photo_url, password_hash FROM users WHERE email = $1",
+        "SELECT id, email, display_name, title, first_name, middle_name, last_name, default_team_id, location_id, photo_url, password_hash FROM users WHERE email = $1",
     )
     .bind(&email)
     .fetch_one(&state.db)
@@ -126,6 +126,7 @@ pub(crate) async fn register(
             first_name: user.first_name,
             middle_name: user.middle_name,
             last_name: user.last_name,
+            default_team_id: user.default_team_id,
             location_id: user.location_id,
             location_name: None,
             photo_url: user.photo_url,
@@ -144,7 +145,7 @@ pub(crate) async fn login(
     let email = normalize_email(&payload.email)?;
 
     let user = sqlx::query_as::<_, UserRecord>(
-        "SELECT id, email, display_name, title, first_name, middle_name, last_name, location_id, photo_url, password_hash FROM users WHERE email = $1",
+        "SELECT id, email, display_name, title, first_name, middle_name, last_name, default_team_id, location_id, photo_url, password_hash FROM users WHERE email = $1",
     )
     .bind(&email)
     .fetch_optional(&state.db)
@@ -183,6 +184,7 @@ pub(crate) async fn login(
             first_name: user.first_name,
             middle_name: user.middle_name,
             last_name: user.last_name,
+            default_team_id: user.default_team_id,
             location_id: user.location_id,
             location_name,
             photo_url: user.photo_url,

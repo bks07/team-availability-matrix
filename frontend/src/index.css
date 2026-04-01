@@ -845,6 +845,13 @@ td.bulk-selected-last::after {
   justify-content: flex-start;
 }
 
+.field-hint {
+  margin-top: 0.25rem;
+  font-size: 0.85rem;
+  color: var(--text-muted, #6b7280);
+  font-weight: 400;
+}
+
 /* -- Navbar -- */
 .navbar {
   position: fixed;
@@ -2222,4 +2229,81 @@ td.bulk-selected-last::after {
 
 .navbar-theme-btn:hover:not(.active) {
   color: var(--text-primary);
+}
+
+/* -- Teamless Notification Banner -- */
+.teamless-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-left: 4px solid var(--accent-primary);
+  color: var(--text-primary);
+  padding: 1rem 1.25rem;
+  border-radius: 10px;
+  width: 100%;
+}
+
+.teamless-banner-icon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.teamless-banner-text {
+  font-weight: 500;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.teamless-banner-link {
+  display: inline-block;
+  color: var(--accent-primary);
+  text-decoration: underline;
+  font-weight: 600;
+  margin-left: 0.25rem;
+}
+
+.teamless-banner-link:hover {
+  text-decoration: none;
+  color: var(--accent-primary-hover);
+}
+
+/* -- Team Selector -- */
+.team-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.team-selector-label {
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.team-selector-select {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border-input);
+  border-radius: 6px;
+  background: var(--input-bg);
+  color: var(--text-primary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.team-selector-select:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: var(--focus-ring);
+}
+
+.team-selector-select:disabled {
+  background: var(--bg-hover);
+  cursor: not-allowed;
+  opacity: 0.8;
 }

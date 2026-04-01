@@ -16,6 +16,8 @@ type ApiUserShape = {
   display_name?: string;
   locationId?: number | null;
   location_id?: number | null;
+  defaultTeamId?: number | null;
+  default_team_id?: number | null;
   locationName?: string | null;
   location_name?: string | null;
   photoUrl?: string | null;
@@ -30,6 +32,7 @@ interface StructuredUpdateProfileRequest {
   lastName: string;
   email: string;
   locationId?: number | null;
+  defaultTeamId?: number | null;
 }
 
 interface ChangePasswordRequest {
@@ -57,6 +60,7 @@ function normalizeUser(response: User | ApiUserShape): User {
     lastName,
     displayName: normalized.displayName ?? normalized.display_name ?? computedDisplayName,
     locationId: normalized.locationId ?? normalized.location_id ?? null,
+    defaultTeamId: normalized.defaultTeamId ?? normalized.default_team_id ?? null,
     locationName: normalized.locationName ?? normalized.location_name ?? null,
     photoUrl: normalized.photoUrl ?? normalized.photo_url ?? null,
     permissions: normalized.permissions ?? (response as User).permissions ?? []

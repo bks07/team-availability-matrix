@@ -36,6 +36,33 @@ pub(crate) async fn update_profile(
         ensure_location_exists(&state.db, location_id).await?;
     }
 
+    if let Some(Some(team_id)) = payload.default_team_id {
+        let membership_exists = sqlx::query_scalar::<_, i32>(
+            "SELECT 1 FROM team_members WHERE team_id = $1 AND user_id = $2",
+        )
+        .bind(team_id)
+        .bind(claims.sub)
+        .fetch_optional(&state.db)
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to validate team membership: {error}"),
+            )
+        })?
+        .is_some();
+
+        if !membership_exists {
+            return Err(ApiError::new(
+                StatusCode::BAD_REQUEST,
+                "You are not a member of this team",
+            ));
+        }
+    }
+
+    let should_update_default_team = payload.default_team_id.is_some();
+    let default_team_id = payload.default_team_id.flatten();
+
     let updated = sqlx::query_as::<_, EmployeeRow>(
         r#"
         WITH updated AS (
@@ -46,11 +73,12 @@ pub(crate) async fn update_profile(
                 last_name = $4,
                 display_name = $5,
                 email = $6,
-                location_id = $7
-            WHERE id = $8
+                location_id = $7,
+                default_team_id = CASE WHEN $8 THEN $9 ELSE default_team_id END
+            WHERE id = $10
             RETURNING id
         )
-        SELECT u.id, u.email, u.display_name, u.title, u.first_name, u.middle_name, u.last_name, u.location_id, u.photo_url, l.name AS location_name
+        SELECT u.id, u.email, u.display_name, u.title, u.first_name, u.middle_name, u.last_name, u.default_team_id, u.location_id, u.photo_url, l.name AS location_name
         FROM users u
         LEFT JOIN locations l ON u.location_id = l.id
         WHERE u.id = (SELECT id FROM updated)
@@ -63,6 +91,8 @@ pub(crate) async fn update_profile(
     .bind(&display_name)
     .bind(&email)
     .bind(payload.location_id)
+    .bind(should_update_default_team)
+    .bind(default_team_id)
     .bind(claims.sub)
     .fetch_optional(&state.db)
     .await;
@@ -102,6 +132,7 @@ pub(crate) async fn update_profile(
         first_name: updated.first_name,
         middle_name: updated.middle_name,
         last_name: updated.last_name,
+        default_team_id: updated.default_team_id,
         location_id: updated.location_id,
         location_name: updated.location_name,
         photo_url: updated.photo_url,

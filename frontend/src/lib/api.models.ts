@@ -8,6 +8,7 @@ export interface User {
   firstName: string;
   middleName?: string;
   lastName: string;
+  defaultTeamId?: number | null;
   locationId?: number | null;
   locationName?: string | null;
   photoUrl?: string | null;

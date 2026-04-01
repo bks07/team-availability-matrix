@@ -83,6 +83,8 @@ pub(crate) struct UpdateProfileRequest {
     pub(crate) middle_name: String,
     pub(crate) last_name: String,
     pub(crate) location_id: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) default_team_id: Option<Option<i64>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -120,6 +122,7 @@ pub(crate) struct PublicHolidayQuery {
 #[derive(Debug, Deserialize)]
 pub(crate) struct YearQuery {
     pub(crate) year: Option<i32>,
+    pub(crate) team_id: Option<i64>,
 }
 
 #[derive(Debug, Deserialize)]
