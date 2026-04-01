@@ -73,6 +73,7 @@ export interface UseUsersPageResult {
   currentUser: User | null;
   users: UserWithPermissions[];
   filteredUsers: UserWithPermissions[];
+  workSchedules: Map<number, WorkSchedule>;
   locations: Location[];
   searchQuery: string;
   setSearchQuery: Dispatch<SetStateAction<string>>;
@@ -116,6 +117,7 @@ export function useUsersPage(): UseUsersPageResult {
   const { currentUser } = useAuth();
 
   const [users, setUsers] = useState<UserWithPermissions[]>([]);
+  const [workSchedules, setWorkSchedules] = useState<Map<number, WorkSchedule>>(new Map());
   const [locations, setLocations] = useState<Location[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterLocationId, setFilterLocationId] = useState<number | null>(null);
@@ -165,7 +167,27 @@ export function useUsersPage(): UseUsersPageResult {
 
       try {
         const [loadedUsers, loadedLocations] = await Promise.all([getUsers(), getLocations()]);
+
+        const schedules = await Promise.all(
+          loadedUsers.map(async (user) => {
+            try {
+              const schedule = await getWorkSchedule(user.id);
+              return [user.id, schedule] as [number, WorkSchedule];
+            } catch {
+              return null;
+            }
+          })
+        );
+
+        const scheduleMap = new Map<number, WorkSchedule>();
+        for (const entry of schedules) {
+          if (entry) {
+            scheduleMap.set(entry[0], entry[1]);
+          }
+        }
+
         setUsers(loadedUsers);
+        setWorkSchedules(scheduleMap);
         setLocations(loadedLocations);
       } catch (loadError) {
         setError(getErrorMessage(loadError));
@@ -429,7 +451,7 @@ export function useUsersPage(): UseUsersPageResult {
 
     try {
       const updated = await updateUser(id, payload);
-      await updateWorkSchedule(id, {
+      const updatedSchedule = await updateWorkSchedule(id, {
         monday: scheduleForm.monday,
         tuesday: scheduleForm.tuesday,
         wednesday: scheduleForm.wednesday,
@@ -442,6 +464,11 @@ export function useUsersPage(): UseUsersPageResult {
         ignorePublicHolidays: scheduleForm.ignorePublicHolidays
       });
       setUsers((previous) => previous.map((user) => (user.id === id ? updated : user)));
+      setWorkSchedules((previous) => {
+        const next = new Map(previous);
+        next.set(id, updatedSchedule);
+        return next;
+      });
       setEditingId(null);
       setEditUserForm(INITIAL_FORM);
       setScheduleForm(INITIAL_SCHEDULE);
@@ -481,6 +508,7 @@ export function useUsersPage(): UseUsersPageResult {
     currentUser,
     users,
     filteredUsers,
+    workSchedules,
     locations,
     searchQuery,
     setSearchQuery,

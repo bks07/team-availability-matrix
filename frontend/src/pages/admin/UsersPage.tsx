@@ -1,11 +1,22 @@
 import { Fragment } from 'react';
 import { useUsersPage } from '../../hooks/useUsersPage';
 
+const SCHEDULE_DAYS = [
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday'
+] as const;
+
 export default function UsersPage(): JSX.Element {
   const {
     currentUser,
     users,
     filteredUsers,
+    workSchedules,
     locations,
     searchQuery,
     setSearchQuery,
@@ -116,12 +127,15 @@ export default function UsersPage(): JSX.Element {
                     <th>Email</th>
                     <th>Display Name</th>
                     <th>Location</th>
+                    <th>Schedule</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredUsers.map((user) => {
                     const isEditing = editingId === user.id;
+                    const userSchedule = workSchedules.get(user.id);
+                    const hoursLabel = userSchedule?.hoursPerWeek != null ? `${userSchedule.hoursPerWeek} h/w` : '—';
                     const locationName =
                       user.locationId === null || user.locationId === undefined
                         ? 'No location'
@@ -208,6 +222,23 @@ export default function UsersPage(): JSX.Element {
                                   aria-label={`Reset password for ${user.displayName}`}
                                 />
                               </td>
+                              <td className="schedule-cell">
+                                <div className="schedule-dots">
+                                  {SCHEDULE_DAYS.map((day, index) => {
+                                    const active = userSchedule?.[day] ?? index < 5;
+                                    const isWeekend = index >= 5;
+
+                                    return (
+                                      <span
+                                        key={day}
+                                        className={`schedule-dot${active ? (isWeekend ? ' weekend' : ' workday') : ' inactive'}`}
+                                        title={day.charAt(0).toUpperCase() + day.slice(1)}
+                                      />
+                                    );
+                                  })}
+                                </div>
+                                <div className="schedule-hours">{hoursLabel}</div>
+                              </td>
                               <td>
                                 <div className="entity-actions">
                                   <button
@@ -233,6 +264,23 @@ export default function UsersPage(): JSX.Element {
                               <td>{user.email}</td>
                               <td>{user.displayName}</td>
                               <td>{locationName}</td>
+                              <td className="schedule-cell">
+                                <div className="schedule-dots">
+                                  {SCHEDULE_DAYS.map((day, index) => {
+                                    const active = userSchedule?.[day] ?? index < 5;
+                                    const isWeekend = index >= 5;
+
+                                    return (
+                                      <span
+                                        key={day}
+                                        className={`schedule-dot${active ? (isWeekend ? ' weekend' : ' workday') : ' inactive'}`}
+                                        title={day.charAt(0).toUpperCase() + day.slice(1)}
+                                      />
+                                    );
+                                  })}
+                                </div>
+                                <div className="schedule-hours">{hoursLabel}</div>
+                              </td>
                               <td>
                                 <div className="entity-actions">
                                   <button
@@ -266,7 +314,7 @@ export default function UsersPage(): JSX.Element {
                         </tr>
                         {isEditing ? (
                           <tr className="schedule-expansion-row">
-                            <td colSpan={5}>
+                            <td colSpan={6}>
                               <div className="schedule-panel">
                                 <h4 className="schedule-panel-title">Work Schedule</h4>
                                 {scheduleLoading ? (

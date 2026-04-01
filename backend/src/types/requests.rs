@@ -95,9 +95,13 @@ pub(crate) struct AdminCreateUserRequest {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct AdminUpdateUserRequest {
     pub(crate) email: String,
+    pub(crate) title: Option<String>,
     pub(crate) first_name: String,
+    pub(crate) middle_name: Option<String>,
     pub(crate) last_name: String,
     pub(crate) location_id: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) default_team_id: Option<Option<i64>>,
     pub(crate) password: Option<String>,
 }
 

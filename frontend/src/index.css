@@ -1357,6 +1357,44 @@ td.bulk-selected-last::after {
   text-align: center;
 }
 
+.schedule-cell {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.schedule-dots {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+.schedule-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.schedule-dot.workday {
+  background-color: #2563eb;
+}
+
+.schedule-dot.weekend {
+  background-color: #f59e0b;
+}
+
+.schedule-dot.inactive {
+  background-color: #d1d5db;
+}
+
+.schedule-hours {
+  font-family: 'SF Mono', 'Fira Code', 'Fira Mono', 'Roboto Mono', monospace;
+  font-size: 0.8rem;
+  color: var(--text-secondary, #6b7280);
+  text-align: center;
+}
+
 .user-info .user-name {
   font-weight: 500;
 }
