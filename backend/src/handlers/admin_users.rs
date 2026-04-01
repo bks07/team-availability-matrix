@@ -171,7 +171,12 @@ pub(crate) async fn admin_update_user(
 
     let email = normalize_email(&payload.email)?;
     let (title, first_name, middle_name, last_name) =
-        normalize_name_fields("", &payload.first_name, "", &payload.last_name)?;
+        normalize_name_fields(
+            payload.title.as_deref().unwrap_or(""),
+            &payload.first_name,
+            payload.middle_name.as_deref().unwrap_or(""),
+            &payload.last_name,
+        )?;
     let display_name = derive_display_name(&title, &first_name, &middle_name, &last_name);
 
     if let Some(location_id) = payload.location_id {
@@ -227,6 +232,20 @@ pub(crate) async fn admin_update_user(
             StatusCode::INTERNAL_SERVER_ERROR,
             format!("Failed to update user: {error}"),
         ));
+    }
+
+    if let Some(team_id) = &payload.default_team_id {
+        sqlx::query("UPDATE users SET default_team_id = $1 WHERE id = $2")
+            .bind(*team_id)
+            .bind(id)
+            .execute(&state.db)
+            .await
+            .map_err(|error| {
+                ApiError::new(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Failed to update default team: {error}"),
+                )
+            })?;
     }
 
     let user = sqlx::query_as::<_, EmployeeRow>(

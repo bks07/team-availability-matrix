@@ -28,16 +28,20 @@ function getErrorMessage(error: unknown): string {
 }
 
 export interface UserFormState {
+  title: string;
   email: string;
   firstName: string;
+  middleName: string;
   lastName: string;
   password: string;
   locationId: number | null;
 }
 
 const INITIAL_FORM: UserFormState = {
+  title: '',
   email: '',
   firstName: '',
+  middleName: '',
   lastName: '',
   password: '',
   locationId: null
@@ -73,6 +77,7 @@ export interface UseUsersPageResult {
   currentUser: User | null;
   users: UserWithPermissions[];
   filteredUsers: UserWithPermissions[];
+  workSchedules: Map<number, WorkSchedule>;
   locations: Location[];
   searchQuery: string;
   setSearchQuery: Dispatch<SetStateAction<string>>;
@@ -82,9 +87,20 @@ export interface UseUsersPageResult {
   setIsCreateModalOpen: Dispatch<SetStateAction<boolean>>;
   newUserForm: UserFormState;
   setNewUserForm: Dispatch<SetStateAction<UserFormState>>;
-  editingId: number | null;
+  editModalUserId: number | null;
+  passwordModalUserId: number | null;
   editUserForm: UserFormState;
   setEditUserForm: Dispatch<SetStateAction<UserFormState>>;
+  passwordForm: {
+    password: string;
+    confirmPassword: string;
+  };
+  setPasswordForm: Dispatch<
+    SetStateAction<{
+      password: string;
+      confirmPassword: string;
+    }>
+  >;
   scheduleForm: ScheduleFormState;
   setScheduleForm: Dispatch<SetStateAction<ScheduleFormState>>;
   scheduleLoading: boolean;
@@ -106,9 +122,12 @@ export interface UseUsersPageResult {
   toggleSelectAll: () => void;
   handleBulkAssign: () => Promise<void>;
   handleCreateUser: (event: FormEvent<HTMLFormElement>) => Promise<void>;
-  startEditing: (user: UserWithPermissions) => Promise<void>;
-  cancelEditing: () => void;
+  openEditModal: (user: UserWithPermissions) => Promise<void>;
+  closeEditModal: () => void;
+  openPasswordModal: (userId: number) => void;
+  closePasswordModal: () => void;
   handleSaveEdit: (id: number) => Promise<void>;
+  handleChangePassword: () => Promise<void>;
   handleDelete: (user: UserWithPermissions) => Promise<void>;
 }
 
@@ -116,6 +135,7 @@ export function useUsersPage(): UseUsersPageResult {
   const { currentUser } = useAuth();
 
   const [users, setUsers] = useState<UserWithPermissions[]>([]);
+  const [workSchedules, setWorkSchedules] = useState<Map<number, WorkSchedule>>(new Map());
   const [locations, setLocations] = useState<Location[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterLocationId, setFilterLocationId] = useState<number | null>(null);
@@ -123,8 +143,10 @@ export function useUsersPage(): UseUsersPageResult {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newUserForm, setNewUserForm] = useState<UserFormState>(INITIAL_FORM);
 
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editModalUserId, setEditModalUserId] = useState<number | null>(null);
+  const [passwordModalUserId, setPasswordModalUserId] = useState<number | null>(null);
   const [editUserForm, setEditUserForm] = useState<UserFormState>(INITIAL_FORM);
+  const [passwordForm, setPasswordForm] = useState({ password: '', confirmPassword: '' });
   const [scheduleForm, setScheduleForm] = useState<ScheduleFormState>(INITIAL_SCHEDULE);
   const [scheduleLoading, setScheduleLoading] = useState(false);
 
@@ -165,7 +187,27 @@ export function useUsersPage(): UseUsersPageResult {
 
       try {
         const [loadedUsers, loadedLocations] = await Promise.all([getUsers(), getLocations()]);
+
+        const schedules = await Promise.all(
+          loadedUsers.map(async (user) => {
+            try {
+              const schedule = await getWorkSchedule(user.id);
+              return [user.id, schedule] as [number, WorkSchedule];
+            } catch {
+              return null;
+            }
+          })
+        );
+
+        const scheduleMap = new Map<number, WorkSchedule>();
+        for (const entry of schedules) {
+          if (entry) {
+            scheduleMap.set(entry[0], entry[1]);
+          }
+        }
+
         setUsers(loadedUsers);
+        setWorkSchedules(scheduleMap);
         setLocations(loadedLocations);
       } catch (loadError) {
         setError(getErrorMessage(loadError));
@@ -327,11 +369,15 @@ export function useUsersPage(): UseUsersPageResult {
     }
   };
 
-  const startEditing = async (user: UserWithPermissions) => {
-    setEditingId(user.id);
+  const openEditModal = async (user: UserWithPermissions) => {
+    setPasswordModalUserId(null);
+    setPasswordForm({ password: '', confirmPassword: '' });
+    setEditModalUserId(user.id);
     setEditUserForm({
+      title: user.title ?? '',
       email: user.email,
       firstName: user.firstName,
+      middleName: user.middleName ?? '',
       lastName: user.lastName,
       password: '',
       locationId: user.locationId ?? null
@@ -361,15 +407,30 @@ export function useUsersPage(): UseUsersPageResult {
     }
   };
 
-  const cancelEditing = () => {
-    setEditingId(null);
+  const closeEditModal = () => {
+    setEditModalUserId(null);
     setEditUserForm(INITIAL_FORM);
     setScheduleForm(INITIAL_SCHEDULE);
   };
 
+  const openPasswordModal = (userId: number) => {
+    setEditModalUserId(null);
+    setPasswordModalUserId(userId);
+    setPasswordForm({ password: '', confirmPassword: '' });
+    setError('');
+    setSuccess('');
+  };
+
+  const closePasswordModal = () => {
+    setPasswordModalUserId(null);
+    setPasswordForm({ password: '', confirmPassword: '' });
+  };
+
   const handleSaveEdit = async (id: number) => {
+    const title = editUserForm.title.trim();
     const email = editUserForm.email.trim();
     const firstName = editUserForm.firstName.trim();
+    const middleName = editUserForm.middleName.trim();
     const lastName = editUserForm.lastName.trim();
 
     if (!email) {
@@ -416,20 +477,17 @@ export function useUsersPage(): UseUsersPageResult {
     setSuccess('');
 
     const payload: UpdateUserRequest = {
+      title,
       email,
       firstName,
+      middleName,
       lastName,
       locationId: editUserForm.locationId
     };
 
-    const nextPassword = editUserForm.password.trim();
-    if (nextPassword) {
-      payload.password = nextPassword;
-    }
-
     try {
       const updated = await updateUser(id, payload);
-      await updateWorkSchedule(id, {
+      const updatedSchedule = await updateWorkSchedule(id, {
         monday: scheduleForm.monday,
         tuesday: scheduleForm.tuesday,
         wednesday: scheduleForm.wednesday,
@@ -442,12 +500,65 @@ export function useUsersPage(): UseUsersPageResult {
         ignorePublicHolidays: scheduleForm.ignorePublicHolidays
       });
       setUsers((previous) => previous.map((user) => (user.id === id ? updated : user)));
-      setEditingId(null);
-      setEditUserForm(INITIAL_FORM);
-      setScheduleForm(INITIAL_SCHEDULE);
+      setWorkSchedules((previous) => {
+        const next = new Map(previous);
+        next.set(id, updatedSchedule);
+        return next;
+      });
+      closeEditModal();
       setSuccess('User updated successfully.');
     } catch (updateError) {
       setError(getErrorMessage(updateError));
+    } finally {
+      setIsMutating(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (passwordModalUserId === null) {
+      return;
+    }
+
+    if (!passwordForm.password.trim()) {
+      setError('Password is required.');
+      setSuccess('');
+      return;
+    }
+
+    if (passwordForm.password !== passwordForm.confirmPassword) {
+      setError('Passwords do not match.');
+      setSuccess('');
+      return;
+    }
+
+    const user = users.find((item) => item.id === passwordModalUserId);
+    if (!user) {
+      setError('Unable to find user for password update.');
+      setSuccess('');
+      return;
+    }
+
+    setIsMutating(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const updated = await updateUser(passwordModalUserId, {
+        title: user.title,
+        email: user.email,
+        firstName: user.firstName,
+        middleName: user.middleName,
+        lastName: user.lastName,
+        locationId: user.locationId,
+        password: passwordForm.password
+      });
+      setUsers((previous) =>
+        previous.map((item) => (item.id === passwordModalUserId ? updated : item))
+      );
+      closePasswordModal();
+      setSuccess('Password updated successfully.');
+    } catch (passwordError) {
+      setError(getErrorMessage(passwordError));
     } finally {
       setIsMutating(false);
     }
@@ -466,8 +577,8 @@ export function useUsersPage(): UseUsersPageResult {
     try {
       await deleteUser(user.id);
       setUsers((previous) => previous.filter((item) => item.id !== user.id));
-      if (editingId === user.id) {
-        cancelEditing();
+      if (editModalUserId === user.id) {
+        closeEditModal();
       }
       setSuccess('User deleted successfully.');
     } catch (deleteError) {
@@ -481,6 +592,7 @@ export function useUsersPage(): UseUsersPageResult {
     currentUser,
     users,
     filteredUsers,
+    workSchedules,
     locations,
     searchQuery,
     setSearchQuery,
@@ -490,9 +602,12 @@ export function useUsersPage(): UseUsersPageResult {
     setIsCreateModalOpen,
     newUserForm,
     setNewUserForm,
-    editingId,
+    editModalUserId,
+    passwordModalUserId,
     editUserForm,
     setEditUserForm,
+    passwordForm,
+    setPasswordForm,
     scheduleForm,
     setScheduleForm,
     scheduleLoading,
@@ -514,9 +629,12 @@ export function useUsersPage(): UseUsersPageResult {
     toggleSelectAll,
     handleBulkAssign,
     handleCreateUser,
-    startEditing,
-    cancelEditing,
+    openEditModal,
+    closeEditModal,
+    openPasswordModal,
+    closePasswordModal,
     handleSaveEdit,
+    handleChangePassword,
     handleDelete
   };
 }

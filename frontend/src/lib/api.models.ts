@@ -55,7 +55,9 @@ export interface CreateUserRequest {
 export interface UpdateUserRequest {
   email: string;
   firstName?: string;
+  middleName?: string;
   lastName?: string;
+  title?: string;
   locationId?: number | null;
   password?: string;
   [key: string]: unknown;

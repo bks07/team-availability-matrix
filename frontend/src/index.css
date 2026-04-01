@@ -1357,6 +1357,44 @@ td.bulk-selected-last::after {
   text-align: center;
 }
 
+.schedule-cell {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.schedule-dots {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+.schedule-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.schedule-dot.workday {
+  background-color: #2563eb;
+}
+
+.schedule-dot.weekend {
+  background-color: #f59e0b;
+}
+
+.schedule-dot.inactive {
+  background-color: #d1d5db;
+}
+
+.schedule-hours {
+  font-family: 'SF Mono', 'Fira Code', 'Fira Mono', 'Roboto Mono', monospace;
+  font-size: 0.8rem;
+  color: var(--text-secondary, #6b7280);
+  text-align: center;
+}
+
 .user-info .user-name {
   font-weight: 500;
 }
@@ -1968,6 +2006,10 @@ td.bulk-selected-last::after {
   padding: 20px;
 }
 
+.teams-modal--wide {
+  width: min(100%, 680px);
+}
+
 .teams-modal h2 {
   margin: 0 0 12px;
 }
@@ -1981,6 +2023,20 @@ td.bulk-selected-last::after {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+.modal-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.schedule-modal-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 1rem 0 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-primary, #e5e7eb);
 }
 
 .modal-form label {
@@ -2022,6 +2078,12 @@ td.bulk-selected-last::after {
   justify-content: flex-end;
   gap: 8px;
   margin-top: 6px;
+}
+
+.password-modal-user-info {
+  color: var(--text-secondary, #6b7280);
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
 }
 
 .team-detail-page {
