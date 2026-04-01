@@ -87,3 +87,7 @@ export async function getAuditLog(params?: {
     params as Record<string, string | number | boolean>
   );
 }
+
+export function getAuditLogCsvUrl(): string {
+  return '/admin/permission-audit-log/csv';
+}

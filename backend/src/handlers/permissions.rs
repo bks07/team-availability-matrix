@@ -859,6 +859,72 @@ pub(crate) async fn list_audit_log(
     }))
 }
 
+// GET /api/admin/permission-audit-log/csv
+pub(crate) async fn export_audit_log_csv(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<impl axum::response::IntoResponse, ApiError> {
+    require_permission(
+        &headers,
+        &state.db,
+        &state.jwt_secret,
+        PERM_PERMISSION_PROFILES_VIEW,
+    )
+    .await?;
+
+    #[derive(sqlx::FromRow)]
+    struct AuditRow {
+        admin_name: String,
+        event_type: String,
+        profile_name: Option<String>,
+        target_user_name: Option<String>,
+        details: serde_json::Value,
+        created_at: chrono::DateTime<chrono::Utc>,
+    }
+
+    let rows: Vec<AuditRow> = sqlx::query_as(
+        r#"
+        SELECT u.display_name as admin_name, l.event_type, l.profile_name, l.target_user_name, l.details, l.created_at
+        FROM permission_audit_log l
+        JOIN users u ON u.id = l.admin_id
+        ORDER BY l.created_at DESC
+        "#,
+    )
+    .fetch_all(&state.db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to load audit log: {error}"),
+        )
+    })?;
+
+    let mut csv = String::from("Timestamp,Admin,Event Type,Profile,User,Details\n");
+    for row in rows {
+        let timestamp = row.created_at.to_rfc3339();
+        let admin = escape_csv_field(&row.admin_name);
+        let event = escape_csv_field(&row.event_type);
+        let profile = escape_csv_field(row.profile_name.as_deref().unwrap_or(""));
+        let user = escape_csv_field(row.target_user_name.as_deref().unwrap_or(""));
+        let details = escape_csv_field(&row.details.to_string());
+        csv.push_str(&format!(
+            "{timestamp},{admin},{event},{profile},{user},{details}\n"
+        ));
+    }
+
+    Ok((
+        StatusCode::OK,
+        [
+            (axum::http::header::CONTENT_TYPE, "text/csv"),
+            (
+                axum::http::header::CONTENT_DISPOSITION,
+                "attachment; filename=\"permission-audit-log.csv\"",
+            ),
+        ],
+        csv,
+    ))
+}
+
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct UsageReportQuery {

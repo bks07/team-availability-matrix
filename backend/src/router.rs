@@ -140,6 +140,10 @@ pub(crate) fn build_router(state: AppState, cors: CorsLayer, upload_dir: &str) -
             get(handlers::permissions::list_audit_log),
         )
         .route(
+            "/api/admin/permission-audit-log/csv",
+            get(handlers::permissions::export_audit_log_csv),
+        )
+        .route(
             "/api/admin/permission-usage-report",
             get(handlers::permissions::get_usage_report),
         )

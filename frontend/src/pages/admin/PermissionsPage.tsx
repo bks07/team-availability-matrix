@@ -14,6 +14,7 @@ import { currentToken } from '../../lib/storage';
 import {
   getUsageReport,
   getUsageReportCsvUrl,
+  getAuditLogCsvUrl,
   getAdminUsers,
   getPermissionCatalog,
   getPermissionProfiles,
@@ -492,6 +493,32 @@ export default function PermissionsPage(): JSX.Element {
     }
   };
 
+  const handleDownloadAuditCsv = async () => {
+    setIsDownloadingCsv(true);
+    setError('');
+    try {
+      const baseURL = import.meta.env.DEV ? '/api' : API_BASE_URL;
+      const token = currentToken();
+      const response = await axios.get(`${baseURL}${getAuditLogCsvUrl()}`, {
+        responseType: 'blob',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+
+      const blobUrl = window.URL.createObjectURL(response.data);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = 'permission-audit-log.csv';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setIsDownloadingCsv(false);
+    }
+  };
+
   const renderUsageReportTab = () => (
     <div className="users-tab">
       <div className="tab-header">
@@ -614,6 +641,14 @@ export default function PermissionsPage(): JSX.Element {
             Reset
           </button>
         </div>
+        <button
+          type="button"
+          className="primary"
+          onClick={() => void handleDownloadAuditCsv()}
+          disabled={isDownloadingCsv || auditLoading}
+        >
+          {isDownloadingCsv ? 'Downloading...' : 'Download CSV'}
+        </button>
       </div>
 
       <div className="matrix-wrapper">
