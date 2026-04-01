@@ -3,15 +3,15 @@
 ## Story
 - **IN ORDER TO** organize employees into teams
 - **AS** an administrator
-- **I WANT TO** create new teams in the system
+- **I WANT TO** create new teams in the system via a modal window
 
 ## Acceptance Criteria
-- Admins can create a team by providing a unique team name.
+- Admins can create a team by providing a unique team name and optional description in a modal window.
 - The system validates that the team name is unique.
 - A success message is displayed upon successful creation.
 
 ## In-Scope
-- Team creation form.
+- Team creation modal.
 - Backend validation for unique team names.
 
 ## Out-of-Scope

@@ -3,15 +3,15 @@
 ## Story
 - **IN ORDER TO** organize employees into teams
 - **AS** an administrator
-- **I WANT TO** assign users to specific teams
+- **I WANT TO** assign users to specific teams via a modal window
 
 ## Acceptance Criteria
-- Admins can assign users to teams via a dropdown or search interface.
+- Admins can assign users to teams via a modal window with a dropdown or search interface.
 - The system updates the user's default team upon assignment.
 - A success message is displayed upon successful assignment.
 
 ## In-Scope
-- User assignment interface.
+- User assignment modal.
 - Backend updates for user-team relationships.
 
 ## Out-of-Scope
