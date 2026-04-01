@@ -13,6 +13,7 @@ export interface User {
   locationName?: string | null;
   photoUrl?: string | null;
   permissions: string[];
+  permissionProfileName?: string | null;
 }
 
 export interface Location {
@@ -39,6 +40,7 @@ export interface UserWithPermissions {
   locationName?: string | null;
   photoUrl?: string | null;
   permissions: string[];
+  permissionProfileName?: string | null;
 }
 
 export interface CreateUserRequest {
@@ -172,4 +174,25 @@ export interface UserSearchResult {
   displayName: string;
   email: string;
   photoUrl?: string;
+}
+
+export interface PermissionCatalogEntry {
+  key: string;
+  description: string;
+  category: string;
+}
+
+export interface PermissionProfile {
+  id: number;
+  name: string;
+  isBuiltIn: boolean;
+  permissions: string[];
+  userCount: number;
+}
+
+export interface UserPermissionProfile {
+  userId: number;
+  profileId: number | null;
+  profileName: string | null;
+  permissions: string[];
 }

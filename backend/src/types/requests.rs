@@ -63,12 +63,6 @@ pub(crate) struct UpdatePublicHolidayRequest {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct UpdatePermissionsRequest {
-    pub(crate) permissions: Vec<String>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub(crate) struct ChangePasswordRequest {
     pub(crate) current_password: String,
     pub(crate) new_password: String,
@@ -188,4 +182,24 @@ pub(crate) struct TransferOwnershipRequest {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct UserSearchQuery {
     pub(crate) q: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CreatePermissionProfileRequest {
+    pub(crate) name: String,
+    pub(crate) permissions: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct UpdatePermissionProfileRequest {
+    pub(crate) name: String,
+    pub(crate) permissions: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct AssignProfileRequest {
+    pub(crate) profile_id: Option<i64>,
 }

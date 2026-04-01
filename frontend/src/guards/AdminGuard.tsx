@@ -3,7 +3,7 @@ import { loadSession } from '../lib/storage';
 
 export default function AdminGuard(): JSX.Element {
   const session = loadSession();
-  const hasAdminPermission = session?.user.permissions.includes('admin') ?? false;
+  const hasAdminPermission = (session?.user.permissions?.length ?? 0) > 0;
 
   if (!hasAdminPermission) {
     return (

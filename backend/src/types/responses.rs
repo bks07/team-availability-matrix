@@ -25,6 +25,7 @@ pub(crate) struct PublicUser {
     pub(crate) location_name: Option<String>,
     pub(crate) photo_url: Option<String>,
     pub(crate) permissions: Vec<String>,
+    pub(crate) permission_profile_name: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -80,13 +81,6 @@ pub(crate) struct PublicHolidayResponse {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct UserPermissionsResponse {
-    pub(crate) user_id: i64,
-    pub(crate) permissions: Vec<String>,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub(crate) struct AdminUserResponse {
     pub(crate) id: i64,
     pub(crate) email: String,
@@ -99,6 +93,7 @@ pub(crate) struct AdminUserResponse {
     pub(crate) location_name: Option<String>,
     pub(crate) photo_url: Option<String>,
     pub(crate) permissions: Vec<String>,
+    pub(crate) permission_profile_name: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -172,4 +167,23 @@ pub(crate) struct UserSearchResult {
     pub(crate) display_name: String,
     pub(crate) email: String,
     pub(crate) photo_url: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct PermissionProfileResponse {
+    pub(crate) id: i64,
+    pub(crate) name: String,
+    pub(crate) is_built_in: bool,
+    pub(crate) permissions: Vec<String>,
+    pub(crate) user_count: i64,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct UserPermissionProfileResponse {
+    pub(crate) user_id: i64,
+    pub(crate) profile_id: Option<i64>,
+    pub(crate) profile_name: Option<String>,
+    pub(crate) permissions: Vec<String>,
 }

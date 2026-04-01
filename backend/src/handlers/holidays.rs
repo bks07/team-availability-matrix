@@ -5,7 +5,10 @@ use axum::{
 };
 use chrono::NaiveDate;
 
-use crate::auth::{require_permission, PERMISSION_MANAGE_PUBLIC_HOLIDAYS};
+use crate::auth::{
+    require_permission, PERM_PUBLIC_HOLIDAYS_CREATE, PERM_PUBLIC_HOLIDAYS_DELETE,
+    PERM_PUBLIC_HOLIDAYS_EDIT, PERM_PUBLIC_HOLIDAYS_VIEW,
+};
 use crate::error::ApiError;
 use crate::helpers::{ensure_location_exists, normalize_public_holiday_name};
 use crate::models::PublicHolidayRow;
@@ -24,7 +27,7 @@ pub(crate) async fn list_public_holidays(
         &headers,
         &state.db,
         &state.jwt_secret,
-        PERMISSION_MANAGE_PUBLIC_HOLIDAYS,
+        PERM_PUBLIC_HOLIDAYS_VIEW,
     )
     .await?;
 
@@ -82,7 +85,7 @@ pub(crate) async fn create_public_holiday(
         &headers,
         &state.db,
         &state.jwt_secret,
-        PERMISSION_MANAGE_PUBLIC_HOLIDAYS,
+        PERM_PUBLIC_HOLIDAYS_CREATE,
     )
     .await?;
 
@@ -143,7 +146,7 @@ pub(crate) async fn update_public_holiday(
         &headers,
         &state.db,
         &state.jwt_secret,
-        PERMISSION_MANAGE_PUBLIC_HOLIDAYS,
+        PERM_PUBLIC_HOLIDAYS_EDIT,
     )
     .await?;
 
@@ -215,7 +218,7 @@ pub(crate) async fn delete_public_holiday(
         &headers,
         &state.db,
         &state.jwt_secret,
-        PERMISSION_MANAGE_PUBLIC_HOLIDAYS,
+        PERM_PUBLIC_HOLIDAYS_DELETE,
     )
     .await?;
 

@@ -4,7 +4,10 @@ use axum::{
     Json,
 };
 
-use crate::auth::{require_permission, PERMISSION_MANAGE_LOCATIONS};
+use crate::auth::{
+    require_permission, PERM_LOCATIONS_CREATE, PERM_LOCATIONS_DELETE, PERM_LOCATIONS_EDIT,
+    PERM_LOCATIONS_VIEW,
+};
 use crate::error::ApiError;
 use crate::helpers::{normalize_location_name, table_exists};
 use crate::models::LocationRow;
@@ -20,7 +23,7 @@ pub(crate) async fn list_locations(
         &headers,
         &state.db,
         &state.jwt_secret,
-        PERMISSION_MANAGE_LOCATIONS,
+        PERM_LOCATIONS_VIEW,
     )
     .await?;
 
@@ -58,7 +61,7 @@ pub(crate) async fn create_location(
         &headers,
         &state.db,
         &state.jwt_secret,
-        PERMISSION_MANAGE_LOCATIONS,
+        PERM_LOCATIONS_CREATE,
     )
     .await?;
 
@@ -112,7 +115,7 @@ pub(crate) async fn update_location(
         &headers,
         &state.db,
         &state.jwt_secret,
-        PERMISSION_MANAGE_LOCATIONS,
+        PERM_LOCATIONS_EDIT,
     )
     .await?;
 
@@ -171,7 +174,7 @@ pub(crate) async fn delete_location(
         &headers,
         &state.db,
         &state.jwt_secret,
-        PERMISSION_MANAGE_LOCATIONS,
+        PERM_LOCATIONS_DELETE,
     )
     .await?;
 

@@ -2,7 +2,7 @@ use axum::http::StatusCode;
 use chrono::{Duration, NaiveDate};
 use sqlx::PgPool;
 
-use crate::auth::{get_user_permissions, KNOWN_PERMISSIONS};
+use crate::auth::{get_user_permissions, get_user_profile_name, KNOWN_PERMISSIONS};
 use crate::error::ApiError;
 use crate::models::EmployeeRow;
 use crate::types::responses::PublicUser;
@@ -23,6 +23,7 @@ pub(crate) async fn find_public_user(db: &PgPool, user_id: i64) -> Result<Public
     .ok_or_else(|| ApiError::new(StatusCode::UNAUTHORIZED, "Current user no longer exists"))?;
 
     let permissions = get_user_permissions(db, user_id).await?;
+    let permission_profile_name = get_user_profile_name(db, user_id).await?;
     Ok(PublicUser {
         id: row.id,
         email: row.email,
@@ -36,6 +37,7 @@ pub(crate) async fn find_public_user(db: &PgPool, user_id: i64) -> Result<Public
         location_name: row.location_name,
         photo_url: row.photo_url,
         permissions,
+        permission_profile_name,
     })
 }
 

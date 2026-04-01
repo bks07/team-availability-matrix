@@ -4,7 +4,7 @@ use axum::{
     Json,
 };
 
-use crate::auth::{require_permission, PERMISSION_SUPER_ADMIN};
+use crate::auth::{require_permission, PERM_SETTINGS_MANAGE};
 use crate::error::ApiError;
 use crate::models::SystemSettingRow;
 use crate::state::AppState;
@@ -45,7 +45,7 @@ pub(crate) async fn update_self_registration_setting(
         &headers,
         &state.db,
         &state.jwt_secret,
-        PERMISSION_SUPER_ADMIN,
+        PERM_SETTINGS_MANAGE,
     )
     .await?;
 

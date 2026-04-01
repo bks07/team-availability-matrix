@@ -104,6 +104,11 @@ pub(crate) fn build_router(state: AppState, cors: CorsLayer, upload_dir: &str) -
                 .delete(handlers::admin_users::admin_delete_user),
         )
         .route(
+            "/api/admin/users/:id/permission-profile",
+            get(handlers::permissions::get_user_profile)
+                .put(handlers::permissions::assign_user_profile),
+        )
+        .route(
             "/api/admin/users/:id/work-schedule",
             get(handlers::work_schedules::get_work_schedule)
                 .put(handlers::work_schedules::update_work_schedule),
@@ -113,9 +118,19 @@ pub(crate) fn build_router(state: AppState, cors: CorsLayer, upload_dir: &str) -
             put(handlers::settings::update_self_registration_setting),
         )
         .route(
-            "/api/admin/users/:id/permissions",
-            get(handlers::permissions::get_user_permissions_handler)
-                .put(handlers::permissions::update_user_permissions),
+            "/api/admin/permission-catalog",
+            get(handlers::permissions::list_permission_catalog),
+        )
+        .route(
+            "/api/admin/permission-profiles",
+            get(handlers::permissions::list_permission_profiles)
+                .post(handlers::permissions::create_permission_profile),
+        )
+        .route(
+            "/api/admin/permission-profiles/:id",
+            get(handlers::permissions::get_permission_profile)
+                .put(handlers::permissions::update_permission_profile)
+                .delete(handlers::permissions::delete_permission_profile),
         )
         .nest_service("/uploads", ServeDir::new(upload_dir))
         .layer(cors)

@@ -6,7 +6,7 @@ use axum::{
     Json,
 };
 
-use crate::auth::{authorize, get_user_permissions, hash_password, validate_password, verify_password};
+use crate::auth::{authorize, get_user_permissions, get_user_profile_name, hash_password, validate_password, verify_password};
 use crate::error::ApiError;
 use crate::helpers::{
     delete_photo_file_best_effort, ensure_location_exists, find_public_user,
@@ -124,6 +124,7 @@ pub(crate) async fn update_profile(
     };
 
     let permissions = get_user_permissions(&state.db, claims.sub).await?;
+    let permission_profile_name = get_user_profile_name(&state.db, claims.sub).await?;
     Ok(Json(PublicUser {
         id: updated.id,
         email: updated.email,
@@ -137,6 +138,7 @@ pub(crate) async fn update_profile(
         location_name: updated.location_name,
         photo_url: updated.photo_url,
         permissions,
+        permission_profile_name,
     }))
 }
 

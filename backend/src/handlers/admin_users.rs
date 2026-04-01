@@ -5,7 +5,8 @@ use axum::{
 };
 
 use crate::auth::{
-    get_user_permissions, hash_password, require_permission, validate_password, PERMISSION_ADMIN,
+    get_user_permissions, get_user_profile_name, hash_password, require_permission,
+    validate_password, PERM_USERS_CREATE, PERM_USERS_DELETE, PERM_USERS_EDIT, PERM_USERS_LIST,
 };
 use crate::error::ApiError;
 use crate::helpers::{
@@ -27,7 +28,7 @@ pub(crate) async fn list_admin_users(
         &headers,
         &state.db,
         &state.jwt_secret,
-        PERMISSION_ADMIN,
+        PERM_USERS_LIST,
     )
     .await?;
 
@@ -46,6 +47,7 @@ pub(crate) async fn list_admin_users(
     let mut response = Vec::with_capacity(users.len());
     for user in users {
         let permissions = get_user_permissions(&state.db, user.id).await?;
+        let permission_profile_name = get_user_profile_name(&state.db, user.id).await?;
         response.push(AdminUserResponse {
             id: user.id,
             email: user.email,
@@ -58,6 +60,7 @@ pub(crate) async fn list_admin_users(
             location_name: user.location_name,
             photo_url: user.photo_url,
             permissions,
+            permission_profile_name,
         });
     }
 
@@ -71,7 +74,7 @@ pub(crate) async fn admin_create_user(
     headers: HeaderMap,
     Json(payload): Json<AdminCreateUserRequest>,
 ) -> Result<(StatusCode, Json<AdminUserResponse>), ApiError> {
-    require_permission(&headers, &state.db, &state.jwt_secret, PERMISSION_ADMIN).await?;
+    require_permission(&headers, &state.db, &state.jwt_secret, PERM_USERS_CREATE).await?;
 
     let email = normalize_email(&payload.email)?;
     let (title, first_name, middle_name, last_name) =
@@ -133,6 +136,7 @@ pub(crate) async fn admin_create_user(
     })?;
 
     let permissions = get_user_permissions(&state.db, created_user.id).await?;
+    let permission_profile_name = get_user_profile_name(&state.db, created_user.id).await?;
 
     Ok((
         StatusCode::CREATED,
@@ -148,6 +152,7 @@ pub(crate) async fn admin_create_user(
             location_name: created_user.location_name,
             photo_url: created_user.photo_url,
             permissions,
+            permission_profile_name,
         }),
     ))
 }
@@ -160,7 +165,7 @@ pub(crate) async fn admin_update_user(
     Path(id): Path<i64>,
     Json(payload): Json<AdminUpdateUserRequest>,
 ) -> Result<Json<AdminUserResponse>, ApiError> {
-    require_permission(&headers, &state.db, &state.jwt_secret, PERMISSION_ADMIN).await?;
+    require_permission(&headers, &state.db, &state.jwt_secret, PERM_USERS_EDIT).await?;
 
     ensure_user_exists(&state.db, id).await?;
 
@@ -238,6 +243,7 @@ pub(crate) async fn admin_update_user(
     })?;
 
     let permissions = get_user_permissions(&state.db, id).await?;
+    let permission_profile_name = get_user_profile_name(&state.db, id).await?;
 
     Ok(Json(AdminUserResponse {
         id: user.id,
@@ -251,6 +257,7 @@ pub(crate) async fn admin_update_user(
         location_name: user.location_name,
         photo_url: user.photo_url,
         permissions,
+        permission_profile_name,
     }))
 }
 
@@ -261,7 +268,8 @@ pub(crate) async fn admin_delete_user(
     headers: HeaderMap,
     Path(id): Path<i64>,
 ) -> Result<StatusCode, ApiError> {
-    let claims = require_permission(&headers, &state.db, &state.jwt_secret, PERMISSION_ADMIN).await?;
+    let claims =
+        require_permission(&headers, &state.db, &state.jwt_secret, PERM_USERS_DELETE).await?;
 
     if claims.sub == id {
         return Err(ApiError::new(
@@ -295,14 +303,14 @@ pub(crate) async fn admin_delete_user(
             )
         })?;
 
-    sqlx::query("DELETE FROM user_permissions WHERE user_id = $1")
+    sqlx::query("DELETE FROM user_permission_profiles WHERE user_id = $1")
         .bind(id)
         .execute(&state.db)
         .await
         .map_err(|error| {
             ApiError::new(
                 StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to delete user permissions: {error}"),
+                format!("Failed to delete user permission profile: {error}"),
             )
         })?;
 
@@ -335,7 +343,7 @@ pub(crate) async fn bulk_assign_location(
     headers: HeaderMap,
     Json(payload): Json<BulkAssignLocationRequest>,
 ) -> Result<Json<BulkAssignLocationResponse>, ApiError> {
-    require_permission(&headers, &state.db, &state.jwt_secret, PERMISSION_ADMIN).await?;
+    require_permission(&headers, &state.db, &state.jwt_secret, PERM_USERS_EDIT).await?;
 
     if payload.user_ids.is_empty() {
         return Err(ApiError::new(

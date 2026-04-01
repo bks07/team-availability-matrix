@@ -5,8 +5,8 @@ use axum::{
 };
 
 use crate::auth::{
-    authorize, get_user_permissions, hash_password, issue_token, validate_password,
-    verify_password, FIRST_USER_PERMISSIONS,
+    authorize, get_user_permissions, get_user_profile_name, hash_password, issue_token,
+    validate_password, verify_password, SUPER_ADMIN_PROFILE_NAME,
 };
 use crate::error::ApiError;
 use crate::helpers::{
@@ -95,24 +95,38 @@ pub(crate) async fn register(
     })?;
 
     if inserted_id == 1 {
-        for permission in FIRST_USER_PERMISSIONS {
-            sqlx::query(
-                "INSERT INTO user_permissions (user_id, permission) VALUES ($1, $2) ON CONFLICT (user_id, permission) DO NOTHING",
+        let super_admin_profile_id = sqlx::query_scalar::<_, i64>(
+            "SELECT id FROM permission_profiles WHERE name = $1",
+        )
+        .bind(SUPER_ADMIN_PROFILE_NAME)
+        .fetch_optional(&state.db)
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to find Super Admin profile: {error}"),
             )
-                .bind(user.id)
-                .bind(permission)
-                .execute(&state.db)
-                .await
-                .map_err(|error| {
-                    ApiError::new(
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        format!("Failed to assign initial permissions: {error}"),
-                    )
-                })?;
+        })?;
+
+        if let Some(profile_id) = super_admin_profile_id {
+            sqlx::query(
+                "INSERT INTO user_permission_profiles (user_id, profile_id) VALUES ($1, $2) ON CONFLICT (user_id) DO NOTHING",
+            )
+            .bind(user.id)
+            .bind(profile_id)
+            .execute(&state.db)
+            .await
+            .map_err(|error| {
+                ApiError::new(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Failed to assign Super Admin profile: {error}"),
+                )
+            })?;
         }
     }
 
     let permissions = get_user_permissions(&state.db, user.id).await?;
+    let permission_profile_name = get_user_profile_name(&state.db, user.id).await?;
 
     let token = issue_token(user.id, &state.jwt_secret)?;
 
@@ -131,6 +145,7 @@ pub(crate) async fn register(
             location_name: None,
             photo_url: user.photo_url,
             permissions: permissions.clone(),
+            permission_profile_name,
         },
         permissions,
     }))
@@ -160,6 +175,7 @@ pub(crate) async fn login(
 
     verify_password(&payload.password, &user.password_hash)?;
     let permissions = get_user_permissions(&state.db, user.id).await?;
+    let permission_profile_name = get_user_profile_name(&state.db, user.id).await?;
     let location_name = sqlx::query_scalar::<_, String>(
         "SELECT l.name FROM users u LEFT JOIN locations l ON u.location_id = l.id WHERE u.id = $1",
     )
@@ -189,6 +205,7 @@ pub(crate) async fn login(
             location_name,
             photo_url: user.photo_url,
             permissions: permissions.clone(),
+            permission_profile_name,
         },
         permissions,
     }))

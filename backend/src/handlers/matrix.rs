@@ -5,7 +5,7 @@ use axum::{
 };
 use chrono::{Datelike, NaiveDate, Utc, Weekday};
 
-use crate::auth::{authorize, get_user_permissions};
+use crate::auth::{authorize, get_user_permissions, get_user_profile_name};
 use crate::error::ApiError;
 use crate::helpers::build_day_list;
 use crate::models::{EmployeeRow, PublicHolidayRow, StatusRow, StatusValue, WorkScheduleRow};
@@ -218,6 +218,7 @@ pub(crate) async fn get_matrix(
             let mut public_users = Vec::with_capacity(employees.len());
             for user in employees {
                 let permissions = get_user_permissions(&state.db, user.id).await?;
+                let permission_profile_name = get_user_profile_name(&state.db, user.id).await?;
                 public_users.push(PublicUser {
                     id: user.id,
                     email: user.email,
@@ -231,6 +232,7 @@ pub(crate) async fn get_matrix(
                     location_name: user.location_name,
                     photo_url: user.photo_url,
                     permissions,
+                    permission_profile_name,
                 });
             }
             public_users

@@ -4,7 +4,7 @@ use axum::{
     Json,
 };
 
-use crate::auth::{require_permission, PERMISSION_ADMIN};
+use crate::auth::{require_permission, PERM_USERS_EDIT};
 use crate::error::ApiError;
 use crate::helpers::ensure_user_exists;
 use crate::models::WorkScheduleRow;
@@ -49,7 +49,7 @@ pub(crate) async fn get_work_schedule(
     headers: HeaderMap,
     Path(id): Path<i64>,
 ) -> Result<Json<WorkScheduleResponse>, ApiError> {
-    require_permission(&headers, &state.db, &state.jwt_secret, PERMISSION_ADMIN).await?;
+    require_permission(&headers, &state.db, &state.jwt_secret, PERM_USERS_EDIT).await?;
 
     let schedule = sqlx::query_as::<_, WorkScheduleRow>(
         r#"
@@ -93,7 +93,7 @@ pub(crate) async fn update_work_schedule(
     Path(id): Path<i64>,
     Json(payload): Json<UpdateWorkScheduleRequest>,
 ) -> Result<Json<WorkScheduleResponse>, ApiError> {
-    require_permission(&headers, &state.db, &state.jwt_secret, PERMISSION_ADMIN).await?;
+    require_permission(&headers, &state.db, &state.jwt_secret, PERM_USERS_EDIT).await?;
     ensure_user_exists(&state.db, id).await?;
 
     let has_any_workday = payload.monday

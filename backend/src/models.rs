@@ -139,3 +139,13 @@ pub(crate) struct TeamInvitationRow {
     pub(crate) created_at: chrono::DateTime<chrono::Utc>,
     pub(crate) updated_at: chrono::DateTime<chrono::Utc>,
 }
+
+#[allow(dead_code)]
+#[derive(Debug, FromRow)]
+pub(crate) struct PermissionProfileRow {
+    pub(crate) id: i64,
+    pub(crate) name: String,
+    pub(crate) is_built_in: bool,
+    pub(crate) created_at: chrono::DateTime<chrono::Utc>,
+    pub(crate) updated_at: chrono::DateTime<chrono::Utc>,
+}

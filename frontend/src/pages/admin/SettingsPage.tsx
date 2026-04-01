@@ -18,7 +18,7 @@ export default function SettingsPage(): JSX.Element {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const isSuperAdmin = currentUser?.permissions.includes('super_admin') ?? false;
+  const isSuperAdmin = currentUser?.permissions.includes('settings.manage') ?? false;
 
   useEffect(() => {
     if (!isSuperAdmin) {

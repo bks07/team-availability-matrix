@@ -11,21 +11,76 @@ use sqlx::PgPool;
 
 use crate::error::ApiError;
 
-pub(crate) const PERMISSION_ADMIN: &str = "admin";
-pub(crate) const PERMISSION_MANAGE_LOCATIONS: &str = "manage_locations";
-pub(crate) const PERMISSION_MANAGE_PUBLIC_HOLIDAYS: &str = "manage_public_holidays";
-pub(crate) const PERMISSION_SUPER_ADMIN: &str = "super_admin";
-pub(crate) const KNOWN_PERMISSIONS: [&str; 4] = [
-    PERMISSION_ADMIN,
-    PERMISSION_MANAGE_LOCATIONS,
-    PERMISSION_MANAGE_PUBLIC_HOLIDAYS,
-    PERMISSION_SUPER_ADMIN,
+// ── New permission keys (18 total) ──────────────────────────────────────
+pub(crate) const PERM_USERS_LIST: &str = "users.list";
+pub(crate) const PERM_USERS_CREATE: &str = "users.create";
+pub(crate) const PERM_USERS_EDIT: &str = "users.edit";
+pub(crate) const PERM_USERS_DELETE: &str = "users.delete";
+pub(crate) const PERM_LOCATIONS_VIEW: &str = "locations.view";
+pub(crate) const PERM_LOCATIONS_CREATE: &str = "locations.create";
+pub(crate) const PERM_LOCATIONS_EDIT: &str = "locations.edit";
+pub(crate) const PERM_LOCATIONS_DELETE: &str = "locations.delete";
+pub(crate) const PERM_PUBLIC_HOLIDAYS_VIEW: &str = "public_holidays.view";
+pub(crate) const PERM_PUBLIC_HOLIDAYS_CREATE: &str = "public_holidays.create";
+pub(crate) const PERM_PUBLIC_HOLIDAYS_EDIT: &str = "public_holidays.edit";
+pub(crate) const PERM_PUBLIC_HOLIDAYS_DELETE: &str = "public_holidays.delete";
+pub(crate) const PERM_PERMISSION_PROFILES_VIEW: &str = "permission_profiles.view";
+pub(crate) const PERM_PERMISSION_PROFILES_CREATE: &str = "permission_profiles.create";
+pub(crate) const PERM_PERMISSION_PROFILES_EDIT: &str = "permission_profiles.edit";
+pub(crate) const PERM_PERMISSION_PROFILES_DELETE: &str = "permission_profiles.delete";
+pub(crate) const PERM_PERMISSION_PROFILES_ASSIGN: &str = "permission_profiles.assign";
+pub(crate) const PERM_SETTINGS_MANAGE: &str = "settings.manage";
+
+pub(crate) const KNOWN_PERMISSIONS: [&str; 18] = [
+    PERM_USERS_LIST,
+    PERM_USERS_CREATE,
+    PERM_USERS_EDIT,
+    PERM_USERS_DELETE,
+    PERM_LOCATIONS_VIEW,
+    PERM_LOCATIONS_CREATE,
+    PERM_LOCATIONS_EDIT,
+    PERM_LOCATIONS_DELETE,
+    PERM_PUBLIC_HOLIDAYS_VIEW,
+    PERM_PUBLIC_HOLIDAYS_CREATE,
+    PERM_PUBLIC_HOLIDAYS_EDIT,
+    PERM_PUBLIC_HOLIDAYS_DELETE,
+    PERM_PERMISSION_PROFILES_VIEW,
+    PERM_PERMISSION_PROFILES_CREATE,
+    PERM_PERMISSION_PROFILES_EDIT,
+    PERM_PERMISSION_PROFILES_DELETE,
+    PERM_PERMISSION_PROFILES_ASSIGN,
+    PERM_SETTINGS_MANAGE,
 ];
-pub(crate) const FIRST_USER_PERMISSIONS: [&str; 4] = [
-    PERMISSION_ADMIN,
-    PERMISSION_MANAGE_LOCATIONS,
-    PERMISSION_MANAGE_PUBLIC_HOLIDAYS,
-    PERMISSION_SUPER_ADMIN,
+
+pub(crate) const SUPER_ADMIN_PROFILE_NAME: &str = "Super Admin";
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct PermissionCatalogEntry {
+    pub(crate) key: &'static str,
+    pub(crate) description: &'static str,
+    pub(crate) category: &'static str,
+}
+
+pub(crate) const PERMISSION_CATALOG: [PermissionCatalogEntry; 18] = [
+    PermissionCatalogEntry { key: "users.list", description: "View list of all users in admin area", category: "User Administration" },
+    PermissionCatalogEntry { key: "users.create", description: "Create new user accounts via admin", category: "User Administration" },
+    PermissionCatalogEntry { key: "users.edit", description: "Edit user details, work schedules, bulk-assign locations", category: "User Administration" },
+    PermissionCatalogEntry { key: "users.delete", description: "Delete user accounts", category: "User Administration" },
+    PermissionCatalogEntry { key: "locations.view", description: "View list of locations", category: "Location Management" },
+    PermissionCatalogEntry { key: "locations.create", description: "Create new locations", category: "Location Management" },
+    PermissionCatalogEntry { key: "locations.edit", description: "Edit existing locations", category: "Location Management" },
+    PermissionCatalogEntry { key: "locations.delete", description: "Delete locations", category: "Location Management" },
+    PermissionCatalogEntry { key: "public_holidays.view", description: "View public holidays", category: "Public Holiday Management" },
+    PermissionCatalogEntry { key: "public_holidays.create", description: "Create public holidays", category: "Public Holiday Management" },
+    PermissionCatalogEntry { key: "public_holidays.edit", description: "Edit existing public holidays", category: "Public Holiday Management" },
+    PermissionCatalogEntry { key: "public_holidays.delete", description: "Delete public holidays", category: "Public Holiday Management" },
+    PermissionCatalogEntry { key: "permission_profiles.view", description: "View permission profiles and user assignments", category: "Permission Management" },
+    PermissionCatalogEntry { key: "permission_profiles.create", description: "Create new permission profiles", category: "Permission Management" },
+    PermissionCatalogEntry { key: "permission_profiles.edit", description: "Edit permission profile name and permissions", category: "Permission Management" },
+    PermissionCatalogEntry { key: "permission_profiles.delete", description: "Delete permission profiles", category: "Permission Management" },
+    PermissionCatalogEntry { key: "permission_profiles.assign", description: "Assign or unassign profiles to/from users", category: "Permission Management" },
+    PermissionCatalogEntry { key: "settings.manage", description: "Manage system settings", category: "System Settings" },
 ];
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -36,7 +91,13 @@ pub(crate) struct Claims {
 
 pub(crate) async fn get_user_permissions(db: &PgPool, user_id: i64) -> Result<Vec<String>, ApiError> {
     sqlx::query_scalar::<_, String>(
-        "SELECT permission FROM user_permissions WHERE user_id = $1 ORDER BY permission ASC",
+        r#"
+        SELECT pp.permission_key
+        FROM user_permission_profiles upp
+        JOIN profile_permissions pp ON pp.profile_id = upp.profile_id
+        WHERE upp.user_id = $1
+        ORDER BY pp.permission_key ASC
+        "#,
     )
     .bind(user_id)
     .fetch_all(db)
@@ -45,6 +106,26 @@ pub(crate) async fn get_user_permissions(db: &PgPool, user_id: i64) -> Result<Ve
         ApiError::new(
             StatusCode::INTERNAL_SERVER_ERROR,
             format!("Failed to load user permissions: {error}"),
+        )
+    })
+}
+
+pub(crate) async fn get_user_profile_name(db: &PgPool, user_id: i64) -> Result<Option<String>, ApiError> {
+    sqlx::query_scalar::<_, String>(
+        r#"
+        SELECT p.name
+        FROM user_permission_profiles upp
+        JOIN permission_profiles p ON p.id = upp.profile_id
+        WHERE upp.user_id = $1
+        "#,
+    )
+    .bind(user_id)
+    .fetch_optional(db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to load user profile name: {error}"),
         )
     })
 }
@@ -58,7 +139,13 @@ pub(crate) async fn require_permission(
     let claims = authorize(headers, jwt_secret)?;
 
     let has_permission = sqlx::query_scalar::<_, i32>(
-        "SELECT 1 FROM user_permissions WHERE user_id = $1 AND permission = $2 LIMIT 1",
+        r#"
+        SELECT 1
+        FROM user_permission_profiles upp
+        JOIN profile_permissions pp ON pp.profile_id = upp.profile_id
+        WHERE upp.user_id = $1 AND pp.permission_key = $2
+        LIMIT 1
+        "#,
     )
     .bind(claims.sub)
     .bind(permission)

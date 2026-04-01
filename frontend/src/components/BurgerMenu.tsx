@@ -41,8 +41,8 @@ export default function BurgerMenu({ isOpen, onClose, permissions }: BurgerMenuP
     administration: true
   });
 
-  const hasAdminPermission = permissions.includes('admin');
-  const hasSuperAdminPermission = permissions.includes('super_admin');
+  const hasAdminPermission = permissions.length > 0;
+  const hasSuperAdminPermission = permissions.includes('permission_profiles.view');
 
   const workspaceItems: NavItem[] = useMemo(
     () => [
