@@ -57,13 +57,15 @@ Ensure develop branch is ready for planning:
 1. Stage all new and modified specification files in the develop branch with `git add .`.
 2. Commit all specification changes made by the human with a clean commit message.
 3. Push the develop branch to remote.
-4. Compare the latest commit on develop against its parent (`git diff HEAD~1 HEAD`) to identify what changed.
-   - Identify all created, removed, and modified .md files in:
-     - specs/bugfixing
-     - specs/product-areas
-     - specs/rebrushes
-     - specs/technical-initiatives
-5. Pass the specification deltas as context to Planner.
+4. Determine the diff mode from the user's prompt:
+   - **Recent changes** (default): The user says "for the recent changes" or does not specify commits. Use `git diff HEAD~1 HEAD`.
+   - **Commit range**: The user provides two commit SHAs (e.g., "from commit `<from_sha>` to `<to_sha>`"). Use `git diff <from_sha> <to_sha>`.
+5. Run the determined diff command and identify all created, removed, and modified files — with special attention to .md files in:
+   - specs/bugfixing
+   - specs/product-areas
+   - specs/rebrushes
+   - specs/technical-initiatives
+6. Pass the specification deltas as context to Planner.
 
 ### Step 2: Clarify If Needed
 

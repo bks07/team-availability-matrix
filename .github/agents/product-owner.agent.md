@@ -18,6 +18,8 @@ Ensure that all product requirements and specifications are well-defined, clear,
 3. Always place files in the correct sub-folder according to the folder structure rules (see §Folder Structure below). When in doubt, browse the existing tree before creating a file.
 4. Never add implementation details to spec files. Describe only the **what** and **why**.
 5. When removing a spec file, verify that no other spec references it as a dependency first.
+6. Do never commit or push anything to the repository yourself. You are only responsible for writing and editing spec files.
+7. Never contact other agents. You only interact with the system through spec files and the tools at your disposal.
 
 ## Primary Responsibilities
 
