@@ -1,10 +1,17 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AvailabilityMatrix from '../components/AvailabilityMatrix';
 import TeamSelector from '../components/TeamSelector';
 import { TeamlessNotification } from '../components/TeamlessNotification';
 import { useAuth } from '../context/AuthContext';
 import type { AvailabilityValue, Team, User, WorkSchedule } from '../lib/api.models';
-import { getMatrix, updateStatus, deleteStatus, bulkUpdateStatuses } from '../services/matrix.service';
+import {
+  getMatrix,
+  updateStatus,
+  deleteStatus,
+  bulkUpdateStatuses,
+  exportMatrixCsv,
+  importMatrixCsv,
+} from '../services/matrix.service';
 import { teamService } from '../services/team.service';
 
 function toIsoDate(date: Date): string {
@@ -54,6 +61,7 @@ export default function WorkspaceLayout(): JSX.Element {
   const [matrixLoading, setMatrixLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const selectedRange = useMemo((): string[] => {
     if (!selectionAnchor || !selectionEnd) {
@@ -375,6 +383,54 @@ export default function WorkspaceLayout(): JSX.Element {
     [currentUser, selectedRange, holidayLookup, clearSelection]
   );
 
+  const handleExportCsv = async () => {
+    if (!currentUser) {
+      return;
+    }
+
+    setErrorMessage('');
+    try {
+      const year = Number(periodStart.slice(0, 4));
+      await exportMatrixCsv(year, selectedTeamId ?? undefined);
+      setSuccessMessage('Matrix exported successfully.');
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to export matrix.');
+    }
+  };
+
+  const handleImportCsv = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    try {
+      const result = await importMatrixCsv(file);
+      let message = `Imported ${result.updatedCount} status entries.`;
+      if (result.skippedCount > 0) {
+        message += ` ${result.skippedCount} skipped.`;
+      }
+      if (result.warnings.length > 0) {
+        message += ` Warnings: ${result.warnings.slice(0, 3).join('; ')}`;
+        if (result.warnings.length > 3) {
+          message += `... and ${result.warnings.length - 3} more.`;
+        }
+      }
+
+      await refreshMatrix();
+      setSuccessMessage(message);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to import matrix.');
+    } finally {
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   if (!currentUser) {
     return <main className="workspace-layout page-shell" />;
   }
@@ -401,6 +457,27 @@ export default function WorkspaceLayout(): JSX.Element {
           </div>
           <button type="button" onClick={() => void refreshMatrix()} disabled={matrixLoading}>
             Refresh
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleExportCsv()}
+            disabled={matrixLoading || !filteredDays.length}
+          >
+            Export CSV
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv"
+            onChange={(event) => void handleImportCsv(event)}
+            style={{ display: 'none' }}
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={matrixLoading}
+          >
+            Import CSV
           </button>
         </div>
       </section>
