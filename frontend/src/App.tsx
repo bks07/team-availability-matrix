@@ -8,6 +8,7 @@ import MainLayout from './layouts/MainLayout';
 import WorkspaceLayout from './layouts/WorkspaceLayout';
 import type { AuthResponse, User } from './lib/api.models';
 import { clearSession, loadSession, saveSession } from './lib/storage';
+import { useSessionTimeout } from './hooks/useSessionTimeout';
 import LoginPage from './pages/LoginPage';
 import MyCalendarPage from './pages/MyCalendarPage';
 import ProfilePage from './pages/ProfilePage';
@@ -67,6 +68,8 @@ export default function App(): JSX.Element {
     clearSession();
     setCurrentUser(null);
   };
+
+  useSessionTimeout(currentUser != null, handleLogout);
 
   const authContextValue = useMemo(
     () => ({

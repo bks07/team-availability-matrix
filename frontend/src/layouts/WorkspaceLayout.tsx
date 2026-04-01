@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import AvailabilityMatrix from '../components/AvailabilityMatrix';
 import TeamSelector from '../components/TeamSelector';
 import { TeamlessNotification } from '../components/TeamlessNotification';
@@ -451,6 +452,11 @@ export default function WorkspaceLayout(): JSX.Element {
               defaultTeamId={currentUser.defaultTeamId}
               onTeamChange={handleTeamChange}
             />
+            {selectedTeamId != null && (
+              <Link to={`/teams/${selectedTeamId}`} className="team-detail-link">
+                View team -&gt;
+              </Link>
+            )}
             <label className="period-label">
               From
               <input type="date" value={periodStart} onChange={(event) => setPeriodStart(event.target.value)} />

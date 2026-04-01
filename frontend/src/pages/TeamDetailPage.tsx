@@ -1,8 +1,9 @@
-import { useContext, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { AuthContext } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import type { TeamDetail, TeamMember, UserSearchResult } from '../lib/api.models';
 import { getInitials } from '../lib/name.utils';
+import { updateProfile } from '../services/profile.service';
 import { teamService } from '../services/team.service';
 
 function normalizeRole(role: string): string {
@@ -39,7 +40,7 @@ function memberRoleClass(role: string): string {
 export default function TeamDetailPage(): JSX.Element {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { currentUser } = useContext(AuthContext);
+  const { currentUser, updateSessionUser } = useAuth();
 
   const teamId = Number(id);
   const hasValidTeamId = Number.isInteger(teamId) && teamId > 0;
@@ -156,6 +157,7 @@ export default function TeamDetailPage(): JSX.Element {
   const myRole = normalizeRole(myMember?.role ?? '');
   const isOwner = myRole === 'owner';
   const canManage = isOwner || myRole === 'admin';
+  const isDefaultTeam = currentUser?.defaultTeamId === teamId;
 
   const canShowActionsForMember = (member: TeamMember): boolean => {
     if (!currentUser) {
@@ -266,6 +268,35 @@ export default function TeamDetailPage(): JSX.Element {
     }
   };
 
+  const handleSetDefaultTeam = async () => {
+    if (!currentUser || !team) {
+      return;
+    }
+
+    setIsMutating(true);
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    try {
+      const updatedUser = await updateProfile({
+        title: currentUser.title ?? '',
+        firstName: currentUser.firstName,
+        middleName: currentUser.middleName ?? '',
+        lastName: currentUser.lastName,
+        email: currentUser.email,
+        locationId: currentUser.locationId,
+        defaultTeamId: team.id,
+      });
+
+      updateSessionUser(updatedUser);
+      setSuccessMessage(`Default team set to ${team.name}.`);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to set default team.');
+    } finally {
+      setIsMutating(false);
+    }
+  };
+
   const handleUpdateMemberRole = async (userId: number, role: 'admin' | 'member') => {
     if (!team) {
       return;
@@ -367,6 +398,18 @@ export default function TeamDetailPage(): JSX.Element {
         </div>
 
         <div className="team-detail-header-actions">
+          {myMember ? (
+            isDefaultTeam ? (
+              <button type="button" className="default-team-badge" disabled>
+                Default Team ★
+              </button>
+            ) : (
+              <button type="button" className="primary-button" onClick={() => void handleSetDefaultTeam()} disabled={isMutating}>
+                Set as Default
+              </button>
+            )
+          ) : null}
+
           {canManage ? (
             <button type="button" className="primary-button" onClick={openEditModal} disabled={isMutating}>
               Edit
