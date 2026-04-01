@@ -54,6 +54,7 @@ export default function WorkspaceLayout(): JSX.Element {
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [selectionAnchor, setSelectionAnchor] = useState<string | null>(null);
   const [selectionEnd, setSelectionEnd] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<AvailabilityValue | null>(null);
   const [bulkPending, setBulkPending] = useState(false);
   const [, setBulkSkipWeekends] = useState(false);
   const [, setBulkSkipPublicHolidays] = useState(false);
@@ -249,6 +250,10 @@ export default function WorkspaceLayout(): JSX.Element {
     setSelectedTeamId(teamId);
     setErrorMessage('');
     setSuccessMessage('');
+  }, []);
+
+  const handleFilterToggle = useCallback((status: AvailabilityValue) => {
+    setStatusFilter((prev) => (prev === status ? null : status));
   }, []);
 
   const handleStatusUpdate = async (date: string, status: AvailabilityValue) => {
@@ -455,6 +460,39 @@ export default function WorkspaceLayout(): JSX.Element {
               <input type="date" value={periodEnd} onChange={(event) => setPeriodEnd(event.target.value)} />
             </label>
           </div>
+          <div className="filter-controls">
+            <span className="filter-label">Filter:</span>
+            <button
+              type="button"
+              className={`filter-btn filter-w ${statusFilter === 'W' ? 'active' : ''}`}
+              onClick={() => handleFilterToggle('W')}
+            >
+              W
+            </button>
+            <button
+              type="button"
+              className={`filter-btn filter-v ${statusFilter === 'V' ? 'active' : ''}`}
+              onClick={() => handleFilterToggle('V')}
+            >
+              V
+            </button>
+            <button
+              type="button"
+              className={`filter-btn filter-a ${statusFilter === 'A' ? 'active' : ''}`}
+              onClick={() => handleFilterToggle('A')}
+            >
+              A
+            </button>
+            {statusFilter && (
+              <button
+                type="button"
+                className="filter-btn filter-reset"
+                onClick={() => setStatusFilter(null)}
+              >
+                Reset
+              </button>
+            )}
+          </div>
           <button type="button" onClick={() => void refreshMatrix()} disabled={matrixLoading}>
             Refresh
           </button>
@@ -508,6 +546,7 @@ export default function WorkspaceLayout(): JSX.Element {
           pendingKey={pendingKey}
           selectedRange={selectedRange}
           bulkPending={bulkPending}
+          statusFilter={statusFilter}
           onOpenPopup={setOpenKey}
           onCellClick={handleCellClick}
           onStatusUpdate={handleStatusUpdate}

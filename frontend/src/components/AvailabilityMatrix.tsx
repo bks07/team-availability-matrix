@@ -6,6 +6,7 @@ interface AvailabilityMatrixProps {
   currentUserId: number;
   employees: User[];
   filteredDays: string[];
+  statusFilter?: AvailabilityValue | null;
   statusFor: (userId: number, day: string) => AvailabilityValue | null;
   holidayLookup: Map<number, Set<string>>;
   openKey: string | null;
@@ -34,6 +35,7 @@ export default function AvailabilityMatrix({
   currentUserId,
   employees,
   filteredDays,
+  statusFilter = null,
   statusFor,
   holidayLookup,
   openKey,
@@ -137,6 +139,26 @@ export default function AvailabilityMatrix({
 
   const bulkMode = selectedRange.length > 1;
   const selectedSet = useMemo(() => new Set(selectedRange), [selectedRange]);
+  const daySummary = useMemo(() => {
+    const summary = new Map<string, { w: number; v: number; a: number }>();
+    for (const day of filteredDays) {
+      let w = 0;
+      let v = 0;
+      let a = 0;
+      for (const employee of employees) {
+        const status = statusFor(employee.id, day);
+        if (status === 'W') {
+          w += 1;
+        } else if (status === 'V') {
+          v += 1;
+        } else if (status === 'A') {
+          a += 1;
+        }
+      }
+      summary.set(day, { w, v, a });
+    }
+    return summary;
+  }, [filteredDays, employees, statusFor]);
 
   return (
     <section className="matrix-card">
@@ -207,11 +229,13 @@ export default function AvailabilityMatrix({
                   const isBulkSelected = editable && selectedSet.has(day);
                   const isFirstSelected = isBulkSelected && day === selectedRange[0];
                   const isLastSelected = isBulkSelected && day === selectedRange[selectedRange.length - 1];
+                  const isDimmed = statusFilter !== null && status !== statusFilter;
                   const tdClasses = [
                     isHolidayCell ? 'holiday-cell' : '',
                     isBulkSelected ? 'bulk-selected' : '',
                     isFirstSelected ? 'bulk-selected-first' : '',
-                    isLastSelected ? 'bulk-selected-last' : ''
+                    isLastSelected ? 'bulk-selected-last' : '',
+                    isDimmed ? 'cell-dimmed' : ''
                   ].filter(Boolean).join(' ') || undefined;
 
                   return (
@@ -275,6 +299,21 @@ export default function AvailabilityMatrix({
               );
             })}
           </tbody>
+          <tfoot>
+            <tr className="summary-row">
+              <th className="sticky-column summary-label">Summary</th>
+              {filteredDays.map((day) => {
+                const counts = daySummary.get(day) ?? { w: 0, v: 0, a: 0 };
+                return (
+                  <td key={`summary-${day}`} className="summary-cell">
+                    <span className="summary-count summary-w">{counts.w}</span>
+                    <span className="summary-count summary-v">{counts.v}</span>
+                    <span className="summary-count summary-a">{counts.a}</span>
+                  </td>
+                );
+              })}
+            </tr>
+          </tfoot>
         </table>
       </div>
       {bulkMode && (

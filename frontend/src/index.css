@@ -796,6 +796,46 @@ td.bulk-selected-last::after {
   color: var(--text-secondary);
 }
 
+/* ── Summary Row ──────────────────────────────────────── */
+
+.summary-row {
+  background: var(--surface-alt, #f5f5f5);
+  border-top: 2px solid var(--border-color, #ccc);
+  font-weight: 600;
+  font-size: 0.75rem;
+}
+
+.summary-label {
+  font-weight: 700;
+  text-align: left;
+}
+
+.summary-cell {
+  text-align: center;
+  padding: 0.2rem !important;
+}
+
+.summary-count {
+  display: inline-block;
+  min-width: 1.2rem;
+  padding: 0 0.15rem;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  line-height: 1.4;
+}
+
+.summary-w {
+  color: var(--status-w, #4caf50);
+}
+
+.summary-v {
+  color: var(--status-v, #2196f3);
+}
+
+.summary-a {
+  color: var(--status-a, #ff9800);
+}
+
 @media (max-width: 900px) {
   .page-shell {
     padding: 1rem;
@@ -981,6 +1021,62 @@ td.bulk-selected-last::after {
   font-weight: 600;
   color: var(--text-inverse);
   background: var(--accent-primary);
+}
+
+/* -- Availability Filters -- */
+.filter-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.filter-label {
+  font-size: 0.8rem;
+  color: var(--text-muted, #888);
+  margin-right: 0.25rem;
+}
+
+.filter-btn {
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: all 0.15s ease;
+}
+
+.filter-btn:hover {
+  opacity: 0.8;
+}
+
+.filter-btn.active {
+  color: #fff;
+}
+
+.filter-w.active {
+  background: var(--status-w-solid, #4caf50);
+  border-color: var(--status-w-solid, #4caf50);
+}
+
+.filter-v.active {
+  background: var(--status-v-solid, #2196f3);
+  border-color: var(--status-v-solid, #2196f3);
+}
+
+.filter-a.active {
+  background: var(--status-a-solid, #ff9800);
+  border-color: var(--status-a-solid, #ff9800);
+}
+
+.filter-reset {
+  font-weight: normal;
+  color: var(--text-muted, #888);
+}
+
+.cell-dimmed {
+  opacity: 0.2;
 }
 
 .navbar-dropdown-user-info {
