@@ -26,12 +26,6 @@ interface ApiMatrixResponse {
   year: number;
 }
 
-export interface ImportMatrixResult {
-  updatedCount: number;
-  skippedCount: number;
-  warnings: string[];
-}
-
 function normalizeStatus(entry: ApiAvailabilityStatus): AvailabilityStatus {
   const statusDate = entry.statusDate ?? entry.date;
   if (!statusDate) {
@@ -99,8 +93,3 @@ export async function exportMatrixCsv(year: number, teamId?: number): Promise<vo
   window.URL.revokeObjectURL(blobUrl);
 }
 
-export async function importMatrixCsv(file: File): Promise<ImportMatrixResult> {
-  const formData = new FormData();
-  formData.append('file', file);
-  return httpClient.postForm<ImportMatrixResult>('/matrix/import', formData);
-}
