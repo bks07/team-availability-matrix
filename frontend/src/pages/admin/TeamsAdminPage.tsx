@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import type { AdminTeam, TeamMember, UserSearchResult } from '../../lib/api.models';
@@ -19,7 +19,12 @@ function formatDate(value: string): string {
     return value;
   }
 
-  return parsedDate.toLocaleDateString();
+  const weekday = new Intl.DateTimeFormat('en-US', {
+    weekday: 'short',
+    timeZone: 'UTC',
+  }).format(parsedDate);
+  const isoDate = parsedDate.toISOString().slice(0, 10);
+  return `${weekday} ${isoDate}`;
 }
 
 export default function TeamsAdminPage(): JSX.Element {
@@ -32,12 +37,12 @@ export default function TeamsAdminPage(): JSX.Element {
   const [success, setSuccess] = useState('');
   const [isMutating, setIsMutating] = useState(false);
 
-  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingTeamId, setEditingTeamId] = useState<number | null>(null);
   const [formName, setFormName] = useState('');
   const [formDescription, setFormDescription] = useState('');
 
-  const [expandedTeamId, setExpandedTeamId] = useState<number | null>(null);
+  const [memberModalTeamId, setMemberModalTeamId] = useState<number | null>(null);
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
 
@@ -88,6 +93,13 @@ export default function TeamsAdminPage(): JSX.Element {
     setFormDescription('');
   };
 
+  function closeMemberModal() {
+    setMemberModalTeamId(null);
+    setMembers([]);
+    setAssignSearch('');
+    setSearchResults([]);
+  }
+
   const handleCreate = async () => {
     const name = formName.trim();
     const description = formDescription.trim();
@@ -108,7 +120,7 @@ export default function TeamsAdminPage(): JSX.Element {
         description: description || undefined,
       });
       setTeams((previousTeams) => [created, ...previousTeams]);
-      setShowCreateForm(false);
+      setIsCreateModalOpen(false);
       resetForm();
       setSuccess('Team created successfully.');
     } catch (createError) {
@@ -120,7 +132,7 @@ export default function TeamsAdminPage(): JSX.Element {
 
   const startEditing = (team: AdminTeam) => {
     setEditingTeamId(team.id);
-    setShowCreateForm(false);
+    setIsCreateModalOpen(false);
     setFormName(team.name);
     setFormDescription(team.description || '');
     setError('');
@@ -183,11 +195,8 @@ export default function TeamsAdminPage(): JSX.Element {
     try {
       await adminTeamService.deleteTeam(team.id);
       setTeams((previousTeams) => previousTeams.filter((item) => item.id !== team.id));
-      if (expandedTeamId === team.id) {
-        setExpandedTeamId(null);
-        setMembers([]);
-        setAssignSearch('');
-        setSearchResults([]);
+      if (memberModalTeamId === team.id) {
+        closeMemberModal();
       }
       if (editingTeamId === team.id) {
         cancelEditing();
@@ -200,16 +209,10 @@ export default function TeamsAdminPage(): JSX.Element {
     }
   };
 
-  const handleToggleMembers = (teamId: number) => {
-    if (expandedTeamId === teamId) {
-      setExpandedTeamId(null);
-      setMembers([]);
-      setAssignSearch('');
-      setSearchResults([]);
-      return;
-    }
-
-    setExpandedTeamId(teamId);
+  const openMemberModal = (teamId: number) => {
+    setIsCreateModalOpen(false);
+    setMemberModalTeamId(teamId);
+    setMembers([]);
     setAssignSearch('');
     setSearchResults([]);
     void loadMembers(teamId);
@@ -239,7 +242,7 @@ export default function TeamsAdminPage(): JSX.Element {
   };
 
   const handleAssign = async (userId: number) => {
-    if (expandedTeamId === null) {
+    if (memberModalTeamId === null) {
       return;
     }
 
@@ -248,8 +251,8 @@ export default function TeamsAdminPage(): JSX.Element {
     setSuccess('');
 
     try {
-      await adminTeamService.assignUser(expandedTeamId, userId);
-      await Promise.all([loadMembers(expandedTeamId), loadTeams()]);
+      await adminTeamService.assignUser(memberModalTeamId, userId);
+      await Promise.all([loadMembers(memberModalTeamId), loadTeams()]);
       setSearchResults((previousResults) => previousResults.filter((user) => user.id !== userId));
       setSuccess('User assigned to team.');
     } catch (assignError) {
@@ -275,9 +278,9 @@ export default function TeamsAdminPage(): JSX.Element {
     }
   };
 
-  const expandedTeam = useMemo(
-    () => teams.find((team) => team.id === expandedTeamId) ?? null,
-    [expandedTeamId, teams]
+  const memberModalTeam = useMemo(
+    () => teams.find((team) => team.id === memberModalTeamId) ?? null,
+    [memberModalTeamId, teams]
   );
 
   if (!canManageTeams) {
@@ -302,66 +305,20 @@ export default function TeamsAdminPage(): JSX.Element {
       <div className="form-actions" style={{ marginBottom: '1rem' }}>
         <button
           type="button"
-          className="primary"
+          className="primary-button"
           onClick={() => {
-            setShowCreateForm((previous) => {
-              const next = !previous;
-              if (!next) {
-                resetForm();
-              }
-              return next;
-            });
+            closeMemberModal();
+            setIsCreateModalOpen(true);
             setEditingTeamId(null);
+            resetForm();
             setError('');
             setSuccess('');
           }}
           disabled={isMutating}
         >
-          {showCreateForm ? 'Cancel' : 'New Team'}
+          Create Team
         </button>
       </div>
-
-      {showCreateForm ? (
-        <div className="permission-form" style={{ marginBottom: '1rem' }}>
-          <div className="form-group">
-            <label htmlFor="new-team-name">Name</label>
-            <input
-              id="new-team-name"
-              type="text"
-              value={formName}
-              onChange={(event) => setFormName(event.target.value)}
-              disabled={isMutating}
-              placeholder="Team name"
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="new-team-description">Description (optional)</label>
-            <input
-              id="new-team-description"
-              type="text"
-              value={formDescription}
-              onChange={(event) => setFormDescription(event.target.value)}
-              disabled={isMutating}
-              placeholder="Describe this team"
-            />
-          </div>
-          <div className="form-actions">
-            <button type="button" className="primary" onClick={() => void handleCreate()} disabled={isMutating}>
-              Create Team
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setShowCreateForm(false);
-                resetForm();
-              }}
-              disabled={isMutating}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      ) : null}
 
       {loading ? <p className="message">Loading teams...</p> : null}
 
@@ -374,202 +331,359 @@ export default function TeamsAdminPage(): JSX.Element {
               <tr>
                 <th>Name</th>
                 <th>Description</th>
-                <th>Members</th>
-                <th>Created At</th>
+                <th className="cell-center">Members</th>
+                <th className="cell-center">Created At</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {teams.map((team) => {
                 const isEditing = editingTeamId === team.id;
-                const isExpanded = expandedTeamId === team.id;
 
                 return (
-                  <Fragment key={team.id}>
-                    <tr>
-                      {isEditing ? (
-                        <>
-                          <td>
-                            <input
-                              type="text"
-                              className="edit-input"
-                              value={formName}
-                              onChange={(event) => setFormName(event.target.value)}
+                  <tr key={team.id}>
+                    {isEditing ? (
+                      <>
+                        <td>
+                          <input
+                            type="text"
+                            className="edit-input"
+                            value={formName}
+                            onChange={(event) => setFormName(event.target.value)}
+                            disabled={isMutating}
+                            aria-label={`Edit name for ${team.name}`}
+                          />
+                        </td>
+                        <td>
+                          <input
+                            type="text"
+                            className="edit-input"
+                            value={formDescription}
+                            onChange={(event) => setFormDescription(event.target.value)}
+                            disabled={isMutating}
+                            aria-label={`Edit description for ${team.name}`}
+                          />
+                        </td>
+                        <td className="cell-mono-center">{team.memberCount}</td>
+                        <td className="cell-mono-center">{formatDate(team.createdAt)}</td>
+                        <td>
+                          <div className="entity-actions">
+                            <button
+                              type="button"
+                              className="primary"
+                              onClick={() => void handleSaveEdit()}
                               disabled={isMutating}
-                              aria-label={`Edit name for ${team.name}`}
-                            />
-                          </td>
-                          <td>
-                            <input
-                              type="text"
-                              className="edit-input"
-                              value={formDescription}
-                              onChange={(event) => setFormDescription(event.target.value)}
-                              disabled={isMutating}
-                              aria-label={`Edit description for ${team.name}`}
-                            />
-                          </td>
-                          <td>{team.memberCount}</td>
-                          <td>{formatDate(team.createdAt)}</td>
-                          <td>
-                            <div className="entity-actions">
-                              <button
-                                type="button"
-                                className="primary"
-                                onClick={() => void handleSaveEdit()}
-                                disabled={isMutating}
-                              >
-                                Save
-                              </button>
-                              <button type="button" onClick={cancelEditing} disabled={isMutating}>
-                                Cancel
-                              </button>
-                            </div>
-                          </td>
-                        </>
-                      ) : (
-                        <>
-                          <td>{team.name}</td>
-                          <td>{team.description || '-'}</td>
-                          <td>{team.memberCount}</td>
-                          <td>{formatDate(team.createdAt)}</td>
-                          <td>
-                            <div className="entity-actions">
-                              <button
-                                type="button"
-                                onClick={() => void handleToggleMembers(team.id)}
-                                disabled={isMutating}
-                              >
-                                {isExpanded ? 'Hide Members' : 'Members'}
-                              </button>
-                              <button type="button" onClick={() => startEditing(team)} disabled={isMutating}>
-                                Edit
-                              </button>
-                              <button
-                                type="button"
-                                className="danger"
-                                onClick={() => void handleDelete(team)}
-                                disabled={isMutating}
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          </td>
-                        </>
-                      )}
-                    </tr>
-                    {isExpanded ? (
-                      <tr className="schedule-expansion-row">
-                        <td colSpan={5}>
-                          <div className="schedule-panel">
-                            <h4 className="schedule-panel-title">Members - {expandedTeam?.name ?? team.name}</h4>
-
-                            <div className="permission-form" style={{ marginBottom: '1rem' }}>
-                              <div className="form-group">
-                                <label htmlFor={`search-users-${team.id}`}>Search users to assign</label>
-                                <input
-                                  id={`search-users-${team.id}`}
-                                  type="text"
-                                  value={assignSearch}
-                                  onChange={(event) => setAssignSearch(event.target.value)}
-                                  disabled={isMutating || membersLoading}
-                                  placeholder="Type a name and search"
-                                />
-                              </div>
-                              <div className="form-actions">
-                                <button
-                                  type="button"
-                                  className="primary"
-                                  onClick={() => void handleSearchUsers()}
-                                  disabled={isMutating || membersLoading || searching}
-                                >
-                                  {searching ? 'Searching...' : 'Search'}
-                                </button>
-                              </div>
-
-                              {searchResults.length > 0 ? (
-                                <div className="matrix-wrapper">
-                                  <table className="permission-table">
-                                    <thead>
-                                      <tr>
-                                        <th>Name</th>
-                                        <th>Email</th>
-                                        <th>Action</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {searchResults.map((user) => (
-                                        <tr key={user.id}>
-                                          <td>{user.displayName}</td>
-                                          <td>{user.email}</td>
-                                          <td>
-                                            <button
-                                              type="button"
-                                              className="primary"
-                                              onClick={() => void handleAssign(user.id)}
-                                              disabled={isMutating}
-                                            >
-                                              Add
-                                            </button>
-                                          </td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              ) : null}
-                            </div>
-
-                            {membersLoading ? <p className="message">Loading members...</p> : null}
-
-                            {!membersLoading && members.length === 0 ? (
-                              <p className="empty-state">No members in this team.</p>
-                            ) : null}
-
-                            {!membersLoading && members.length > 0 ? (
-                              <div className="matrix-wrapper">
-                                <table className="permission-table">
-                                  <thead>
-                                    <tr>
-                                      <th>Name</th>
-                                      <th>Email</th>
-                                      <th>Role</th>
-                                      <th>Joined</th>
-                                      <th>Action</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {members.map((member) => (
-                                      <tr key={member.userId}>
-                                        <td>{member.displayName}</td>
-                                        <td>{member.email}</td>
-                                        <td>{member.role}</td>
-                                        <td>{formatDate(member.joinedAt)}</td>
-                                        <td>
-                                          <button
-                                            type="button"
-                                            className="danger"
-                                            onClick={() => void handleRemove(team.id, member.userId)}
-                                            disabled={isMutating}
-                                          >
-                                            Remove
-                                          </button>
-                                        </td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            ) : null}
+                            >
+                              Save
+                            </button>
+                            <button type="button" onClick={cancelEditing} disabled={isMutating}>
+                              Cancel
+                            </button>
                           </div>
                         </td>
-                      </tr>
-                    ) : null}
-                  </Fragment>
+                      </>
+                    ) : (
+                      <>
+                        <td>{team.name}</td>
+                        <td>{team.description || '-'}</td>
+                        <td className="cell-mono-center">{team.memberCount}</td>
+                        <td className="cell-mono-center">{formatDate(team.createdAt)}</td>
+                        <td>
+                          <div className="entity-actions">
+                            <button
+                              type="button"
+                              className="icon-btn"
+                              onClick={() => void openMemberModal(team.id)}
+                              disabled={isMutating}
+                              title={`Show members for ${team.name}`}
+                              aria-label={`Show members for ${team.name}`}
+                            >
+                              <svg
+                                width="16"
+                                height="16"
+                                viewBox="0 0 16 16"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.5"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                aria-hidden="true"
+                              >
+                                <circle cx="5" cy="6" r="2" />
+                                <circle cx="11" cy="6.5" r="2" />
+                                <path d="M1.5 13c0-1.9 1.5-3.5 3.5-3.5S8.5 11.1 8.5 13" />
+                                <path d="M7.5 13c0-1.8 1.4-3.2 3.2-3.2s3.2 1.4 3.2 3.2" />
+                              </svg>
+                            </button>
+                            <button
+                              type="button"
+                              className="icon-btn"
+                              onClick={() => startEditing(team)}
+                              disabled={isMutating}
+                              title={`Edit ${team.name}`}
+                              aria-label={`Edit ${team.name}`}
+                            >
+                              <svg
+                                width="16"
+                                height="16"
+                                viewBox="0 0 16 16"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.5"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                aria-hidden="true"
+                              >
+                                <path d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z" />
+                              </svg>
+                            </button>
+                            <button
+                              type="button"
+                              className="icon-btn danger"
+                              onClick={() => void handleDelete(team)}
+                              disabled={isMutating}
+                              title={`Delete ${team.name}`}
+                              aria-label={`Delete ${team.name}`}
+                            >
+                              <svg
+                                width="16"
+                                height="16"
+                                viewBox="0 0 16 16"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.5"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                aria-hidden="true"
+                              >
+                                <path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 011.334-1.334h2.666a1.333 1.333 0 011.334 1.334V4m2 0v9.333a1.333 1.333 0 01-1.334 1.334H4.667a1.333 1.333 0 01-1.334-1.334V4h9.334z" />
+                              </svg>
+                            </button>
+                          </div>
+                        </td>
+                      </>
+                    )}
+                  </tr>
                 );
               })}
             </tbody>
           </table>
+        </div>
+      ) : null}
+
+      {isCreateModalOpen && memberModalTeamId === null ? (
+        <div
+          className="teams-modal-overlay"
+          role="presentation"
+          onClick={() => {
+            if (!isMutating) {
+              setIsCreateModalOpen(false);
+              resetForm();
+            }
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape' && !isMutating) {
+              setIsCreateModalOpen(false);
+              resetForm();
+            }
+          }}
+        >
+          <section
+            className="teams-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Create team"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2>Create Team</h2>
+            <form
+              className="modal-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void handleCreate();
+              }}
+            >
+              <label htmlFor="new-team-name">Name</label>
+              <input
+                id="new-team-name"
+                type="text"
+                value={formName}
+                onChange={(event) => setFormName(event.target.value)}
+                disabled={isMutating}
+                placeholder="Team name"
+              />
+              <label htmlFor="new-team-description">Description (optional)</label>
+              <input
+                id="new-team-description"
+                type="text"
+                value={formDescription}
+                onChange={(event) => setFormDescription(event.target.value)}
+                disabled={isMutating}
+                placeholder="Describe this team"
+              />
+              <div className="teams-modal__actions">
+                <button
+                  type="button"
+                  className="teams-action-btn teams-action-btn--reject"
+                  onClick={() => {
+                    setIsCreateModalOpen(false);
+                    resetForm();
+                  }}
+                  disabled={isMutating}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="primary-button" disabled={isMutating}>
+                  {isMutating ? 'Creating...' : 'Create'}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      ) : null}
+
+      {memberModalTeamId !== null ? (
+        <div
+          className="teams-modal-overlay"
+          role="presentation"
+          onClick={() => {
+            if (!isMutating) {
+              closeMemberModal();
+            }
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape' && !isMutating) {
+              closeMemberModal();
+            }
+          }}
+        >
+          <section
+            className="teams-modal teams-modal--wide"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Team members"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2>Members — {memberModalTeam?.name ?? 'Team'}</h2>
+
+            <div className="member-modal-search">
+              <input
+                type="text"
+                value={assignSearch}
+                onChange={(event) => setAssignSearch(event.target.value)}
+                disabled={isMutating || membersLoading}
+                placeholder="Search users to assign..."
+              />
+              <button
+                type="button"
+                className="primary-button"
+                onClick={() => void handleSearchUsers()}
+                disabled={isMutating || membersLoading || searching}
+              >
+                {searching ? 'Searching...' : 'Search'}
+              </button>
+            </div>
+
+            {searchResults.length > 0 ? (
+              <div className="matrix-wrapper">
+                <table className="permission-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Email</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {searchResults.map((user) => (
+                      <tr key={user.id}>
+                        <td>{user.displayName}</td>
+                        <td>{user.email}</td>
+                        <td>
+                          <button
+                            type="button"
+                            className="icon-btn"
+                            onClick={() => void handleAssign(user.id)}
+                            disabled={isMutating}
+                            title={`Add ${user.displayName} to ${memberModalTeam?.name ?? 'team'}`}
+                            aria-label={`Add ${user.displayName} to ${memberModalTeam?.name ?? 'team'}`}
+                          >
+                            <svg
+                              width="16"
+                              height="16"
+                              viewBox="0 0 16 16"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.5"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              aria-hidden="true"
+                            >
+                              <path d="M8 3v10M3 8h10" />
+                            </svg>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+
+            {membersLoading ? <p className="message">Loading members...</p> : null}
+
+            {!membersLoading && members.length === 0 ? <p className="empty-state">No members in this team.</p> : null}
+
+            {!membersLoading && members.length > 0 ? (
+              <div className="matrix-wrapper">
+                <table className="permission-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Email</th>
+                      <th>Role</th>
+                      <th>Joined</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {members.map((member) => (
+                      <tr key={member.userId}>
+                        <td>{member.displayName}</td>
+                        <td>{member.email}</td>
+                        <td>{member.role}</td>
+                        <td className="cell-mono-center">{formatDate(member.joinedAt)}</td>
+                        <td>
+                          <button
+                            type="button"
+                            className="icon-btn danger"
+                            onClick={() => void handleRemove(memberModalTeamId, member.userId)}
+                            disabled={isMutating}
+                            title={`Remove ${member.displayName} from ${memberModalTeam?.name ?? 'team'}`}
+                            aria-label={`Remove ${member.displayName} from ${memberModalTeam?.name ?? 'team'}`}
+                          >
+                            <svg
+                              width="16"
+                              height="16"
+                              viewBox="0 0 16 16"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.5"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              aria-hidden="true"
+                            >
+                              <path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 011.334-1.334h2.666a1.333 1.333 0 011.334 1.334V4m2 0v9.333a1.333 1.333 0 01-1.334 1.334H4.667a1.333 1.333 0 01-1.334-1.334V4h9.334z" />
+                            </svg>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+          </section>
         </div>
       ) : null}
     </section>
