@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import AvailabilityMatrix from '../components/AvailabilityMatrix';
 import TeamSelector from '../components/TeamSelector';
 import { TeamlessNotification } from '../components/TeamlessNotification';
@@ -11,7 +11,6 @@ import {
   deleteStatus,
   bulkUpdateStatuses,
   exportMatrixCsv,
-  importMatrixCsv,
 } from '../services/matrix.service';
 import { teamService } from '../services/team.service';
 
@@ -38,6 +37,7 @@ function defaultPeriod(): { start: string; end: string } {
 
 export default function WorkspaceLayout(): JSX.Element {
   const { currentUser } = useAuth();
+  const navigate = useNavigate();
   const initialPeriod = useMemo(() => defaultPeriod(), []);
 
   const [employees, setEmployees] = useState<User[]>([]);
@@ -63,7 +63,7 @@ export default function WorkspaceLayout(): JSX.Element {
   const [matrixLoading, setMatrixLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showLegend, setShowLegend] = useState(false);
 
   const selectedRange = useMemo((): string[] => {
     if (!selectionAnchor || !selectionEnd) {
@@ -247,6 +247,23 @@ export default function WorkspaceLayout(): JSX.Element {
     }
   }, [currentUser, periodStart, periodEnd, selectedTeamId, hasLoadedTeams, refreshMatrix]);
 
+  useEffect(() => {
+    if (!showLegend) {
+      return;
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowLegend(false);
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [showLegend]);
+
   const handleTeamChange = useCallback((teamId: number) => {
     setSelectedTeamId(teamId);
     setErrorMessage('');
@@ -404,39 +421,6 @@ export default function WorkspaceLayout(): JSX.Element {
     }
   };
 
-  const handleImportCsv = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) {
-      return;
-    }
-
-    setErrorMessage('');
-    setSuccessMessage('');
-
-    try {
-      const result = await importMatrixCsv(file);
-      let message = `Imported ${result.updatedCount} status entries.`;
-      if (result.skippedCount > 0) {
-        message += ` ${result.skippedCount} skipped.`;
-      }
-      if (result.warnings.length > 0) {
-        message += ` Warnings: ${result.warnings.slice(0, 3).join('; ')}`;
-        if (result.warnings.length > 3) {
-          message += `... and ${result.warnings.length - 3} more.`;
-        }
-      }
-
-      await refreshMatrix();
-      setSuccessMessage(message);
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Failed to import matrix.');
-    } finally {
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
-  };
-
   if (!currentUser) {
     return <main className="workspace-layout page-shell" />;
   }
@@ -453,9 +437,13 @@ export default function WorkspaceLayout(): JSX.Element {
               onTeamChange={handleTeamChange}
             />
             {selectedTeamId != null && (
-              <Link to={`/teams/${selectedTeamId}`} className="team-detail-link">
+              <button
+                type="button"
+                className="toolbar-btn"
+                onClick={() => navigate(`/teams/${selectedTeamId}`)}
+              >
                 View team -&gt;
-              </Link>
+              </button>
             )}
             <label className="period-label">
               From
@@ -502,26 +490,15 @@ export default function WorkspaceLayout(): JSX.Element {
           <button type="button" onClick={() => void refreshMatrix()} disabled={matrixLoading}>
             Refresh
           </button>
+          <button type="button" onClick={() => setShowLegend(true)}>
+            Legend
+          </button>
           <button
             type="button"
             onClick={() => void handleExportCsv()}
             disabled={matrixLoading || !filteredDays.length}
           >
             Export CSV
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv"
-            onChange={(event) => void handleImportCsv(event)}
-            style={{ display: 'none' }}
-          />
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={matrixLoading}
-          >
-            Import CSV
           </button>
         </div>
       </section>
@@ -531,15 +508,6 @@ export default function WorkspaceLayout(): JSX.Element {
       {isLoadingTeams && <p className="message">Loading teams...</p>}
       {matrixLoading && <p className="message">Loading matrix...</p>}
       {!isLoadingTeams && hasLoadedTeams && teams.length === 0 && <TeamlessNotification />}
-
-      <div className="matrix-legend">
-        <span className="legend-hint">You can only edit your own column</span>
-        <div className="legend-items">
-          <span className="legend-item"><span className="legend-dot legend-dot-w"></span>Working</span>
-          <span className="legend-item"><span className="legend-dot legend-dot-v"></span>Vacation</span>
-          <span className="legend-item"><span className="legend-dot legend-dot-a"></span>Absence</span>
-        </div>
-      </div>
 
       {!!filteredDays.length && !!employees.length && (
         <AvailabilityMatrix
@@ -560,6 +528,37 @@ export default function WorkspaceLayout(): JSX.Element {
           onBulkAction={handleBulkAction}
           onClearSelection={clearSelection}
         />
+      )}
+
+      {showLegend && (
+        <div className="modal-backdrop" onClick={() => setShowLegend(false)}>
+          <div
+            className="modal-content legend-modal"
+            role="dialog"
+            aria-modal="true"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h3>Legend</h3>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={() => setShowLegend(false)}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="legend-items">
+                <div className="legend-item"><span className="legend-dot legend-dot-w"></span> Working (W)</div>
+                <div className="legend-item"><span className="legend-dot legend-dot-v"></span> Vacation (V)</div>
+                <div className="legend-item"><span className="legend-dot legend-dot-a"></span> Absence (A)</div>
+              </div>
+              <p className="legend-hint">You can only edit your own column</p>
+            </div>
+          </div>
+        </div>
       )}
     </main>
   );

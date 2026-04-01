@@ -25,10 +25,15 @@ interface AvailabilityMatrixProps {
   onClearSelection: () => void;
 }
 
-function formatDay(dateStr: string): string {
+function formatDate(dateStr: string): string {
   const date = new Date(`${dateStr}T00:00:00`);
-  const dow = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()];
-  return `${dow} ${dateStr}`;
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${date.getDate()} ${months[date.getMonth()]}`;
+}
+
+function formatWeekday(dateStr: string): string {
+  const date = new Date(`${dateStr}T00:00:00`);
+  return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()];
 }
 
 export default function AvailabilityMatrix({
@@ -167,6 +172,8 @@ export default function AvailabilityMatrix({
           <thead>
             <tr>
               <th className="sticky-column sticky-header">Date</th>
+              <th className="sticky-header day-header">Day</th>
+              <th className="sticky-header working-header">Working</th>
               {employees.map((employee) => (
                 <th
                   key={employee.id}
@@ -214,7 +221,9 @@ export default function AvailabilityMatrix({
 
               return (
                 <tr key={day} className={rowClass || undefined}>
-                <th className="sticky-column date-cell">{formatDay(day)}</th>
+                  <th className="sticky-column date-cell">{formatDate(day)}</th>
+                  <td className="day-cell">{formatWeekday(day)}</td>
+                  <td className="working-cell">{daySummary.get(day)?.w ?? 0}</td>
                 {employees.map((employee) => {
                   const key = cellKey(employee.id, day);
                   const status = statusFor(employee.id, day);
@@ -299,21 +308,6 @@ export default function AvailabilityMatrix({
               );
             })}
           </tbody>
-          <tfoot>
-            <tr className="summary-row">
-              <th className="sticky-column summary-label">Summary</th>
-              {filteredDays.map((day) => {
-                const counts = daySummary.get(day) ?? { w: 0, v: 0, a: 0 };
-                return (
-                  <td key={`summary-${day}`} className="summary-cell">
-                    <span className="summary-count summary-w">{counts.w}</span>
-                    <span className="summary-count summary-v">{counts.v}</span>
-                    <span className="summary-count summary-a">{counts.a}</span>
-                  </td>
-                );
-              })}
-            </tr>
-          </tfoot>
         </table>
       </div>
       {bulkMode && (

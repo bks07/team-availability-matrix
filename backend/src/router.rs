@@ -35,7 +35,6 @@ pub(crate) fn build_router(state: AppState, cors: CorsLayer, upload_dir: &str) -
         )
         .route("/api/matrix", get(handlers::matrix::get_matrix))
         .route("/api/matrix/export", get(handlers::matrix::export_matrix_csv))
-        .route("/api/matrix/import", post(handlers::matrix::import_matrix_csv))
         .route("/api/statuses/bulk", post(handlers::matrix::bulk_status))
         .route(
             "/api/statuses/:date",
