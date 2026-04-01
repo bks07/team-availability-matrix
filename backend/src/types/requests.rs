@@ -163,6 +163,12 @@ pub(crate) struct InviteToTeamRequest {
     pub(crate) user_id: i64,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct AdminAssignUserRequest {
+    pub(crate) user_id: i64,
+}
+
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]

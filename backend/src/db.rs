@@ -256,6 +256,42 @@ pub(crate) async fn initialize_database(db: &PgPool) -> Result<(), sqlx::Error> 
     .execute(db)
     .await?;
 
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS permission_audit_log (
+            id BIGSERIAL PRIMARY KEY,
+            admin_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            event_type TEXT NOT NULL,
+            profile_id BIGINT,
+            profile_name TEXT,
+            target_user_id BIGINT,
+            target_user_name TEXT,
+            details JSONB NOT NULL DEFAULT '{}',
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        "#,
+    )
+    .execute(db)
+    .await?;
+
+    sqlx::query(
+        r#"
+        CREATE INDEX IF NOT EXISTS idx_permission_audit_log_created_at
+        ON permission_audit_log(created_at DESC);
+        "#,
+    )
+    .execute(db)
+    .await?;
+
+    sqlx::query(
+        r#"
+        CREATE INDEX IF NOT EXISTS idx_permission_audit_log_event_type
+        ON permission_audit_log(event_type);
+        "#,
+    )
+    .execute(db)
+    .await?;
+
     // ── Seed built-in Super Admin profile ────────────────────────────────
     sqlx::query(
         "INSERT INTO permission_profiles (name, is_built_in) VALUES ($1, TRUE) ON CONFLICT (name) DO NOTHING",

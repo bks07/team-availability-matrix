@@ -2,6 +2,7 @@ import { httpClient } from '../lib/http.client';
 import type {
   PermissionCatalogEntry,
   PermissionProfile,
+  UsageReportEntry,
   UserPermissionProfile,
   UserWithPermissions,
 } from '../lib/api.models';
@@ -59,4 +60,15 @@ export function assignUserProfile(
     `/admin/users/${userId}/permission-profile`,
     { profileId }
   );
+}
+
+export function getUsageReport(params?: {
+  profileName?: string;
+  userName?: string;
+}): Promise<UsageReportEntry[]> {
+  return httpClient.get<UsageReportEntry[]>('/admin/permission-usage-report', params);
+}
+
+export function getUsageReportCsvUrl(): string {
+  return '/admin/permission-usage-report/csv';
 }

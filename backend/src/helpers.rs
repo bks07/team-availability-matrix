@@ -199,6 +199,14 @@ pub(crate) async fn ensure_user_exists(db: &PgPool, user_id: i64) -> Result<(), 
     Ok(())
 }
 
+pub(crate) fn is_unique_violation(error: &sqlx::Error) -> bool {
+    if let sqlx::Error::Database(db_error) = error {
+        return db_error.code().as_deref() == Some("23505");
+    }
+
+    false
+}
+
 pub(crate) fn is_known_permission(permission: &str) -> bool {
     KNOWN_PERMISSIONS.contains(&permission)
 }

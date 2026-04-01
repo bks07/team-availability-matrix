@@ -1,8 +1,18 @@
 import { useEffect, useState, useCallback } from 'react';
+import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import type { PermissionCatalogEntry, PermissionProfile, UserWithPermissions } from '../../lib/api.models';
+import { API_BASE_URL } from '../../lib/api.config';
+import type {
+  PermissionCatalogEntry,
+  PermissionProfile,
+  UsageReportEntry,
+  UserWithPermissions,
+} from '../../lib/api.models';
+import { currentToken } from '../../lib/storage';
 import {
+  getUsageReport,
+  getUsageReportCsvUrl,
   getAdminUsers,
   getPermissionCatalog,
   getPermissionProfiles,
@@ -19,7 +29,7 @@ function getErrorMessage(error: unknown): string {
   return 'Something went wrong. Please try again.';
 }
 
-type Tab = 'profiles' | 'users';
+type Tab = 'profiles' | 'users' | 'usage-report';
 
 interface ProfileFormState {
   name: string;
@@ -32,11 +42,17 @@ export default function PermissionsPage(): JSX.Element {
   const [profiles, setProfiles] = useState<PermissionProfile[]>([]);
   const [catalog, setCatalog] = useState<PermissionCatalogEntry[]>([]);
   const [users, setUsers] = useState<UserWithPermissions[]>([]);
+  const [usageReport, setUsageReport] = useState<UsageReportEntry[]>([]);
 
   const [loading, setLoading] = useState(true);
+  const [usageLoading, setUsageLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isMutating, setIsMutating] = useState(false);
+  const [isDownloadingCsv, setIsDownloadingCsv] = useState(false);
+
+  const [usageProfileName, setUsageProfileName] = useState('');
+  const [usageUserName, setUsageUserName] = useState('');
 
   // Profile form
   const [editingProfileId, setEditingProfileId] = useState<number | null>(null);
@@ -75,6 +91,32 @@ export default function PermissionsPage(): JSX.Element {
     }
     void loadData();
   }, [canManageProfiles, loadData]);
+
+  const loadUsageReport = useCallback(
+    async (filters?: { profileName?: string; userName?: string }) => {
+      setUsageLoading(true);
+      setError('');
+      try {
+        const report = await getUsageReport(filters);
+        setUsageReport(report);
+      } catch (err) {
+        setError(getErrorMessage(err));
+      } finally {
+        setUsageLoading(false);
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (!canManageProfiles || activeTab !== 'usage-report') {
+      return;
+    }
+
+    if (usageReport.length === 0 && !usageLoading) {
+      void loadUsageReport();
+    }
+  }, [activeTab, canManageProfiles, loadUsageReport, usageLoading, usageReport.length]);
 
   const categories = catalog.reduce<Map<string, PermissionCatalogEntry[]>>((acc, entry) => {
     const list = acc.get(entry.category) ?? [];
@@ -372,6 +414,110 @@ export default function PermissionsPage(): JSX.Element {
     </div>
   );
 
+  const handleApplyUsageFilters = async () => {
+    await loadUsageReport({
+      profileName: usageProfileName.trim() || undefined,
+      userName: usageUserName.trim() || undefined,
+    });
+  };
+
+  const handleResetUsageFilters = async () => {
+    setUsageProfileName('');
+    setUsageUserName('');
+    await loadUsageReport();
+  };
+
+  const handleDownloadUsageCsv = async () => {
+    setIsDownloadingCsv(true);
+    setError('');
+    try {
+      const baseURL = import.meta.env.DEV ? '/api' : API_BASE_URL;
+      const token = currentToken();
+      const response = await axios.get(`${baseURL}${getUsageReportCsvUrl()}`, {
+        responseType: 'blob',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+
+      const blobUrl = window.URL.createObjectURL(response.data);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = 'permission-usage-report.csv';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setIsDownloadingCsv(false);
+    }
+  };
+
+  const renderUsageReportTab = () => (
+    <div className="users-tab">
+      <div className="tab-header">
+        <div className="assign-form">
+          <input
+            type="text"
+            placeholder="Filter by profile name"
+            value={usageProfileName}
+            onChange={(e) => setUsageProfileName(e.target.value)}
+            disabled={usageLoading || isDownloadingCsv}
+          />
+          <input
+            type="text"
+            placeholder="Filter by user name"
+            value={usageUserName}
+            onChange={(e) => setUsageUserName(e.target.value)}
+            disabled={usageLoading || isDownloadingCsv}
+          />
+          <button type="button" onClick={() => void handleApplyUsageFilters()} disabled={usageLoading || isDownloadingCsv}>
+            {usageLoading ? 'Filtering...' : 'Apply Filters'}
+          </button>
+          <button type="button" onClick={() => void handleResetUsageFilters()} disabled={usageLoading || isDownloadingCsv}>
+            Reset
+          </button>
+        </div>
+        <button type="button" className="primary" onClick={() => void handleDownloadUsageCsv()} disabled={isDownloadingCsv}>
+          {isDownloadingCsv ? 'Downloading...' : 'Download CSV'}
+        </button>
+      </div>
+
+      <div className="matrix-wrapper">
+        <table className="permission-table">
+          <thead>
+            <tr>
+              <th>Display Name</th>
+              <th>Email</th>
+              <th>Profile Name</th>
+              <th>Permissions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {usageReport.map((entry) => (
+              <tr key={entry.userId}>
+                <td>{entry.displayName}</td>
+                <td>{entry.email}</td>
+                <td>{entry.profileName ?? <em>None</em>}</td>
+                <td>{entry.permissions.length > 0 ? entry.permissions.join(', ') : <em>None</em>}</td>
+              </tr>
+            ))}
+            {!usageLoading && usageReport.length === 0 && (
+              <tr>
+                <td colSpan={4}>No usage report entries found.</td>
+              </tr>
+            )}
+            {usageLoading && (
+              <tr>
+                <td colSpan={4}>Loading usage report...</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
   return (
     <section className="admin-management">
       <h2>Permission Management</h2>
@@ -398,8 +544,17 @@ export default function PermissionsPage(): JSX.Element {
             >
               User Assignments
             </button>
+            <button
+              type="button"
+              className={activeTab === 'usage-report' ? 'tab active' : 'tab'}
+              onClick={() => setActiveTab('usage-report')}
+            >
+              Usage Report
+            </button>
           </div>
-          {activeTab === 'profiles' ? renderProfilesTab() : renderUsersTab()}
+          {activeTab === 'profiles' && renderProfilesTab()}
+          {activeTab === 'users' && renderUsersTab()}
+          {activeTab === 'usage-report' && renderUsageReportTab()}
         </>
       )}
     </section>

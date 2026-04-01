@@ -30,8 +30,13 @@ pub(crate) const PERM_PERMISSION_PROFILES_EDIT: &str = "permission_profiles.edit
 pub(crate) const PERM_PERMISSION_PROFILES_DELETE: &str = "permission_profiles.delete";
 pub(crate) const PERM_PERMISSION_PROFILES_ASSIGN: &str = "permission_profiles.assign";
 pub(crate) const PERM_SETTINGS_MANAGE: &str = "settings.manage";
+pub(crate) const PERM_TEAMS_VIEW: &str = "teams.view";
+pub(crate) const PERM_TEAMS_CREATE: &str = "teams.create";
+pub(crate) const PERM_TEAMS_EDIT: &str = "teams.edit";
+pub(crate) const PERM_TEAMS_DELETE: &str = "teams.delete";
+pub(crate) const PERM_TEAMS_ASSIGN: &str = "teams.assign";
 
-pub(crate) const KNOWN_PERMISSIONS: [&str; 18] = [
+pub(crate) const KNOWN_PERMISSIONS: [&str; 23] = [
     PERM_USERS_LIST,
     PERM_USERS_CREATE,
     PERM_USERS_EDIT,
@@ -50,6 +55,11 @@ pub(crate) const KNOWN_PERMISSIONS: [&str; 18] = [
     PERM_PERMISSION_PROFILES_DELETE,
     PERM_PERMISSION_PROFILES_ASSIGN,
     PERM_SETTINGS_MANAGE,
+    PERM_TEAMS_VIEW,
+    PERM_TEAMS_CREATE,
+    PERM_TEAMS_EDIT,
+    PERM_TEAMS_DELETE,
+    PERM_TEAMS_ASSIGN,
 ];
 
 pub(crate) const SUPER_ADMIN_PROFILE_NAME: &str = "Super Admin";
@@ -62,7 +72,7 @@ pub(crate) struct PermissionCatalogEntry {
     pub(crate) category: &'static str,
 }
 
-pub(crate) const PERMISSION_CATALOG: [PermissionCatalogEntry; 18] = [
+pub(crate) const PERMISSION_CATALOG: [PermissionCatalogEntry; 23] = [
     PermissionCatalogEntry { key: "users.list", description: "View list of all users in admin area", category: "User Administration" },
     PermissionCatalogEntry { key: "users.create", description: "Create new user accounts via admin", category: "User Administration" },
     PermissionCatalogEntry { key: "users.edit", description: "Edit user details, work schedules, bulk-assign locations", category: "User Administration" },
@@ -81,6 +91,11 @@ pub(crate) const PERMISSION_CATALOG: [PermissionCatalogEntry; 18] = [
     PermissionCatalogEntry { key: "permission_profiles.delete", description: "Delete permission profiles", category: "Permission Management" },
     PermissionCatalogEntry { key: "permission_profiles.assign", description: "Assign or unassign profiles to/from users", category: "Permission Management" },
     PermissionCatalogEntry { key: "settings.manage", description: "Manage system settings", category: "System Settings" },
+    PermissionCatalogEntry { key: "teams.view", description: "View all teams and their members", category: "Team Administration" },
+    PermissionCatalogEntry { key: "teams.create", description: "Create new teams", category: "Team Administration" },
+    PermissionCatalogEntry { key: "teams.edit", description: "Edit team details", category: "Team Administration" },
+    PermissionCatalogEntry { key: "teams.delete", description: "Delete teams", category: "Team Administration" },
+    PermissionCatalogEntry { key: "teams.assign", description: "Assign or remove users from teams", category: "Team Administration" },
 ];
 
 #[derive(Debug, Serialize, Deserialize)]

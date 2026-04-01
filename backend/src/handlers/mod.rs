@@ -3,6 +3,7 @@ pub(crate) mod auth;
 pub(crate) mod profile;
 pub(crate) mod matrix;
 pub(crate) mod locations;
+pub(crate) mod admin_teams;
 pub(crate) mod holidays;
 pub(crate) mod admin_users;
 pub(crate) mod permissions;

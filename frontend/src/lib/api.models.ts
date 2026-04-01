@@ -196,3 +196,11 @@ export interface UserPermissionProfile {
   profileName: string | null;
   permissions: string[];
 }
+
+export interface UsageReportEntry {
+  userId: number;
+  displayName: string;
+  email: string;
+  profileName: string | null;
+  permissions: string[];
+}

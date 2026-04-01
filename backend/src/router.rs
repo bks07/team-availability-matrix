@@ -5,6 +5,7 @@ use axum::{
 use tower_http::{cors::CorsLayer, services::ServeDir};
 
 use crate::handlers;
+use crate::handlers::admin_teams;
 use crate::handlers::teams::{
     accept_invitation, cancel_invitation, create_team, delete_team, get_team_detail,
     invite_to_team, leave_team, list_my_invitations, list_my_teams, reject_invitation,
@@ -131,6 +132,34 @@ pub(crate) fn build_router(state: AppState, cors: CorsLayer, upload_dir: &str) -
             get(handlers::permissions::get_permission_profile)
                 .put(handlers::permissions::update_permission_profile)
                 .delete(handlers::permissions::delete_permission_profile),
+        )
+        .route(
+            "/api/admin/permission-audit-log",
+            get(handlers::permissions::list_audit_log),
+        )
+        .route(
+            "/api/admin/permission-usage-report",
+            get(handlers::permissions::get_usage_report),
+        )
+        .route(
+            "/api/admin/permission-usage-report/csv",
+            get(handlers::permissions::export_usage_report_csv),
+        )
+        .route(
+            "/api/admin/teams",
+            get(admin_teams::list_admin_teams).post(admin_teams::create_admin_team),
+        )
+        .route(
+            "/api/admin/teams/:id",
+            put(admin_teams::update_admin_team).delete(admin_teams::delete_admin_team),
+        )
+        .route(
+            "/api/admin/teams/:id/members",
+            get(admin_teams::list_admin_team_members).post(admin_teams::assign_user_to_team),
+        )
+        .route(
+            "/api/admin/teams/:id/members/:user_id",
+            delete(admin_teams::remove_user_from_team),
         )
         .nest_service("/uploads", ServeDir::new(upload_dir))
         .layer(cors)

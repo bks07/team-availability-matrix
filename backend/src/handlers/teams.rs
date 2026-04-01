@@ -267,6 +267,18 @@ pub(crate) async fn create_team(
         )
     })?;
 
+    sqlx::query("UPDATE users SET default_team_id = $1 WHERE id = $2 AND default_team_id IS NULL")
+        .bind(team.id)
+        .bind(claims.sub)
+        .execute(&mut *tx)
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to set default team: {error}"),
+            )
+        })?;
+
     tx.commit().await.map_err(|error| {
         ApiError::new(
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -1023,6 +1035,18 @@ pub(crate) async fn accept_invitation(
             format!("Failed to create team membership: {error}"),
         ));
     }
+
+    sqlx::query("UPDATE users SET default_team_id = $1 WHERE id = $2 AND default_team_id IS NULL")
+        .bind(invitation.team_id)
+        .bind(claims.sub)
+        .execute(&mut *tx)
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to set default team: {error}"),
+            )
+        })?;
 
     tx.commit().await.map_err(|error| {
         ApiError::new(

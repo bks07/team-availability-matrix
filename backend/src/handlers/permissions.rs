@@ -1,10 +1,11 @@
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::{HeaderMap, StatusCode},
     Json,
 };
 
 use crate::auth::{
+    Claims,
     get_user_permissions, get_user_profile_name, require_permission,
     PERMISSION_CATALOG, SUPER_ADMIN_PROFILE_NAME,
     PERM_PERMISSION_PROFILES_ASSIGN, PERM_PERMISSION_PROFILES_CREATE,
@@ -107,7 +108,7 @@ pub(crate) async fn create_permission_profile(
     headers: HeaderMap,
     Json(payload): Json<CreatePermissionProfileRequest>,
 ) -> Result<(StatusCode, Json<PermissionProfileResponse>), ApiError> {
-    require_permission(
+    let claims: Claims = require_permission(
         &headers,
         &state.db,
         &state.jwt_secret,
@@ -197,6 +198,18 @@ pub(crate) async fn create_permission_profile(
 
     unique_perms.sort();
 
+    insert_audit_log(
+        &state.db,
+        claims.sub,
+        "profile_created",
+        Some(profile_id),
+        Some(&name),
+        None,
+        None,
+        serde_json::json!({ "permissions": unique_perms }),
+    )
+    .await?;
+
     Ok((
         StatusCode::CREATED,
         Json(PermissionProfileResponse {
@@ -279,7 +292,7 @@ pub(crate) async fn update_permission_profile(
     Path(id): Path<i64>,
     Json(payload): Json<UpdatePermissionProfileRequest>,
 ) -> Result<Json<PermissionProfileResponse>, ApiError> {
-    require_permission(
+    let claims: Claims = require_permission(
         &headers,
         &state.db,
         &state.jwt_secret,
@@ -307,6 +320,20 @@ pub(crate) async fn update_permission_profile(
             "Built-in profiles cannot be edited",
         ));
     }
+
+    let old_name = profile.name.clone();
+    let old_permissions = sqlx::query_scalar::<_, String>(
+        "SELECT permission_key FROM profile_permissions WHERE profile_id = $1 ORDER BY permission_key ASC",
+    )
+    .bind(id)
+    .fetch_all(&state.db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to load old permissions: {error}"),
+        )
+    })?;
 
     let name = payload.name.trim().to_string();
     if name.is_empty() {
@@ -412,6 +439,21 @@ pub(crate) async fn update_permission_profile(
 
     unique_perms.sort();
 
+    insert_audit_log(
+        &state.db,
+        claims.sub,
+        "profile_updated",
+        Some(id),
+        Some(&name),
+        None,
+        None,
+        serde_json::json!({
+            "before": { "name": old_name, "permissions": old_permissions },
+            "after": { "name": name, "permissions": unique_perms }
+        }),
+    )
+    .await?;
+
     Ok(Json(PermissionProfileResponse {
         id,
         name,
@@ -427,7 +469,7 @@ pub(crate) async fn delete_permission_profile(
     headers: HeaderMap,
     Path(id): Path<i64>,
 ) -> Result<StatusCode, ApiError> {
-    require_permission(
+    let claims: Claims = require_permission(
         &headers,
         &state.db,
         &state.jwt_secret,
@@ -487,6 +529,18 @@ pub(crate) async fn delete_permission_profile(
             )
         })?;
 
+    insert_audit_log(
+        &state.db,
+        claims.sub,
+        "profile_deleted",
+        Some(id),
+        Some(&profile.name),
+        None,
+        None,
+        serde_json::json!({}),
+    )
+    .await?;
+
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -497,7 +551,7 @@ pub(crate) async fn assign_user_profile(
     Path(user_id): Path<i64>,
     Json(payload): Json<AssignProfileRequest>,
 ) -> Result<Json<UserPermissionProfileResponse>, ApiError> {
-    let claims = require_permission(
+    let claims: Claims = require_permission(
         &headers,
         &state.db,
         &state.jwt_secret,
@@ -549,6 +603,31 @@ pub(crate) async fn assign_user_profile(
                 format!("Failed to assign permission profile: {error}"),
             )
         })?;
+
+        let target_user_name = sqlx::query_scalar::<_, String>(
+            "SELECT display_name FROM users WHERE id = $1",
+        )
+        .bind(user_id)
+        .fetch_one(&state.db)
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to load user name: {error}"),
+            )
+        })?;
+
+        insert_audit_log(
+            &state.db,
+            claims.sub,
+            "profile_assigned",
+            Some(profile_id),
+            Some(&profile_name),
+            Some(user_id),
+            Some(&target_user_name),
+            serde_json::json!({}),
+        )
+        .await?;
     } else {
         // Unassign profile — prevent removing Super Admin from yourself
         if claims.sub == user_id {
@@ -561,6 +640,19 @@ pub(crate) async fn assign_user_profile(
             }
         }
 
+        let old_profile_info: Option<(i64, String)> = sqlx::query_as(
+            "SELECT p.id, p.name FROM user_permission_profiles upp JOIN permission_profiles p ON p.id = upp.profile_id WHERE upp.user_id = $1",
+        )
+        .bind(user_id)
+        .fetch_optional(&state.db)
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to load old profile: {error}"),
+            )
+        })?;
+
         sqlx::query("DELETE FROM user_permission_profiles WHERE user_id = $1")
             .bind(user_id)
             .execute(&state.db)
@@ -571,6 +663,33 @@ pub(crate) async fn assign_user_profile(
                     format!("Failed to unassign permission profile: {error}"),
                 )
             })?;
+
+        if let Some((old_profile_id, old_profile_name)) = old_profile_info {
+            let target_user_name = sqlx::query_scalar::<_, String>(
+                "SELECT display_name FROM users WHERE id = $1",
+            )
+            .bind(user_id)
+            .fetch_one(&state.db)
+            .await
+            .map_err(|error| {
+                ApiError::new(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Failed to load user name: {error}"),
+                )
+            })?;
+
+            insert_audit_log(
+                &state.db,
+                claims.sub,
+                "profile_unassigned",
+                Some(old_profile_id),
+                Some(&old_profile_name),
+                Some(user_id),
+                Some(&target_user_name),
+                serde_json::json!({}),
+            )
+            .await?;
+        }
     }
 
     let profile_info: Option<(i64, String)> = sqlx::query_as(
@@ -594,6 +713,335 @@ pub(crate) async fn assign_user_profile(
         profile_name: profile_info.map(|(_, name)| name),
         permissions,
     }))
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct AuditLogQuery {
+    pub(crate) page: Option<i64>,
+    pub(crate) page_size: Option<i64>,
+    pub(crate) event_type: Option<String>,
+    pub(crate) date_from: Option<String>,
+    pub(crate) date_to: Option<String>,
+    pub(crate) search: Option<String>,
+}
+
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct AuditLogEntry {
+    pub(crate) id: i64,
+    pub(crate) admin_name: String,
+    pub(crate) event_type: String,
+    pub(crate) profile_name: Option<String>,
+    pub(crate) target_user_name: Option<String>,
+    pub(crate) details: serde_json::Value,
+    pub(crate) created_at: String,
+}
+
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct AuditLogResponse {
+    pub(crate) entries: Vec<AuditLogEntry>,
+    pub(crate) total: i64,
+    pub(crate) page: i64,
+    pub(crate) page_size: i64,
+}
+
+// GET /api/admin/permission-audit-log
+pub(crate) async fn list_audit_log(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Query(params): Query<AuditLogQuery>,
+) -> Result<Json<AuditLogResponse>, ApiError> {
+    require_permission(
+        &headers,
+        &state.db,
+        &state.jwt_secret,
+        PERM_PERMISSION_PROFILES_VIEW,
+    )
+    .await?;
+
+    let page = params.page.unwrap_or(1).max(1);
+    let page_size = params.page_size.unwrap_or(25).clamp(1, 100);
+    let offset = (page - 1) * page_size;
+
+    let total: i64 = sqlx::query_scalar::<_, i64>(
+        r#"
+        SELECT COUNT(*)
+        FROM permission_audit_log l
+        JOIN users u ON u.id = l.admin_id
+        WHERE ($1::text IS NULL OR l.event_type = $1)
+          AND ($2::text IS NULL OR l.created_at >= $2::timestamptz)
+          AND ($3::text IS NULL OR l.created_at < ($3::timestamptz + INTERVAL '1 day'))
+          AND (
+                $4::text IS NULL
+                OR u.display_name ILIKE '%' || $4 || '%'
+                OR l.profile_name ILIKE '%' || $4 || '%'
+                OR l.target_user_name ILIKE '%' || $4 || '%'
+              )
+        "#,
+    )
+    .bind(params.event_type.as_deref())
+    .bind(params.date_from.as_deref())
+    .bind(params.date_to.as_deref())
+    .bind(params.search.as_deref())
+    .fetch_one(&state.db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to count audit log entries: {error}"),
+        )
+    })?;
+
+    #[derive(sqlx::FromRow)]
+    struct AuditRow {
+        id: i64,
+        admin_name: String,
+        event_type: String,
+        profile_name: Option<String>,
+        target_user_name: Option<String>,
+        details: serde_json::Value,
+        created_at: chrono::DateTime<chrono::Utc>,
+    }
+
+    let rows: Vec<AuditRow> = sqlx::query_as::<_, AuditRow>(
+        r#"
+        SELECT l.id, u.display_name as admin_name, l.event_type, l.profile_name, l.target_user_name, l.details, l.created_at
+        FROM permission_audit_log l
+        JOIN users u ON u.id = l.admin_id
+        WHERE ($1::text IS NULL OR l.event_type = $1)
+          AND ($2::text IS NULL OR l.created_at >= $2::timestamptz)
+          AND ($3::text IS NULL OR l.created_at < ($3::timestamptz + INTERVAL '1 day'))
+          AND (
+                $4::text IS NULL
+                OR u.display_name ILIKE '%' || $4 || '%'
+                OR l.profile_name ILIKE '%' || $4 || '%'
+                OR l.target_user_name ILIKE '%' || $4 || '%'
+              )
+        ORDER BY l.created_at DESC
+        LIMIT $5 OFFSET $6
+        "#,
+    )
+    .bind(params.event_type.as_deref())
+    .bind(params.date_from.as_deref())
+    .bind(params.date_to.as_deref())
+    .bind(params.search.as_deref())
+    .bind(page_size)
+    .bind(offset)
+    .fetch_all(&state.db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to load audit log entries: {error}"),
+        )
+    })?;
+
+    let entries = rows
+        .into_iter()
+        .map(|row| AuditLogEntry {
+            id: row.id,
+            admin_name: row.admin_name,
+            event_type: row.event_type,
+            profile_name: row.profile_name,
+            target_user_name: row.target_user_name,
+            details: row.details,
+            created_at: row.created_at.to_rfc3339(),
+        })
+        .collect();
+
+    Ok(Json(AuditLogResponse {
+        entries,
+        total,
+        page,
+        page_size,
+    }))
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct UsageReportQuery {
+    pub(crate) profile_name: Option<String>,
+    pub(crate) user_name: Option<String>,
+}
+
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct UsageReportEntry {
+    pub(crate) user_id: i64,
+    pub(crate) display_name: String,
+    pub(crate) email: String,
+    pub(crate) profile_name: Option<String>,
+    pub(crate) permissions: Vec<String>,
+}
+
+// GET /api/admin/permission-usage-report
+pub(crate) async fn get_usage_report(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Query(params): Query<UsageReportQuery>,
+) -> Result<Json<Vec<UsageReportEntry>>, ApiError> {
+    require_permission(
+        &headers,
+        &state.db,
+        &state.jwt_secret,
+        PERM_PERMISSION_PROFILES_VIEW,
+    )
+    .await?;
+
+    #[derive(sqlx::FromRow)]
+    struct ReportRow {
+        user_id: i64,
+        display_name: String,
+        email: String,
+        profile_name: Option<String>,
+        profile_id: Option<i64>,
+    }
+
+    let rows: Vec<ReportRow> = sqlx::query_as(
+        r#"
+        SELECT u.id as user_id, u.display_name, u.email,
+               p.name as profile_name, upp.profile_id
+        FROM users u
+        LEFT JOIN user_permission_profiles upp ON upp.user_id = u.id
+        LEFT JOIN permission_profiles p ON p.id = upp.profile_id
+        WHERE ($1::text IS NULL OR p.name ILIKE '%' || $1 || '%')
+          AND ($2::text IS NULL OR u.display_name ILIKE '%' || $2 || '%')
+        ORDER BY u.display_name ASC
+        "#,
+    )
+    .bind(params.profile_name.as_deref())
+    .bind(params.user_name.as_deref())
+    .fetch_all(&state.db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to load usage report: {error}"),
+        )
+    })?;
+
+    let mut entries = Vec::with_capacity(rows.len());
+    for row in rows {
+        let permissions = if let Some(profile_id) = row.profile_id {
+            sqlx::query_scalar::<_, String>(
+                "SELECT permission_key FROM profile_permissions WHERE profile_id = $1 ORDER BY permission_key ASC",
+            )
+            .bind(profile_id)
+            .fetch_all(&state.db)
+            .await
+            .map_err(|error| {
+                ApiError::new(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Failed to load profile permissions: {error}"),
+                )
+            })?
+        } else {
+            Vec::new()
+        };
+
+        entries.push(UsageReportEntry {
+            user_id: row.user_id,
+            display_name: row.display_name,
+            email: row.email,
+            profile_name: row.profile_name,
+            permissions,
+        });
+    }
+
+    Ok(Json(entries))
+}
+
+// GET /api/admin/permission-usage-report/csv
+pub(crate) async fn export_usage_report_csv(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<impl axum::response::IntoResponse, ApiError> {
+    require_permission(
+        &headers,
+        &state.db,
+        &state.jwt_secret,
+        PERM_PERMISSION_PROFILES_VIEW,
+    )
+    .await?;
+
+    #[derive(sqlx::FromRow)]
+    struct ReportRow {
+        display_name: String,
+        email: String,
+        profile_name: Option<String>,
+        profile_id: Option<i64>,
+    }
+
+    let rows: Vec<ReportRow> = sqlx::query_as(
+        r#"
+        SELECT u.display_name, u.email,
+               p.name as profile_name, upp.profile_id
+        FROM users u
+        LEFT JOIN user_permission_profiles upp ON upp.user_id = u.id
+        LEFT JOIN permission_profiles p ON p.id = upp.profile_id
+        ORDER BY u.display_name ASC
+        "#,
+    )
+    .fetch_all(&state.db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to load usage report: {error}"),
+        )
+    })?;
+
+    let mut csv = String::from("Display Name,Email,Profile Name,Permissions\n");
+    for row in rows {
+        let permissions = if let Some(profile_id) = row.profile_id {
+            sqlx::query_scalar::<_, String>(
+                "SELECT permission_key FROM profile_permissions WHERE profile_id = $1 ORDER BY permission_key ASC",
+            )
+            .bind(profile_id)
+            .fetch_all(&state.db)
+            .await
+            .map_err(|error| {
+                ApiError::new(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Failed to load profile permissions: {error}"),
+                )
+            })?
+            .join(", ")
+        } else {
+            String::new()
+        };
+
+        let display_name = escape_csv_field(&row.display_name);
+        let email = escape_csv_field(&row.email);
+        let profile_name = escape_csv_field(row.profile_name.as_deref().unwrap_or(""));
+        let permissions_str = escape_csv_field(&permissions);
+
+        csv.push_str(&format!(
+            "{display_name},{email},{profile_name},{permissions_str}\n"
+        ));
+    }
+
+    Ok((
+        StatusCode::OK,
+        [
+            (axum::http::header::CONTENT_TYPE, "text/csv"),
+            (
+                axum::http::header::CONTENT_DISPOSITION,
+                "attachment; filename=\"permission-usage-report.csv\"",
+            ),
+        ],
+        csv,
+    ))
+}
+
+fn escape_csv_field(field: &str) -> String {
+    if field.contains(',') || field.contains('"') || field.contains('\n') {
+        format!("\"{}\"", field.replace('"', "\"\""))
+    } else {
+        field.to_string()
+    }
 }
 
 // GET /api/admin/users/:id/permission-profile
@@ -633,4 +1081,37 @@ pub(crate) async fn get_user_profile(
         profile_name: profile_info.map(|(_, name)| name),
         permissions,
     }))
+}
+
+async fn insert_audit_log(
+    db: &sqlx::PgPool,
+    admin_id: i64,
+    event_type: &str,
+    profile_id: Option<i64>,
+    profile_name: Option<&str>,
+    target_user_id: Option<i64>,
+    target_user_name: Option<&str>,
+    details: serde_json::Value,
+) -> Result<(), ApiError> {
+    sqlx::query(
+        r#"INSERT INTO permission_audit_log (admin_id, event_type, profile_id, profile_name, target_user_id, target_user_name, details)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)"#,
+    )
+    .bind(admin_id)
+    .bind(event_type)
+    .bind(profile_id)
+    .bind(profile_name)
+    .bind(target_user_id)
+    .bind(target_user_name)
+    .bind(details)
+    .execute(db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to insert audit log: {error}"),
+        )
+    })?;
+
+    Ok(())
 }
