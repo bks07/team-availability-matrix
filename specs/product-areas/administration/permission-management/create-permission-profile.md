@@ -1,22 +1,36 @@
 # Create Permission Profile
 
 ## Story
-- **IN ORDER TO** simplify permission management
+
+- **IN ORDER TO** group permissions for easy assignment to users
 - **AS** an administrator
-- **I WANT TO** create permission profiles that group multiple permissions
+- **I WANT TO** create a new permission profile by selecting from the system-defined permission catalog
 
 ## Acceptance Criteria
-- Admins can create a profile by providing a name and selecting permissions.
-- The system validates that the profile name is unique.
-- A success message is displayed upon successful creation.
+
+1. The administrator provides a unique profile name.
+2. The administrator selects one or more permissions from the system-defined permission catalog, displayed grouped by category with checkboxes.
+3. The system validates that the profile name is unique (case-insensitive).
+4. At least one permission must be selected before the profile can be saved.
+5. A success message is displayed upon successful creation.
+6. The newly created profile appears in the profile list immediately.
+7. The page is accessible only to users with the `permission_profiles.create` permission.
 
 ## In-Scope
-- Permission profile creation form.
-- Backend validation for unique profile names.
-- Grouping permissions into profiles.
+
+- Profile creation form with name field and permission selection checkboxes.
+- Permission catalog display grouped by category for selection.
+- Backend validation for unique profile name and non-empty permission set.
+- Backend API endpoint for creating a profile.
 
 ## Out-of-Scope
-- Assigning profiles to users (covered in separate stories).
+
+- Creating new permissions — permissions are system-defined and immutable.
+- Assigning the new profile to users (covered by assign-profile-to-user).
+- Editing or deleting profiles (covered by edit-permission-profile, delete-permission-profile).
 
 ## Additional Information
-- Profiles are reusable sets of permissions.
+
+- Requires `permission_profiles.create` permission.
+- The permission selection interface reuses the system-defined permission catalog described in view-permissions.
+- See the technical initiative for the full permission catalog: `specs/technical-initiatives/2026/26q2/2026-04-01-001-permission-system-overhaul.md`.

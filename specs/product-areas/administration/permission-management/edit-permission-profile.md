@@ -1,22 +1,38 @@
 # Edit Permission Profile
 
 ## Story
-- **IN ORDER TO** update profile details and associated permissions
+
+- **IN ORDER TO** adjust access control as requirements change
 - **AS** an administrator
-- **I WANT TO** edit permission profiles in the system
+- **I WANT TO** edit a permission profile's name and included permissions
 
 ## Acceptance Criteria
-- Admins can edit a profile's name and associated permissions.
-- The system validates that the new name is unique.
-- A success message is displayed upon successful update.
+
+1. The administrator can edit the profile name (uniqueness is validated, case-insensitive).
+2. The administrator can add or remove permissions from the system-defined catalog using grouped checkboxes.
+3. At least one permission must remain selected — a profile cannot be saved with zero permissions.
+4. The built-in Super Admin profile cannot be edited. Edit controls are disabled or hidden, with an explanation that it is a system-managed profile.
+5. Changes to a profile take effect immediately for all users assigned to that profile.
+6. Before saving, the UI displays the number of users currently assigned to the profile to warn the administrator of the impact.
+7. A success message is displayed upon successful update.
+8. The page is accessible only to users with the `permission_profiles.edit` permission.
 
 ## In-Scope
-- Profile editing form.
-- Backend validation for unique profile names.
-- Updating associated permissions.
+
+- Profile editing form with name field and permission selection checkboxes.
+- Backend validation for unique name and non-empty permission set.
+- Immediate propagation of changes to assigned users.
+- Impact warning showing the count of affected users.
+- Protection of the built-in Super Admin profile from editing.
 
 ## Out-of-Scope
-- Assigning profiles to users (covered in separate stories).
+
+- Creating or deleting profiles (covered by separate stories).
+- Creating or deleting individual permissions — permissions are system-defined.
+- Assigning profiles to users (covered by assign-profile-to-user).
 
 ## Additional Information
-- Editing profiles should not affect existing assignments.
+
+- Requires `permission_profiles.edit` permission.
+- Editing a profile with many assigned users has an immediate system-wide effect. The impact warning is essential to prevent accidental access revocation.
+- See the technical initiative for the full permission catalog: `specs/technical-initiatives/2026/26q2/2026-04-01-001-permission-system-overhaul.md`.

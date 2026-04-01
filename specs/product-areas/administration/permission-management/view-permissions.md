@@ -1,21 +1,34 @@
-# View Permissions
+# View System-Defined Permissions
 
 ## Story
-- **IN ORDER TO** understand the available permissions and their grouping
+
+- **IN ORDER TO** understand which permissions exist in the system when managing profiles
 - **AS** an administrator
-- **I WANT TO** view a list of all permissions and their associated profiles in the system
+- **I WANT TO** view the complete system-defined permission catalog
 
 ## Acceptance Criteria
-- Admins can view a list of permissions with their names, descriptions, and associated profiles.
-- The list is paginated for large numbers of permissions.
-- A search bar allows filtering by name or profile.
+
+1. The permission catalog displays all system-defined permissions grouped by category (User Administration, Location Management, Public Holiday Management, Permission Management, System Settings).
+2. Each permission entry shows its key and a human-readable description.
+3. The list is read-only — no controls for creating, editing, or deleting individual permissions are present.
+4. A search bar allows filtering permissions by name, key, or category.
+5. Category headers visually separate permission groups.
+6. The page is accessible only to users with the `permission_profiles.view` permission.
 
 ## In-Scope
-- Permissions listing interface.
-- Backend API for fetching permissions and their profiles.
+
+- Permission catalog display grouped by category.
+- Search and filter functionality.
+- Read-only presentation.
+- Backend API endpoint returning the full permission catalog.
 
 ## Out-of-Scope
-- Editing or deleting permissions (covered in separate stories).
+
+- Creating, editing, or deleting individual permissions — permissions are system-defined and immutable.
+- Permission profile management (covered by separate stories: create-permission-profile, edit-permission-profile, delete-permission-profile).
 
 ## Additional Information
-- This feature is essential for managing permissions effectively.
+
+- The permission catalog is defined in the codebase and rendered at runtime. See the full catalog in the technical initiative: `specs/technical-initiatives/2026/26q2/2026-04-01-001-permission-system-overhaul.md`.
+- This view serves as a reference for administrators when selecting permissions during profile creation or editing.
+- Requires `permission_profiles.view` permission.
