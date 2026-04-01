@@ -1,4 +1,3 @@
-import { Fragment } from 'react';
 import { useUsersPage } from '../../hooks/useUsersPage';
 
 const SCHEDULE_DAYS = [
@@ -26,9 +25,12 @@ export default function UsersPage(): JSX.Element {
     setIsCreateModalOpen,
     newUserForm,
     setNewUserForm,
-    editingId,
+    editModalUserId,
+    passwordModalUserId,
     editUserForm,
     setEditUserForm,
+    passwordForm,
+    setPasswordForm,
     scheduleForm,
     setScheduleForm,
     scheduleLoading,
@@ -50,11 +52,21 @@ export default function UsersPage(): JSX.Element {
     toggleSelectAll,
     handleBulkAssign,
     handleCreateUser,
-    startEditing,
-    cancelEditing,
+    openEditModal,
+    closeEditModal,
+    openPasswordModal,
+    closePasswordModal,
     handleSaveEdit,
+    handleChangePassword,
     handleDelete
   } = useUsersPage();
+
+  const editModalUser =
+    editModalUserId !== null ? users.find((user) => user.id === editModalUserId) ?? null : null;
+  const passwordModalUser =
+    passwordModalUserId !== null
+      ? users.find((user) => user.id === passwordModalUserId) ?? null
+      : null;
 
   return (
     <section className="admin-management">
@@ -133,7 +145,6 @@ export default function UsersPage(): JSX.Element {
                 </thead>
                 <tbody>
                   {filteredUsers.map((user) => {
-                    const isEditing = editingId === user.id;
                     const userSchedule = workSchedules.get(user.id);
                     const hoursLabel = userSchedule?.hoursPerWeek != null ? `${userSchedule.hoursPerWeek} h/w` : '—';
                     const locationName =
@@ -142,271 +153,80 @@ export default function UsersPage(): JSX.Element {
                         : locationNameById.get(user.locationId) ?? `Location #${user.locationId}`;
 
                     return (
-                      <Fragment key={user.id}>
-                        <tr>
-                          <td className="checkbox-cell">
-                            <input
-                              type="checkbox"
-                              checked={selectedUserIds.has(user.id)}
-                              onChange={() => toggleUserSelection(user.id)}
-                              aria-label={`Select user ${user.displayName}`}
+                      <tr key={user.id}>
+                        <td className="checkbox-cell">
+                          <input
+                            type="checkbox"
+                            checked={selectedUserIds.has(user.id)}
+                            onChange={() => toggleUserSelection(user.id)}
+                            aria-label={`Select user ${user.displayName}`}
+                            disabled={isMutating || isBulkAssigning}
+                          />
+                        </td>
+                        <td>{user.email}</td>
+                        <td>{user.displayName}</td>
+                        <td>{locationName}</td>
+                        <td className="schedule-cell">
+                          <div className="schedule-dots">
+                            {SCHEDULE_DAYS.map((day, index) => {
+                              const active = userSchedule?.[day] ?? index < 5;
+                              const isWeekend = index >= 5;
+
+                              return (
+                                <span
+                                  key={day}
+                                  className={`schedule-dot${active ? (isWeekend ? ' weekend' : ' workday') : ' inactive'}`}
+                                  title={day.charAt(0).toUpperCase() + day.slice(1)}
+                                />
+                              );
+                            })}
+                          </div>
+                          <div className="schedule-hours">{hoursLabel}</div>
+                        </td>
+                        <td>
+                          <div className="entity-actions">
+                            <button
+                              type="button"
+                              className="icon-btn"
+                              onClick={() => void openEditModal(user)}
                               disabled={isMutating || isBulkAssigning}
-                            />
-                          </td>
-                          {isEditing ? (
-                            <>
-                              <td>
-                                <input
-                                  type="email"
-                                  className="edit-input"
-                                  value={editUserForm.email}
-                                  onChange={(event) =>
-                                    setEditUserForm((previous) => ({ ...previous, email: event.target.value }))
-                                  }
-                                  disabled={isMutating}
-                                  aria-label={`Edit email for ${user.displayName}`}
-                                />
-                              </td>
-                              <td>
-                                <input
-                                  type="text"
-                                  className="edit-input"
-                                  value={editUserForm.firstName}
-                                  onChange={(event) =>
-                                    setEditUserForm((previous) => ({ ...previous, firstName: event.target.value }))
-                                  }
-                                  disabled={isMutating}
-                                  aria-label={`Edit first name for ${user.displayName}`}
-                                />
-                                <input
-                                  type="text"
-                                  className="edit-input"
-                                  value={editUserForm.lastName}
-                                  onChange={(event) =>
-                                    setEditUserForm((previous) => ({ ...previous, lastName: event.target.value }))
-                                  }
-                                  disabled={isMutating}
-                                  aria-label={`Edit last name for ${user.displayName}`}
-                                />
-                              </td>
-                              <td>
-                                <select
-                                  className="edit-input"
-                                  value={editUserForm.locationId ?? ''}
-                                  onChange={(event) => {
-                                    const value = event.target.value;
-                                    setEditUserForm((previous) => ({
-                                      ...previous,
-                                      locationId: value ? Number(value) : null
-                                    }));
-                                  }}
-                                  disabled={isMutating}
-                                  aria-label={`Edit location for ${user.displayName}`}
-                                >
-                                  <option value="">No location</option>
-                                  {locations.map((location) => (
-                                    <option key={location.id} value={location.id}>
-                                      {location.name}
-                                    </option>
-                                  ))}
-                                </select>
-                                <input
-                                  type="password"
-                                  className="edit-input"
-                                  value={editUserForm.password}
-                                  onChange={(event) =>
-                                    setEditUserForm((previous) => ({ ...previous, password: event.target.value }))
-                                  }
-                                  placeholder="New password (optional)"
-                                  disabled={isMutating}
-                                  aria-label={`Reset password for ${user.displayName}`}
-                                />
-                              </td>
-                              <td className="schedule-cell">
-                                <div className="schedule-dots">
-                                  {SCHEDULE_DAYS.map((day, index) => {
-                                    const active = userSchedule?.[day] ?? index < 5;
-                                    const isWeekend = index >= 5;
-
-                                    return (
-                                      <span
-                                        key={day}
-                                        className={`schedule-dot${active ? (isWeekend ? ' weekend' : ' workday') : ' inactive'}`}
-                                        title={day.charAt(0).toUpperCase() + day.slice(1)}
-                                      />
-                                    );
-                                  })}
-                                </div>
-                                <div className="schedule-hours">{hoursLabel}</div>
-                              </td>
-                              <td>
-                                <div className="entity-actions">
-                                  <button
-                                    type="button"
-                                    className="primary"
-                                    onClick={() => void handleSaveEdit(user.id)}
-                                    disabled={isMutating || isBulkAssigning}
-                                  >
-                                    Save
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={cancelEditing}
-                                    disabled={isMutating || isBulkAssigning}
-                                  >
-                                    Cancel
-                                  </button>
-                                </div>
-                              </td>
-                            </>
-                          ) : (
-                            <>
-                              <td>{user.email}</td>
-                              <td>{user.displayName}</td>
-                              <td>{locationName}</td>
-                              <td className="schedule-cell">
-                                <div className="schedule-dots">
-                                  {SCHEDULE_DAYS.map((day, index) => {
-                                    const active = userSchedule?.[day] ?? index < 5;
-                                    const isWeekend = index >= 5;
-
-                                    return (
-                                      <span
-                                        key={day}
-                                        className={`schedule-dot${active ? (isWeekend ? ' weekend' : ' workday') : ' inactive'}`}
-                                        title={day.charAt(0).toUpperCase() + day.slice(1)}
-                                      />
-                                    );
-                                  })}
-                                </div>
-                                <div className="schedule-hours">{hoursLabel}</div>
-                              </td>
-                              <td>
-                                <div className="entity-actions">
-                                  <button
-                                    type="button"
-                                    className="icon-btn"
-                                    onClick={() => void startEditing(user)}
-                                    disabled={isMutating || isBulkAssigning}
-                                    title="Edit user"
-                                    aria-label={`Edit ${user.displayName}`}
-                                  >
-                                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                                      <path d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z" />
-                                    </svg>
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="icon-btn danger"
-                                    onClick={() => void handleDelete(user)}
-                                    disabled={isMutating || isBulkAssigning || currentUser?.id === user.id}
-                                    title={currentUser?.id === user.id ? 'You cannot delete your own account' : 'Delete user'}
-                                    aria-label={`Delete ${user.displayName}`}
-                                  >
-                                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                                      <path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 011.334-1.334h2.666a1.333 1.333 0 011.334 1.334V4m2 0v9.333a1.333 1.333 0 01-1.334 1.334H4.667a1.333 1.333 0 01-1.334-1.334V4h9.334z" />
-                                    </svg>
-                                  </button>
-                                </div>
-                              </td>
-                            </>
-                          )}
-                        </tr>
-                        {isEditing ? (
-                          <tr className="schedule-expansion-row">
-                            <td colSpan={6}>
-                              <div className="schedule-panel">
-                                <h4 className="schedule-panel-title">Work Schedule</h4>
-                                {scheduleLoading ? (
-                                  <p className="message">Loading schedule...</p>
-                                ) : (
-                                  <>
-                                    <div className="schedule-days-group">
-                                      {(
-                                        [
-                                          'monday',
-                                          'tuesday',
-                                          'wednesday',
-                                          'thursday',
-                                          'friday',
-                                          'saturday',
-                                          'sunday'
-                                        ] as const
-                                      ).map((day) => (
-                                        <label key={day} className={`day-toggle ${scheduleForm[day] ? 'active' : ''}`}>
-                                          <input
-                                            type="checkbox"
-                                            className="sr-only"
-                                            checked={scheduleForm[day]}
-                                            onChange={() =>
-                                              setScheduleForm((previous) => ({ ...previous, [day]: !previous[day] }))
-                                            }
-                                            disabled={isMutating}
-                                          />
-                                          {day.slice(0, 3).charAt(0).toUpperCase() + day.slice(1, 3)}
-                                        </label>
-                                      ))}
-                                    </div>
-                                    <div className="schedule-settings-grid">
-                                      <div className="setting-item">
-                                        <label htmlFor={`hours-${user.id}`}>Hours per week</label>
-                                        <input
-                                          id={`hours-${user.id}`}
-                                          type="number"
-                                          className="edit-input"
-                                          min="0"
-                                          step="0.5"
-                                          value={scheduleForm.hoursPerWeek}
-                                          onChange={(event) =>
-                                            setScheduleForm((previous) => ({
-                                              ...previous,
-                                              hoursPerWeek: event.target.value
-                                            }))
-                                          }
-                                          disabled={isMutating}
-                                          placeholder="e.g. 40"
-                                        />
-                                      </div>
-                                      <div className="setting-item checkbox-setting">
-                                        <label>
-                                          <input
-                                            type="checkbox"
-                                            checked={scheduleForm.ignoreWeekends}
-                                            onChange={(event) =>
-                                              setScheduleForm((previous) => ({
-                                                ...previous,
-                                                ignoreWeekends: event.target.checked
-                                              }))
-                                            }
-                                            disabled={isMutating}
-                                          />
-                                          Ignore weekends
-                                        </label>
-                                      </div>
-                                      <div className="setting-item checkbox-setting">
-                                        <label>
-                                          <input
-                                            type="checkbox"
-                                            checked={scheduleForm.ignorePublicHolidays}
-                                            onChange={(event) =>
-                                              setScheduleForm((previous) => ({
-                                                ...previous,
-                                                ignorePublicHolidays: event.target.checked
-                                              }))
-                                            }
-                                            disabled={isMutating}
-                                          />
-                                          Ignore public holidays
-                                        </label>
-                                      </div>
-                                    </div>
-                                  </>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        ) : null}
-                      </Fragment>
+                              title="Edit user"
+                              aria-label={`Edit ${user.displayName}`}
+                            >
+                              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z" />
+                              </svg>
+                            </button>
+                            <button
+                              type="button"
+                              className="icon-btn"
+                              onClick={() => openPasswordModal(user.id)}
+                              disabled={isMutating || isBulkAssigning}
+                              title="Change password"
+                              aria-label={`Change password for ${user.displayName}`}
+                            >
+                              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="5" cy="5" r="3.5" />
+                                <path d="M7.5 7.5L14 14" />
+                                <path d="M11 11l2 -2" />
+                                <path d="M13 13l2 -2" />
+                              </svg>
+                            </button>
+                            <button
+                              type="button"
+                              className="icon-btn danger"
+                              onClick={() => void handleDelete(user)}
+                              disabled={isMutating || isBulkAssigning || currentUser?.id === user.id}
+                              title={currentUser?.id === user.id ? 'You cannot delete your own account' : 'Delete user'}
+                              aria-label={`Delete ${user.displayName}`}
+                            >
+                              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 011.334-1.334h2.666a1.333 1.333 0 011.334 1.334V4m2 0v9.333a1.333 1.333 0 01-1.334 1.334H4.667a1.333 1.333 0 01-1.334-1.334V4h9.334z" />
+                              </svg>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
                     );
                   })}
                 </tbody>
@@ -555,7 +375,15 @@ export default function UsersPage(): JSX.Element {
                   className="teams-action-btn teams-action-btn--reject"
                   onClick={() => {
                     setIsCreateModalOpen(false);
-                    setNewUserForm({ email: '', firstName: '', lastName: '', password: '', locationId: null });
+                    setNewUserForm({
+                      title: '',
+                      email: '',
+                      firstName: '',
+                      middleName: '',
+                      lastName: '',
+                      password: '',
+                      locationId: null
+                    });
                   }}
                   disabled={isMutating}
                 >
@@ -563,6 +391,292 @@ export default function UsersPage(): JSX.Element {
                 </button>
                 <button type="submit" className="primary-button" disabled={isMutating}>
                   {isMutating ? 'Creating...' : 'Create'}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      ) : null}
+
+      {editModalUserId !== null ? (
+        <div
+          className="teams-modal-overlay"
+          role="presentation"
+          onClick={() => !isMutating && closeEditModal()}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape' && !isMutating) {
+              closeEditModal();
+            }
+          }}
+        >
+          <section
+            className="teams-modal teams-modal--wide"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Edit user"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2>Edit User — {editModalUser?.displayName ?? 'User'}</h2>
+            <form
+              className="modal-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (editModalUserId !== null) {
+                  void handleSaveEdit(editModalUserId);
+                }
+              }}
+            >
+              <div className="modal-form-grid">
+                <label>
+                  Title
+                  <input
+                    type="text"
+                    value={editUserForm.title}
+                    onChange={(event) =>
+                      setEditUserForm((previous) => ({ ...previous, title: event.target.value }))
+                    }
+                    disabled={isMutating}
+                  />
+                </label>
+                <label>
+                  First Name
+                  <input
+                    type="text"
+                    value={editUserForm.firstName}
+                    onChange={(event) =>
+                      setEditUserForm((previous) => ({ ...previous, firstName: event.target.value }))
+                    }
+                    required
+                    disabled={isMutating}
+                  />
+                </label>
+                <label>
+                  Middle Name
+                  <input
+                    type="text"
+                    value={editUserForm.middleName}
+                    onChange={(event) =>
+                      setEditUserForm((previous) => ({ ...previous, middleName: event.target.value }))
+                    }
+                    disabled={isMutating}
+                  />
+                </label>
+                <label>
+                  Last Name
+                  <input
+                    type="text"
+                    value={editUserForm.lastName}
+                    onChange={(event) =>
+                      setEditUserForm((previous) => ({ ...previous, lastName: event.target.value }))
+                    }
+                    required
+                    disabled={isMutating}
+                  />
+                </label>
+              </div>
+
+              <label>
+                Email
+                <input
+                  type="email"
+                  value={editUserForm.email}
+                  onChange={(event) =>
+                    setEditUserForm((previous) => ({ ...previous, email: event.target.value }))
+                  }
+                  required
+                  disabled={isMutating}
+                />
+              </label>
+
+              <label>
+                Location
+                <select
+                  value={editUserForm.locationId ?? ''}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setEditUserForm((previous) => ({
+                      ...previous,
+                      locationId: value ? Number(value) : null
+                    }));
+                  }}
+                  disabled={isMutating}
+                >
+                  <option value="">No location</option>
+                  {locations.map((location) => (
+                    <option key={location.id} value={location.id}>
+                      {location.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <h3 className="schedule-modal-title">Work Schedule</h3>
+              {scheduleLoading ? (
+                <p className="message">Loading schedule...</p>
+              ) : (
+                <>
+                  <div className="schedule-days-group">
+                    {(
+                      ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const
+                    ).map((day) => (
+                      <label key={day} className={`day-toggle ${scheduleForm[day] ? 'active' : ''}`}>
+                        <input
+                          type="checkbox"
+                          className="sr-only"
+                          checked={scheduleForm[day]}
+                          onChange={() =>
+                            setScheduleForm((previous) => ({ ...previous, [day]: !previous[day] }))
+                          }
+                          disabled={isMutating}
+                        />
+                        {day.slice(0, 3).charAt(0).toUpperCase() + day.slice(1, 3)}
+                      </label>
+                    ))}
+                  </div>
+                  <div className="schedule-settings-grid">
+                    <div className="setting-item">
+                      <label htmlFor="edit-user-hours">Hours per week</label>
+                      <input
+                        id="edit-user-hours"
+                        type="number"
+                        className="edit-input"
+                        min="0"
+                        step="0.5"
+                        value={scheduleForm.hoursPerWeek}
+                        onChange={(event) =>
+                          setScheduleForm((previous) => ({
+                            ...previous,
+                            hoursPerWeek: event.target.value
+                          }))
+                        }
+                        disabled={isMutating}
+                        placeholder="e.g. 40"
+                      />
+                    </div>
+                    <div className="setting-item checkbox-setting">
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={scheduleForm.ignoreWeekends}
+                          onChange={(event) =>
+                            setScheduleForm((previous) => ({
+                              ...previous,
+                              ignoreWeekends: event.target.checked
+                            }))
+                          }
+                          disabled={isMutating}
+                        />
+                        Ignore weekends
+                      </label>
+                    </div>
+                    <div className="setting-item checkbox-setting">
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={scheduleForm.ignorePublicHolidays}
+                          onChange={(event) =>
+                            setScheduleForm((previous) => ({
+                              ...previous,
+                              ignorePublicHolidays: event.target.checked
+                            }))
+                          }
+                          disabled={isMutating}
+                        />
+                        Ignore public holidays
+                      </label>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div className="teams-modal__actions">
+                <button
+                  type="button"
+                  className="teams-action-btn teams-action-btn--reject"
+                  onClick={closeEditModal}
+                  disabled={isMutating}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="primary-button" disabled={isMutating}>
+                  {isMutating ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      ) : null}
+
+      {passwordModalUserId !== null ? (
+        <div
+          className="teams-modal-overlay"
+          role="presentation"
+          onClick={() => !isMutating && closePasswordModal()}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape' && !isMutating) {
+              closePasswordModal();
+            }
+          }}
+        >
+          <section
+            className="teams-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Change password"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2>Change Password</h2>
+            <p className="password-modal-user-info">
+              {passwordModalUser?.displayName ?? 'Unknown user'} - {passwordModalUser?.email ?? ''}
+            </p>
+            <form
+              className="modal-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void handleChangePassword();
+              }}
+            >
+              <label>
+                New Password
+                <input
+                  type="password"
+                  value={passwordForm.password}
+                  onChange={(event) =>
+                    setPasswordForm((previous) => ({
+                      ...previous,
+                      password: event.target.value
+                    }))
+                  }
+                  required
+                  disabled={isMutating}
+                />
+              </label>
+              <label>
+                Confirm Password
+                <input
+                  type="password"
+                  value={passwordForm.confirmPassword}
+                  onChange={(event) =>
+                    setPasswordForm((previous) => ({
+                      ...previous,
+                      confirmPassword: event.target.value
+                    }))
+                  }
+                  required
+                  disabled={isMutating}
+                />
+              </label>
+              <div className="teams-modal__actions">
+                <button
+                  type="button"
+                  className="teams-action-btn teams-action-btn--reject"
+                  onClick={closePasswordModal}
+                  disabled={isMutating}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="primary-button" disabled={isMutating}>
+                  {isMutating ? 'Changing...' : 'Change Password'}
                 </button>
               </div>
             </form>
