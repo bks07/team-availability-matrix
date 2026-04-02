@@ -1,3 +1,6 @@
+---
+status: DONE
+---
 # Adjust Availability Matrix Layout
 
 ## WHAT
