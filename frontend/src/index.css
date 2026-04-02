@@ -205,8 +205,7 @@ input {
 }
 
 .matrix-card {
-  padding: 0;
-  overflow: hidden;
+  padding: 0.9rem 1.25rem;
 }
 
 h1 {
@@ -370,7 +369,7 @@ select:focus-visible {
 
 table {
   width: max-content;
-  min-width: 100%;
+  margin: 0 auto;
   border-collapse: separate;
   border-spacing: 0;
 }
@@ -483,7 +482,6 @@ td {
 }
 
 /* Day column (weekday abbreviation) */
-.day-header,
 .day-cell {
   white-space: nowrap;
   font-size: 0.82rem;
@@ -493,7 +491,6 @@ td {
 }
 
 /* Working count column */
-.working-header,
 .working-cell {
   white-space: nowrap;
   font-family: 'SF Mono', 'Fira Code', 'Courier New', monospace;
@@ -501,6 +498,30 @@ td {
   text-align: center;
   min-width: 55px;
   color: var(--text-secondary);
+}
+
+.date-header,
+.day-header,
+.working-header {
+  white-space: nowrap;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  font-weight: inherit;
+  font-family: inherit;
+}
+
+.date-header {
+  min-width: 70px;
+}
+
+.day-header {
+  text-align: center;
+  min-width: 40px;
+}
+
+.working-header {
+  text-align: center;
+  min-width: 55px;
 }
 
 /* Legend modal */

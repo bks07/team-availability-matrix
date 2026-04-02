@@ -171,7 +171,7 @@ export default function AvailabilityMatrix({
         <table>
           <thead>
             <tr>
-              <th className="sticky-column sticky-header">Date</th>
+              <th className="sticky-column sticky-header date-header">Date</th>
               <th className="sticky-header day-header">Day</th>
               <th className="sticky-header working-header">Working</th>
               {employees.map((employee) => (
