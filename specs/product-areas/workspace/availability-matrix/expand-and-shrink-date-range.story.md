@@ -1,5 +1,5 @@
 ---
-status: NEW
+status: DONE
 ---
 
 # Expand and Shrink Date Range
