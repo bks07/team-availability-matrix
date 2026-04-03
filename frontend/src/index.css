@@ -385,13 +385,13 @@ td {
 
 .matrix-card thead th {
   position: sticky;
-  top: var(--navbar-height);
+  top: auto;
   z-index: 2;
   background: var(--row-today-bg);
 }
 
 .matrix-card thead th:first-child {
-  top: var(--navbar-height);
+  top: auto;
 }
 
 .sticky-column {
@@ -504,10 +504,6 @@ td {
 .day-header,
 .working-header {
   white-space: nowrap;
-  font-size: 0.82rem;
-  color: var(--text-secondary);
-  font-weight: inherit;
-  font-family: inherit;
 }
 
 .date-header {

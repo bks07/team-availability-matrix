@@ -1,6 +1,6 @@
 ---
 name: Spec Status
-description: Manages YAML status frontmatter on spec files. Called by Product Owner (NEW, CHANGED, OBSOLETE) and Orchestrator (DONE). Never writes spec content.
+description: Manages YAML status frontmatter on spec files. Called by Specification Orchestrator for NEW/CHANGED/OBSOLETE and by Dev Orchestrator for DONE. Never writes spec content.
 model: GPT-4o
 tools: [read, edit, search]
 ---
@@ -17,10 +17,10 @@ Ensure every spec file has an accurate `status` field in its YAML frontmatter re
 
 | Status     | Meaning                                      | Set by        |
 |------------|----------------------------------------------|---------------|
-| `NEW`      | Spec just created, not yet implemented        | Product Owner |
-| `CHANGED`  | Spec modified after initial creation          | Product Owner |
-| `DONE`     | Spec fully implemented and verified           | Orchestrator  |
-| `OBSOLETE` | Spec no longer relevant or superseded         | Product Owner |
+| `NEW`      | Spec just created, not yet implemented        | Specification Orchestrator |
+| `CHANGED`  | Spec modified after initial creation          | Specification Orchestrator |
+| `DONE`     | Spec fully implemented and verified           | Dev Orchestrator          |
+| `OBSOLETE` | Spec no longer relevant or superseded         | Specification Orchestrator |
 
 ## Rules
 
@@ -47,7 +47,7 @@ Example delegation:
 
 ```
 Task: Set spec status
-Agent: spec-status
+Agent: Spec Status
 File: specs/product-areas/administration/team-management/add-team.md
 Status: CHANGED
 ```

@@ -6,8 +6,6 @@ status: DONE
 
 This file indexes the sub-folders of `specs/`. Each sub-folder contains markdown files that describe **what** to build and **why**. No spec file contains implementation details.
 
-Every spec file follows a structured template. The exact templates are defined in the Product Owner agent (`/.github/agents/product-owner.agent.md`).
-
 ## Bugfixing
 
 Folder: `./bugfixing`
