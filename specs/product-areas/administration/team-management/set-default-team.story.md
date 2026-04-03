@@ -1,5 +1,5 @@
 ---
-status: DONE
+status: OBSOLETE
 ---
 
 # Set Default Team
@@ -24,3 +24,10 @@ status: DONE
 
 ## Additional Information
 - The default team setting should persist across sessions.
+
+## Obsolescence Note
+Superseded by the self-service team model. See `specs/product-areas/workspace/team-management/set-default-team-from-detail.story.md` and `specs/product-areas/workspace/availability-matrix/switch-between-teams.story.md`.
+
+## OBSOLESCENCE NOTE
+
+This story has been superseded by the self-service team model. See `specs/product-areas/workspace/team-management/set-default-team-from-detail.story.md` and `specs-product-areas/workspace/availability-matrix/switch-between-teams.story.md`.

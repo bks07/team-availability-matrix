@@ -1,5 +1,5 @@
 ---
-status: DONE
+status: OBSOLETE
 ---
 
 # Delete Team
@@ -23,3 +23,7 @@ status: DONE
 
 ## Additional Information
 - Deleting a team should not affect historical availability data.
+
+## OBSOLESCENCE NOTE
+
+This story has been superseded by the self-service team model. See `specs/product-areas/workspace/team-management/delete-team.story.md`.

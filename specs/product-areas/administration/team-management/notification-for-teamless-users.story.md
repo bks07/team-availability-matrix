@@ -1,5 +1,5 @@
 ---
-status: DONE
+status: OBSOLETE
 ---
 
 # Notification for Teamless Users
@@ -24,3 +24,10 @@ status: DONE
 
 ## Additional Information
 - The notification ensures users are aware of their team status and can take action to join or create a team.
+
+## Obsolescence Note
+Duplicate of `specs/product-areas/workspace/availability-matrix/fallback-view-for-user-without-team.story.md`.
+
+## OBSOLESCENCE NOTE
+
+This story is a duplicate. See `specs/product-areas/workspace/availability-matrix/fallback-view-for-user-without-team.story.md` for the canonical version.

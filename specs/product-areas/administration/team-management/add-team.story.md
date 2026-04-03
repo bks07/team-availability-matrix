@@ -1,5 +1,5 @@
 ---
-status: DONE
+status: OBSOLETE
 ---
 
 # Add Team
@@ -23,3 +23,7 @@ status: DONE
 
 ## Additional Information
 - Teams are a core entity for organizing availability matrices.
+
+## OBSOLESCENCE NOTE
+
+This story has been superseded by the self-service team model. See `specs/product-areas/workspace/team-management/create-team.story.md`.

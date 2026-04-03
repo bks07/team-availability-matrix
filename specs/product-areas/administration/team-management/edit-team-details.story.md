@@ -1,5 +1,5 @@
 ---
-status: DONE
+status: OBSOLETE
 ---
 
 # Edit Team Details
@@ -23,3 +23,7 @@ status: DONE
 
 ## Additional Information
 - Editing team details should not affect historical data.
+
+## OBSOLESCENCE NOTE
+
+This story has been superseded by the self-service team model. See `specs/product-areas/workspace/team-management/edit-team-details.story.md`.

@@ -1,5 +1,5 @@
 ---
-status: DONE
+status: OBSOLETE
 ---
 
 # View Team Members
@@ -24,3 +24,7 @@ status: DONE
 
 ## Additional Information
 - This feature is essential for managing team assignments.
+
+## OBSOLESCENCE NOTE
+
+This story has been superseded by the self-service team model. See `specs/product-areas/workspace/team-management/manage-team-members.story.md`.

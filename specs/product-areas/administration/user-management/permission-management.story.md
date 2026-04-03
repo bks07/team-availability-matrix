@@ -1,5 +1,5 @@
 ---
-status: DONE
+status: OBSOLETE
 ---
 
 # Permission management
@@ -18,7 +18,6 @@ status: DONE
 4. A super admin user cannot remove their own super admin permission.
 5. Only super admin users can manage permissions; admin and regular users cannot.
 6. The super admin user receives clear feedback on success or failure of each permission change.
-7. Existing capabilities unrelated to permission management continue to work as before for all users.
 
 ## IN-SCOPE
 
@@ -55,4 +54,8 @@ status: DONE
 3. Super admin attempts to remove their own super admin permission — operation is denied.
 4. Admin user attempts to manage permissions — operation is denied.
 5. Regular user attempts to manage permissions — operation is denied.
+
+## OBSOLESCENCE NOTE
+
+This story has been superseded by the profile-based permission system. Direct per-user permission management is no longer the primary model. See `specs/product-areas/administration/permission-management/` for the current permission profile stories.
 

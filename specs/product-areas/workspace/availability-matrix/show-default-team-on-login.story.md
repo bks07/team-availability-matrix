@@ -1,5 +1,5 @@
 ---
-status: DONE
+status: OBSOLETE
 ---
 
 # Show Default Team on Login
@@ -24,3 +24,10 @@ status: DONE
 
 ## Additional Information
 - The fallback view should include a clear notification: "You are not yet part of a team. Join or create a team to collaborate."
+
+## Obsolescence Note
+Covered with more detail by `specs/product-areas/workspace/availability-matrix/switch-between-teams.story.md` which includes cross-session persistence and a complete fallback chain. The fallback view for teamless users is covered by `specs/product-areas/workspace/availability-matrix/fallback-view-for-user-without-team.story.md`.
+
+## OBSOLESCENCE NOTE
+
+This story has been superseded. All its acceptance criteria are covered with more detail by `specs/product-areas/workspace/availability-matrix/switch-between-teams.story.md` (cross-session persistence, full fallback chain) and `specs/product-areas/workspace/availability-matrix/fallback-view-for-user-without-team.story.md` (no-team fallback).

@@ -1,5 +1,5 @@
 ---
-status: DONE
+status: OBSOLETE
 ---
 
 # Assign Users to Team
@@ -23,3 +23,7 @@ status: DONE
 
 ## Additional Information
 - Users can only belong to one team at a time.
+
+## OBSOLESCENCE NOTE
+
+This story has been superseded. It describes a single-team-per-user admin model that contradicts the implemented multi-team self-service model. See `specs/product-areas/workspace/team-management/` for the current team membership stories.
