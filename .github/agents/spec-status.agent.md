@@ -1,6 +1,5 @@
----
 name: Spec Status
-description: Manages YAML status frontmatter on spec files. Called by Specification Orchestrator for NEW/CHANGED/OBSOLETE and by Dev Orchestrator for DONE. Never writes spec content.
+description: Manages YAML status frontmatter on spec files. Called by Spec Orchestrator for NEW/CHANGED/OBSOLETE and by Dev Orchestrator for DONE. Never writes spec content.
 model: GPT-4o
 tools: [read, edit, search]
 ---
@@ -17,10 +16,10 @@ Ensure every spec file has an accurate `status` field in its YAML frontmatter re
 
 | Status     | Meaning                                      | Set by        |
 |------------|----------------------------------------------|---------------|
-| `NEW`      | Spec just created, not yet implemented        | Specification Orchestrator |
-| `CHANGED`  | Spec modified after initial creation          | Specification Orchestrator |
+| `NEW`      | Spec just created, not yet implemented        | Spec Orchestrator |
+| `CHANGED`  | Spec modified after initial creation          | Spec Orchestrator |
 | `DONE`     | Spec fully implemented and verified           | Dev Orchestrator          |
-| `OBSOLETE` | Spec no longer relevant or superseded         | Specification Orchestrator |
+| `OBSOLETE` | Spec no longer relevant or superseded         | Spec Orchestrator |
 
 ## Rules
 
