@@ -17,6 +17,8 @@ Allowed:
 Not allowed:
 - Any file outside `specs/rebrushes/`.
 - Any source code or configuration files.
+- Invoking any agent.
+- Performing or suggesting implementation work.
 
 ## Required Workflow
 

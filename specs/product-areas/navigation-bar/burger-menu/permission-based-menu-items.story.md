@@ -1,5 +1,5 @@
 ---
-status: DONE
+status: CHANGED
 ---
 
 # Permission-based menu items
@@ -12,7 +12,7 @@ status: DONE
 
 ## ACCEPTANCE CRITERIA
 
-1. The **Workspace** and **Teams** sections are visible to every authenticated user.
+1. The **Workspace** section is visible to every authenticated user.
 2. The **Administration** section is visible only to users who hold the `admin` permission.
 3. Within Administration, the **Users** link is visible only to users with the `admin` permission.
 4. Within Administration, the **Permissions** and **Settings** links are visible only to users with the `super_admin` permission.
@@ -44,7 +44,7 @@ status: DONE
 
 ### Validation scenarios
 
-1. Regular user (no special permissions) opens the menu — sees Workspace and Teams only; no Administration section.
-2. Admin user opens the menu — sees Workspace, Teams, and Administration with Locations, Public Holidays, and Users.
+1. Regular user (no special permissions) opens the menu — sees Workspace only; no Administration section.
+2. Admin user opens the menu — sees Workspace and Administration with Locations, Public Holidays, and Users.
 3. Super-admin opens the menu — sees all items including Permissions and Settings.
 4. Admin without `super_admin` opens the menu — does not see Permissions or Settings.

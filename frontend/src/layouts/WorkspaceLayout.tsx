@@ -13,6 +13,7 @@ import {
   exportMatrixCsv,
 } from '../services/matrix.service';
 import { teamService } from '../services/team.service';
+import { loadSelectedTeamId, saveSelectedTeamId } from '../lib/storage';
 
 const DAY_IN_MS = 86_400_000;
 const MIN_DAYS = 1;
@@ -196,6 +197,13 @@ export default function WorkspaceLayout(): JSX.Element {
           return;
         }
 
+        const storedTeamId = loadSelectedTeamId();
+        const hasStoredTeam = storedTeamId != null && nextTeams.some((team) => team.id === storedTeamId);
+        if (hasStoredTeam) {
+          setSelectedTeamId(storedTeamId);
+          return;
+        }
+
         const defaultTeamId = currentUser.defaultTeamId ?? null;
         const hasDefaultTeam = defaultTeamId != null && nextTeams.some((team) => team.id === defaultTeamId);
         setSelectedTeamId(hasDefaultTeam ? defaultTeamId : nextTeams[0].id);
@@ -311,6 +319,7 @@ export default function WorkspaceLayout(): JSX.Element {
 
   const handleTeamChange = useCallback((teamId: number) => {
     setSelectedTeamId(teamId);
+    saveSelectedTeamId(teamId);
     setErrorMessage('');
     setSuccessMessage('');
   }, []);

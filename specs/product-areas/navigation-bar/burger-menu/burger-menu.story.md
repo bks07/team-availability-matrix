@@ -1,5 +1,5 @@
 ---
-status: DONE
+status: CHANGED
 ---
 
 # Burger menu
@@ -60,7 +60,7 @@ status: DONE
 
 ### Validation scenarios
 
-1. Authenticated user clicks the burger icon — the menu panel opens showing Workspace and Teams sections.
+1. Authenticated user clicks the burger icon — the menu panel opens showing Workspace and Administration sections.
 2. User clicks a link (e.g. "Availability Matrix") — navigated to `/workspace`, menu closes.
 3. User clicks outside the menu — the menu closes without navigation.
 4. User clicks the burger icon while the menu is open — the menu closes.

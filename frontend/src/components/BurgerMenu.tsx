@@ -8,7 +8,7 @@ interface BurgerMenuProps {
   permissions: string[];
 }
 
-type SectionKey = 'workspace' | 'teams' | 'administration';
+type SectionKey = 'workspace' | 'administration';
 
 type NavItem = {
   label: string;
@@ -37,7 +37,6 @@ export default function BurgerMenu({ isOpen, onClose, permissions }: BurgerMenuP
 
   const [sectionsOpen, setSectionsOpen] = useState<Record<SectionKey, boolean>>({
     workspace: true,
-    teams: true,
     administration: true
   });
 
@@ -48,12 +47,11 @@ export default function BurgerMenu({ isOpen, onClose, permissions }: BurgerMenuP
   const workspaceItems: NavItem[] = useMemo(
     () => [
       { label: 'Availability Matrix', to: '/workspace' },
-      { label: 'My Calendar', to: '/my-calendar' }
+      { label: 'My Calendar', to: '/my-calendar' },
+      { label: 'My Teams', to: '/teams' }
     ],
     []
   );
-
-  const teamsItems: NavItem[] = useMemo(() => [{ label: 'My Teams', to: '/teams' }], []);
 
   const administrationItems: NavItem[] = useMemo(() => {
     if (!hasAdminPermission) {
@@ -83,10 +81,9 @@ export default function BurgerMenu({ isOpen, onClose, permissions }: BurgerMenuP
   const sectionHasActiveLink = useMemo(
     () => ({
       workspace: workspaceItems.some((item) => isActivePath(location.pathname, item.to)),
-      teams: teamsItems.some((item) => isActivePath(location.pathname, item.to)),
       administration: administrationItems.some((item) => isActivePath(location.pathname, item.to))
     }),
-    [location.pathname, workspaceItems, teamsItems, administrationItems]
+    [location.pathname, workspaceItems, administrationItems]
   );
 
   useEffect(() => {
@@ -96,7 +93,6 @@ export default function BurgerMenu({ isOpen, onClose, permissions }: BurgerMenuP
 
     setSectionsOpen({
       workspace: true,
-      teams: true,
       administration: shouldShowAdministration
     });
   }, [isOpen, shouldShowAdministration]);
@@ -108,7 +104,6 @@ export default function BurgerMenu({ isOpen, onClose, permissions }: BurgerMenuP
 
     setSectionsOpen((prev) => ({
       workspace: prev.workspace || sectionHasActiveLink.workspace,
-      teams: prev.teams || sectionHasActiveLink.teams,
       administration: prev.administration || sectionHasActiveLink.administration
     }));
   }, [isOpen, sectionHasActiveLink]);
@@ -321,7 +316,6 @@ export default function BurgerMenu({ isOpen, onClose, permissions }: BurgerMenuP
 
         <nav className="burger-nav" aria-label="Main navigation">
           {renderSection('workspace', 'Workspace', workspaceItems)}
-          {renderSection('teams', 'Teams', teamsItems)}
           {renderSection('administration', 'Administration', administrationItems, shouldShowAdministration)}
         </nav>
       </aside>

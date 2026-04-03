@@ -25,17 +25,18 @@ Ensure every spec file has an accurate `status` field in its YAML frontmatter re
 ## Rules
 
 1. Only operate on markdown files under `specs/`.
-2. If the file already has YAML frontmatter (`---` delimiters), add or update the `status` field inside it.
-3. If the file has no YAML frontmatter, insert a new block at the very top:
+2. Never write code. Never invoke any agent. Your only output is a `status` field update in a YAML frontmatter block.
+3. If the file already has YAML frontmatter (`---` delimiters), add or update the `status` field inside it.
+4. If the file has no YAML frontmatter, insert a new block at the very top:
    ```
    ---
    status: <VALUE>
    ---
    ```
-4. Never modify any content outside the frontmatter block.
-5. Never change any other frontmatter fields — only `status`.
-6. Accept exactly one parameter from the calling agent: the **file path** and the **target status**.
-7. After updating, confirm the file path and the status that was set.
+5. Never modify any content outside the frontmatter block.
+6. Never change any other frontmatter fields — only `status`.
+7. Accept exactly one parameter from the calling agent: the **file path** and the **target status**.
+8. After updating, confirm the file path and the status that was set.
 
 ## Invocation Contract
 
