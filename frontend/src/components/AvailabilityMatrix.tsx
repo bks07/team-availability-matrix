@@ -23,6 +23,14 @@ interface AvailabilityMatrixProps {
     skipPublicHolidays: boolean
   ) => Promise<void>;
   onClearSelection: () => void;
+  onExpandStart: () => void;
+  onShrinkStart: () => void;
+  onExpandEnd: () => void;
+  onShrinkEnd: () => void;
+  expandStartDisabled: boolean;
+  shrinkStartDisabled: boolean;
+  expandEndDisabled: boolean;
+  shrinkEndDisabled: boolean;
 }
 
 function formatDate(dateStr: string): string {
@@ -52,7 +60,15 @@ export default function AvailabilityMatrix({
   onStatusUpdate,
   onStatusClear,
   onBulkAction,
-  onClearSelection
+  onClearSelection,
+  onExpandStart,
+  onShrinkStart,
+  onExpandEnd,
+  onShrinkEnd,
+  expandStartDisabled,
+  shrinkStartDisabled,
+  expandEndDisabled,
+  shrinkEndDisabled
 }: AvailabilityMatrixProps): JSX.Element {
   const popupRef = useRef<HTMLDivElement | null>(null);
   const bulkOverlayRef = useRef<HTMLDivElement | null>(null);
@@ -213,6 +229,38 @@ export default function AvailabilityMatrix({
             </tr>
           </thead>
           <tbody>
+            <tr className="range-control-row range-control-start">
+              <td className="range-control-cell" colSpan={3 + employees.length}>
+                <div className="range-control-buttons">
+                  <button
+                    type="button"
+                    className="range-btn range-btn-add"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onExpandStart();
+                    }}
+                    disabled={expandStartDisabled}
+                    aria-disabled={expandStartDisabled}
+                    aria-label="Add 7 days before"
+                  >
+                    +
+                  </button>
+                  <button
+                    type="button"
+                    className="range-btn range-btn-remove"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onShrinkStart();
+                    }}
+                    disabled={shrinkStartDisabled}
+                    aria-disabled={shrinkStartDisabled}
+                    aria-label="Remove 7 days from start"
+                  >
+                    −
+                  </button>
+                </div>
+              </td>
+            </tr>
             {filteredDays.map((day) => {
               const dateObj = new Date(`${day}T00:00:00`);
               const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
@@ -307,6 +355,38 @@ export default function AvailabilityMatrix({
                 </tr>
               );
             })}
+            <tr className="range-control-row range-control-end">
+              <td className="range-control-cell" colSpan={3 + employees.length}>
+                <div className="range-control-buttons">
+                  <button
+                    type="button"
+                    className="range-btn range-btn-add"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onExpandEnd();
+                    }}
+                    disabled={expandEndDisabled}
+                    aria-disabled={expandEndDisabled}
+                    aria-label="Add 7 days after"
+                  >
+                    +
+                  </button>
+                  <button
+                    type="button"
+                    className="range-btn range-btn-remove"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onShrinkEnd();
+                    }}
+                    disabled={shrinkEndDisabled}
+                    aria-disabled={shrinkEndDisabled}
+                    aria-label="Remove 7 days from end"
+                  >
+                    −
+                  </button>
+                </div>
+              </td>
+            </tr>
           </tbody>
         </table>
       </div>

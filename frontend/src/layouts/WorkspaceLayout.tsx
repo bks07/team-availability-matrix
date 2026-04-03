@@ -14,8 +14,21 @@ import {
 } from '../services/matrix.service';
 import { teamService } from '../services/team.service';
 
+const DAY_IN_MS = 86_400_000;
+const MIN_DAYS = 1;
+const MAX_DAYS = 360;
+
 function toIsoDate(date: Date): string {
   return date.toISOString().slice(0, 10);
+}
+
+function addDays(isoDate: string, n: number): string {
+  const timestamp = Date.parse(isoDate);
+  if (Number.isNaN(timestamp)) {
+    return isoDate;
+  }
+
+  return toIsoDate(new Date(timestamp + n * DAY_IN_MS));
 }
 
 function defaultPeriod(): { start: string; end: string } {
@@ -64,6 +77,38 @@ export default function WorkspaceLayout(): JSX.Element {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [showLegend, setShowLegend] = useState(false);
+
+  const dayCount = useMemo((): number => {
+    if (!periodStart || !periodEnd) {
+      return 0;
+    }
+
+    const startTime = Date.parse(periodStart);
+    const endTime = Date.parse(periodEnd);
+    if (Number.isNaN(startTime) || Number.isNaN(endTime)) {
+      return 0;
+    }
+
+    const inclusiveCount = (endTime - startTime) / DAY_IN_MS + 1;
+    return inclusiveCount >= MIN_DAYS ? inclusiveCount : 0;
+  }, [periodStart, periodEnd]);
+
+  const expandStartDisabled = useMemo(
+    () => dayCount >= MAX_DAYS || dayCount === 0,
+    [dayCount]
+  );
+  const shrinkStartDisabled = useMemo(
+    () => dayCount <= MIN_DAYS || dayCount === 0,
+    [dayCount]
+  );
+  const expandEndDisabled = useMemo(
+    () => dayCount >= MAX_DAYS || dayCount === 0,
+    [dayCount]
+  );
+  const shrinkEndDisabled = useMemo(
+    () => dayCount <= MIN_DAYS || dayCount === 0,
+    [dayCount]
+  );
 
   const selectedRange = useMemo((): string[] => {
     if (!selectionAnchor || !selectionEnd) {
@@ -274,6 +319,132 @@ export default function WorkspaceLayout(): JSX.Element {
     setStatusFilter((prev) => (prev === status ? null : status));
   }, []);
 
+  const handleExpandStart = useCallback(() => {
+    if (!periodStart || !periodEnd) {
+      return;
+    }
+
+    const nextStart = addDays(periodStart, -7);
+    const nextCount = (Date.parse(periodEnd) - Date.parse(nextStart)) / DAY_IN_MS + 1;
+    if (nextCount > MAX_DAYS) {
+      setPeriodStart(addDays(periodEnd, -(MAX_DAYS - 1)));
+      return;
+    }
+
+    setPeriodStart(nextStart);
+  }, [periodStart, periodEnd]);
+
+  const handleShrinkStart = useCallback(() => {
+    if (!periodStart || !periodEnd) {
+      return;
+    }
+
+    const nextStart = addDays(periodStart, 7);
+    if (nextStart > periodEnd) {
+      setPeriodStart(periodEnd);
+      return;
+    }
+
+    const nextCount = (Date.parse(periodEnd) - Date.parse(nextStart)) / DAY_IN_MS + 1;
+    if (nextCount < MIN_DAYS) {
+      setPeriodStart(periodEnd);
+      return;
+    }
+
+    setPeriodStart(nextStart);
+  }, [periodStart, periodEnd]);
+
+  const handleExpandEnd = useCallback(() => {
+    if (!periodStart || !periodEnd) {
+      return;
+    }
+
+    const nextEnd = addDays(periodEnd, 7);
+    const nextCount = (Date.parse(nextEnd) - Date.parse(periodStart)) / DAY_IN_MS + 1;
+    if (nextCount > MAX_DAYS) {
+      setPeriodEnd(addDays(periodStart, MAX_DAYS - 1));
+      return;
+    }
+
+    setPeriodEnd(nextEnd);
+  }, [periodStart, periodEnd]);
+
+  const handleShrinkEnd = useCallback(() => {
+    if (!periodStart || !periodEnd) {
+      return;
+    }
+
+    const nextEnd = addDays(periodEnd, -7);
+    if (nextEnd < periodStart) {
+      setPeriodEnd(periodStart);
+      return;
+    }
+
+    const nextCount = (Date.parse(nextEnd) - Date.parse(periodStart)) / DAY_IN_MS + 1;
+    if (nextCount < MIN_DAYS) {
+      setPeriodEnd(periodStart);
+      return;
+    }
+
+    setPeriodEnd(nextEnd);
+  }, [periodStart, periodEnd]);
+
+  const handlePeriodStartChange = useCallback(
+    (nextStart: string) => {
+      if (!nextStart) {
+        setPeriodStart(nextStart);
+        return;
+      }
+
+      if (!periodEnd) {
+        setPeriodStart(nextStart);
+        return;
+      }
+
+      if (nextStart > periodEnd) {
+        setPeriodStart(periodEnd);
+        return;
+      }
+
+      const nextCount = (Date.parse(periodEnd) - Date.parse(nextStart)) / DAY_IN_MS + 1;
+      if (nextCount > MAX_DAYS) {
+        setPeriodStart(addDays(periodEnd, -(MAX_DAYS - 1)));
+        return;
+      }
+
+      setPeriodStart(nextStart);
+    },
+    [periodEnd]
+  );
+
+  const handlePeriodEndChange = useCallback(
+    (nextEnd: string) => {
+      if (!nextEnd) {
+        setPeriodEnd(nextEnd);
+        return;
+      }
+
+      if (!periodStart) {
+        setPeriodEnd(nextEnd);
+        return;
+      }
+
+      if (nextEnd < periodStart) {
+        setPeriodEnd(periodStart);
+        return;
+      }
+
+      const nextCount = (Date.parse(nextEnd) - Date.parse(periodStart)) / DAY_IN_MS + 1;
+      if (nextCount > MAX_DAYS) {
+        setPeriodEnd(addDays(periodStart, MAX_DAYS - 1));
+        return;
+      }
+
+      setPeriodEnd(nextEnd);
+    },
+    [periodStart]
+  );
+
   const handleStatusUpdate = async (date: string, status: AvailabilityValue) => {
     if (!currentUser) {
       return;
@@ -447,11 +618,19 @@ export default function WorkspaceLayout(): JSX.Element {
             )}
             <label className="period-label">
               From
-              <input type="date" value={periodStart} onChange={(event) => setPeriodStart(event.target.value)} />
+              <input
+                type="date"
+                value={periodStart}
+                onChange={(event) => handlePeriodStartChange(event.target.value)}
+              />
             </label>
             <label className="period-label">
               To
-              <input type="date" value={periodEnd} onChange={(event) => setPeriodEnd(event.target.value)} />
+              <input
+                type="date"
+                value={periodEnd}
+                onChange={(event) => handlePeriodEndChange(event.target.value)}
+              />
             </label>
           </div>
           <div className="filter-controls">
@@ -511,6 +690,14 @@ export default function WorkspaceLayout(): JSX.Element {
 
       {!!filteredDays.length && !!employees.length && (
         <AvailabilityMatrix
+          onExpandStart={handleExpandStart}
+          onShrinkStart={handleShrinkStart}
+          onExpandEnd={handleExpandEnd}
+          onShrinkEnd={handleShrinkEnd}
+          expandStartDisabled={expandStartDisabled}
+          shrinkStartDisabled={shrinkStartDisabled}
+          expandEndDisabled={expandEndDisabled}
+          shrinkEndDisabled={shrinkEndDisabled}
           currentUserId={currentUser.id}
           employees={employees}
           filteredDays={filteredDays}

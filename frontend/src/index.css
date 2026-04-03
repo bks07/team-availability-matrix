@@ -897,6 +897,56 @@ td.bulk-selected-last::after {
   color: var(--text-secondary);
 }
 
+/* Range control rows */
+.range-control-row {
+  background: transparent !important;
+}
+
+.range-control-row td {
+  background: transparent !important;
+}
+
+.range-control-start {
+  border-bottom: 1px solid var(--border-input);
+}
+
+.range-control-end {
+  border-top: 1px solid var(--border-input);
+}
+
+.range-control-cell {
+  padding: 0.5rem;
+  background: transparent;
+}
+
+.range-control-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.range-btn {
+  background: var(--bg-sidebar);
+  border: 1px solid var(--border-input);
+  color: var(--text-secondary);
+  padding: 0.3rem 0.75rem;
+  font-size: 0.85rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  line-height: 1;
+}
+
+.range-btn:hover:not(:disabled) {
+  background: var(--sky-blue-light);
+  color: var(--deep-space-blue);
+}
+
+.range-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 @media (max-width: 900px) {
   .page-shell {
     padding: 1rem;
