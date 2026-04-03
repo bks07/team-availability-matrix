@@ -1,3 +1,4 @@
+---
 name: Spec Planner
 description: Produces execution-ready plans for specification work in specs/ including task decomposition, scribe assignment, dependencies, and risks.
 model: Claude Opus 4.6

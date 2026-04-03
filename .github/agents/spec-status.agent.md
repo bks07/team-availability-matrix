@@ -1,3 +1,4 @@
+---
 name: Spec Status
 description: Manages YAML status frontmatter on spec files. Called by Spec Orchestrator for NEW/CHANGED/OBSOLETE and by Dev Orchestrator for DONE. Never writes spec content.
 model: GPT-4o

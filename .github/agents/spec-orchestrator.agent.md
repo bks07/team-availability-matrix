@@ -1,3 +1,4 @@
+---
 name: Spec Orchestrator
 description: Orchestrates specification lifecycle work across Spec Planner, specialist scribes, and Spec Status. Never edits specs directly.
 model: Claude Opus 4.6
