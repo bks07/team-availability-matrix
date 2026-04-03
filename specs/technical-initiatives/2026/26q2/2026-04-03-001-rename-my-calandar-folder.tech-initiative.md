@@ -1,5 +1,5 @@
 ---
-status: NEW
+status: DONE
 ---
 
 # Rename my-calandar folder
