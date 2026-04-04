@@ -64,27 +64,6 @@ function getISOWeekNumber(date: Date): number {
   return 1 + Math.round(weekOffset);
 }
 
-function isWorkingDay(schedule: WorkSchedule | null, date: string): boolean {
-  const dayOfWeek = new Date(`${date}T00:00:00`).getDay();
-  const fallback = [false, true, true, true, true, true, false];
-
-  if (!schedule) {
-    return fallback[dayOfWeek];
-  }
-
-  const flags = [
-    schedule.sunday,
-    schedule.monday,
-    schedule.tuesday,
-    schedule.wednesday,
-    schedule.thursday,
-    schedule.friday,
-    schedule.saturday,
-  ];
-
-  return flags[dayOfWeek];
-}
-
 export default function MyCalendarPage(): JSX.Element {
   const { currentUser } = useContext(AuthContext);
   const [currentMonth, setCurrentMonth] = useState<CurrentMonth>(() => {
@@ -223,12 +202,36 @@ export default function MyCalendarPage(): JSX.Element {
       return explicit;
     }
 
-    const isHoliday = holidayNameMap.has(date);
-    if (isHoliday) {
+    const dateObj = new Date(`${date}T00:00:00`);
+    const dayOfWeek = dateObj.getDay();
+
+    const weekdayFlags = userSchedule
+      ? [
+          userSchedule.sunday,
+          userSchedule.monday,
+          userSchedule.tuesday,
+          userSchedule.wednesday,
+          userSchedule.thursday,
+          userSchedule.friday,
+          userSchedule.saturday,
+        ]
+      : [false, true, true, true, true, true, false];
+
+    if (!weekdayFlags[dayOfWeek]) {
       return 'A';
     }
 
-    return isWorkingDay(userSchedule, date) ? 'W' : 'A';
+    const ignoreWeekends = userSchedule?.ignoreWeekends ?? true;
+    if (ignoreWeekends && (dayOfWeek === 0 || dayOfWeek === 6)) {
+      return 'A';
+    }
+
+    const ignorePublicHolidays = userSchedule?.ignorePublicHolidays ?? true;
+    if (ignorePublicHolidays && holidayNameMap.has(date)) {
+      return 'A';
+    }
+
+    return 'W';
   };
 
   const isExplicit = (date: string): boolean => entryMap.has(date);
