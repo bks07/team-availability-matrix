@@ -1,5 +1,5 @@
 ---
-status: NEW
+status: DONE
 ---
 
 # Calendar Virtual Value Computation Inconsistency
