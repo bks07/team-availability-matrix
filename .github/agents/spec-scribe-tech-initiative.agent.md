@@ -1,11 +1,13 @@
 ---
-name: Spec Technical Initiative Scribe
+name: Spec Scribe Technical Initiative
+user-invocable: false
 description: Creates, updates, and obsoletes technical initiative markdown specs in specs/technical-initiatives using the required template and naming rules.
 model: GPT-4o
-tools: [read, edit, search, vscode]
+tools: [read, edit, search, vscode, agent]
+agents: [Spec Status]
 ---
 
-# Spec Technical Initiative Scribe Agent
+# Spec Scribe Technical Initiative Agent
 
 You manage technical initiative specification files only.
 

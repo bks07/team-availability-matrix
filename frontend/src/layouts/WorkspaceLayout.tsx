@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AvailabilityMatrix from '../components/AvailabilityMatrix';
+import LegendModal from '../components/LegendModal';
 import TeamSelector from '../components/TeamSelector';
 import { TeamlessNotification } from '../components/TeamlessNotification';
 import { useAuth } from '../context/AuthContext';
@@ -125,7 +126,7 @@ export default function WorkspaceLayout(): JSX.Element {
   const cellKey = (userId: number, date: string): string => `${userId}:${date}`;
 
   const statusFor = useCallback(
-    (userId: number, date: string): AvailabilityValue | null => {
+    (userId: number, date: string): AvailabilityValue => {
       const explicit = entryMap.get(cellKey(userId, date));
       if (explicit) {
         return explicit;
@@ -149,25 +150,30 @@ export default function WorkspaceLayout(): JSX.Element {
       const isWorkingWeekday = weekdayFlags[dayOfWeek];
 
       if (!isWorkingWeekday) {
-        return null;
+        return 'A';
       }
 
       const ignoreWeekends = schedule?.ignoreWeekends ?? true;
       if (ignoreWeekends && (dayOfWeek === 0 || dayOfWeek === 6)) {
-        return null;
+        return 'A';
       }
 
       const ignorePublicHolidays = schedule?.ignorePublicHolidays ?? true;
       if (ignorePublicHolidays) {
         const employee = employees.find((e) => e.id === userId);
         if (employee?.locationId != null && holidayLookup.get(employee.locationId)?.has(date)) {
-          return null;
+          return 'A';
         }
       }
 
       return 'W';
     },
     [entryMap, scheduleLookup, employees, holidayLookup]
+  );
+
+  const isExplicitFor = useCallback(
+    (userId: number, date: string): boolean => entryMap.has(cellKey(userId, date)),
+    [entryMap]
   );
 
   useEffect(() => {
@@ -299,23 +305,6 @@ export default function WorkspaceLayout(): JSX.Element {
       void refreshMatrix();
     }
   }, [currentUser, periodStart, periodEnd, selectedTeamId, hasLoadedTeams, refreshMatrix]);
-
-  useEffect(() => {
-    if (!showLegend) {
-      return;
-    }
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setShowLegend(false);
-      }
-    };
-
-    window.addEventListener('keydown', onKeyDown);
-    return () => {
-      window.removeEventListener('keydown', onKeyDown);
-    };
-  }, [showLegend]);
 
   const handleTeamChange = useCallback((teamId: number) => {
     setSelectedTeamId(teamId);
@@ -711,6 +700,7 @@ export default function WorkspaceLayout(): JSX.Element {
           employees={employees}
           filteredDays={filteredDays}
           statusFor={statusFor}
+          isExplicitFor={isExplicitFor}
           holidayLookup={holidayLookup}
           openKey={openKey}
           pendingKey={pendingKey}
@@ -726,36 +716,7 @@ export default function WorkspaceLayout(): JSX.Element {
         />
       )}
 
-      {showLegend && (
-        <div className="modal-backdrop" onClick={() => setShowLegend(false)}>
-          <div
-            className="modal-content legend-modal"
-            role="dialog"
-            aria-modal="true"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="modal-header">
-              <h3>Legend</h3>
-              <button
-                type="button"
-                className="modal-close"
-                onClick={() => setShowLegend(false)}
-                aria-label="Close"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="modal-body">
-              <div className="legend-items">
-                <div className="legend-item"><span className="legend-dot legend-dot-w"></span> Working (W)</div>
-                <div className="legend-item"><span className="legend-dot legend-dot-v"></span> Vacation (V)</div>
-                <div className="legend-item"><span className="legend-dot legend-dot-a"></span> Absence (A)</div>
-              </div>
-              <p className="legend-hint">You can only edit your own column</p>
-            </div>
-          </div>
-        </div>
-      )}
+      {showLegend && <LegendModal onClose={() => setShowLegend(false)} />}
     </main>
   );
 }

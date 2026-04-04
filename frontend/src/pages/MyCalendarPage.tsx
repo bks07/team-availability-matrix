@@ -1,4 +1,5 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
+import LegendModal from '../components/LegendModal';
 import MonthlyCalendar, { type CalendarWeek } from '../components/MonthlyCalendar';
 import { AuthContext } from '../context/AuthContext';
 import type { AvailabilityValue, PublicHoliday, WorkSchedule } from '../lib/api.models';
@@ -97,6 +98,7 @@ export default function MyCalendarPage(): JSX.Element {
   const [pendingDate, setPendingDate] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [showLegend, setShowLegend] = useState(false);
 
   const weeks = useMemo<CalendarWeek[]>(() => {
     const firstOfMonth = new Date(currentMonth.year, currentMonth.month, 1);
@@ -347,7 +349,10 @@ export default function MyCalendarPage(): JSX.Element {
         onPreviousMonth={goToPreviousMonth}
         onNextMonth={goToNextMonth}
         onToday={goToToday}
+        onShowLegend={() => setShowLegend(true)}
       />
+
+      {showLegend ? <LegendModal onClose={() => setShowLegend(false)} /> : null}
     </main>
   );
 }

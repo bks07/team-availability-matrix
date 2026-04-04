@@ -1,8 +1,9 @@
 ---
 name: Dev Planner
+user-invocable: false
 description: Produces execution-ready implementation plans from documentation and repository state, including branch strategy, task decomposition, agent assignment, dependency ordering, risks, and open questions; does not write code.
 model: Claude Opus 4.6
-tools: [vscode, execute, read, agent, 'context7/*', edit, search, web, github.vscode-pull-request-github/issue_fetch, github.vscode-pull-request-github/labels_fetch, github.vscode-pull-request-github/notification_fetch, github.vscode-pull-request-github/doSearch, github.vscode-pull-request-github/activePullRequest, github.vscode-pull-request-github/pullRequestStatusChecks, github.vscode-pull-request-github/openPullRequest, todo]
+tools: [vscode, execute, read, 'context7/*', edit, search, web, github.vscode-pull-request-github/issue_fetch, github.vscode-pull-request-github/labels_fetch, github.vscode-pull-request-github/notification_fetch, github.vscode-pull-request-github/doSearch, github.vscode-pull-request-github/activePullRequest, github.vscode-pull-request-github/pullRequestStatusChecks, github.vscode-pull-request-github/openPullRequest, todo]
 ---
 
 # Planning Agent
@@ -42,6 +43,8 @@ You do not implement code. You only produce plans that another agent can execute
    - Read changed specs to understand WHAT, WHY, SCOPE, ACCEPTANCE CRITERIA, and ADDITIONAL INFORMATION.
    - Map product-area specs to feature branches.
    - Map technical-initiative specs to refactoring branches.
+   - Map bugfixes to bugfix branches.
+   - Map rebrushes to rebrush branches.
 2. Research codebase patterns and impacted files.
    - Identify existing code patterns and naming conventions.
    - Locate files likely affected by planned changes.

@@ -27,6 +27,7 @@ interface MonthlyCalendarProps {
   onPreviousMonth: () => void;
   onNextMonth: () => void;
   onToday: () => void;
+  onShowLegend: () => void;
 }
 
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -46,6 +47,7 @@ export default function MonthlyCalendar({
   onPreviousMonth,
   onNextMonth,
   onToday,
+  onShowLegend,
 }: MonthlyCalendarProps): JSX.Element {
   const [openDate, setOpenDate] = useState<string | null>(null);
   const pickerRef = useRef<HTMLDivElement | null>(null);
@@ -91,6 +93,9 @@ export default function MonthlyCalendar({
   return (
     <section aria-label="Monthly calendar">
       <div className="my-calendar-nav my-calendar-nav-monthly">
+        <button type="button" onClick={onShowLegend} className="my-calendar-nav-today">
+          Legend
+        </button>
         <button type="button" onClick={onPreviousMonth} aria-label="Previous month">
           {'<'}
         </button>

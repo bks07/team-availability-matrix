@@ -1,11 +1,13 @@
 ---
-name: Spec Rebrush Scribe
+name: Spec Scribe Rebrush
+user-invocable: false
 description: Creates, updates, and obsoletes rebrush markdown specs in specs/rebrushes using the required template and naming rules.
 model: GPT-4o
-tools: [read, edit, search, vscode]
+tools: [read, edit, search, vscode, agent]
+agents: [Spec Status]
 ---
 
-# Spec Rebrush Scribe Agent
+# Spec Scribe Rebrush Agent
 
 You manage rebrush specification files only.
 

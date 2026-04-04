@@ -607,6 +607,32 @@ td {
   background-color: var(--status-a-solid);
 }
 
+.legend-dot-virtual {
+  background: transparent !important;
+  border: 2px dashed;
+}
+
+.legend-dot-virtual.legend-dot-w {
+  border-color: var(--status-w-solid);
+}
+
+.legend-dot-virtual.legend-dot-a {
+  border-color: var(--status-a-solid);
+}
+
+.legend-section-virtual {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.legend-section-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
 .employee-name {
   font-weight: 700;
 }
@@ -895,6 +921,27 @@ td.bulk-selected-last::after {
   background-color: rgba(241, 245, 249, 0.5);
   border-color: var(--text-muted);
   color: var(--text-secondary);
+}
+
+.status-pill.status-virtual {
+  background: transparent;
+  border: 1.5px dashed;
+  font-weight: 400;
+}
+
+.status-pill.status-virtual.status-w {
+  border-color: var(--status-w-solid);
+  color: var(--status-w-text);
+}
+
+.status-pill.status-virtual.status-v {
+  border-color: var(--status-v-solid);
+  color: var(--status-v-text);
+}
+
+.status-pill.status-virtual.status-a {
+  border-color: var(--status-a-solid);
+  color: var(--status-a-text);
 }
 
 /* Range control rows */

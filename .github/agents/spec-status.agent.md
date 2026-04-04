@@ -1,5 +1,6 @@
 ---
 name: Spec Status
+user-invocable: false
 description: Manages YAML status frontmatter on spec files. Called by Spec Orchestrator for NEW/CHANGED/OBSOLETE and by Dev Orchestrator for DONE. Never writes spec content.
 model: GPT-4o
 tools: [read, edit, search]

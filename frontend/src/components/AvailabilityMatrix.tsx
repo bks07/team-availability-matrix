@@ -7,7 +7,8 @@ interface AvailabilityMatrixProps {
   employees: User[];
   filteredDays: string[];
   statusFilter?: AvailabilityValue | null;
-  statusFor: (userId: number, day: string) => AvailabilityValue | null;
+  statusFor: (userId: number, day: string) => AvailabilityValue;
+  isExplicitFor: (userId: number, day: string) => boolean;
   holidayLookup: Map<number, Set<string>>;
   openKey: string | null;
   pendingKey: string | null;
@@ -50,6 +51,7 @@ export default function AvailabilityMatrix({
   filteredDays,
   statusFilter = null,
   statusFor,
+  isExplicitFor,
   holidayLookup,
   openKey,
   pendingKey,
@@ -275,12 +277,13 @@ export default function AvailabilityMatrix({
                 {employees.map((employee) => {
                   const key = cellKey(employee.id, day);
                   const status = statusFor(employee.id, day);
-                  const effectiveStatusClass = status ? `status-${status.toLowerCase()}` : 'status-none';
+                  const explicit = isExplicitFor(employee.id, day);
+                  const effectiveStatusClass = `status-${status.toLowerCase()}${explicit ? '' : ' status-virtual'}`;
                   const editable = employee.id === currentUserId;
                   const isOpen = openKey === key;
                   const isPending = pendingKey === key;
-                  const displayContent = isPending ? '…' : (status ?? '–');
-                  const ariaLabel = status ? `Set status for ${day}` : `Non-working day. Set status for ${day}`;
+                  const displayContent = isPending ? '…' : status;
+                  const ariaLabel = explicit ? `Set status for ${day}` : `Virtual ${status}. Set status for ${day}`;
                   const isHolidayCell =
                     typeof employee.locationId === 'number' && holidayLookup.get(employee.locationId)?.has(day) === true;
                   const isBulkSelected = editable && selectedSet.has(day);

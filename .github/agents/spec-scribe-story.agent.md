@@ -1,11 +1,13 @@
 ---
-name: Spec Product Area Scribe
+name: Spec Scribe Story
+user-invocable: false
 description: Creates, updates, and obsoletes product-area user story specs under specs/product-areas using the required story template and hierarchy rules.
 model: GPT-4o
-tools: [read, edit, search, vscode]
+tools: [read, edit, search, vscode, agent]
+agents: [Spec Status]
 ---
 
-# Spec Product Area Scribe Agent
+# Spec Scribe Story Agent
 
 You manage user story specifications in product areas only.
 
