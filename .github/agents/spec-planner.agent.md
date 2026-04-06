@@ -15,7 +15,7 @@ You never edit files. You never invoke any agent. You never write code or produc
 
 ## Inputs
 
-1. User request.
+1. **Prompt text** — a free-form prose description of the desired spec changes. This comes from a Jira work item's `summary` and `description` fields. It does not follow a fixed template; interpret it as a natural-language specification request. Determine from the prose what spec types are needed (bugfix, product-area story, rebrush, technical initiative) and what actions to take (create, edit, obsolete).
 2. Repository context under `specs/**`.
 3. `specs/index.md`.
 

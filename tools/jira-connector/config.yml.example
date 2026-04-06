@@ -1,0 +1,17 @@
+# Jira Cloud connection settings
+# All values can be overridden by environment variables prefixed with JIRA_
+# e.g. JIRA_BASE_URL, JIRA_USER_EMAIL, JIRA_API_TOKEN, JIRA_PROJECT_KEY
+
+jira:
+  base_url: https://yourdomain.atlassian.net
+  user_email: your.email@example.com
+  api_token: your_api_token
+
+project:
+  key: TAM
+
+# Epic status that signals it is ready to be fetched by spec agents
+epic:
+  ready_status: Ready
+  in_progress_status: In Progress
+  issue_type: Epic

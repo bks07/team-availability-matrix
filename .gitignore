@@ -24,4 +24,12 @@ backend/.env
 backend/target/
 frontend/node_modules/
 frontend/dist/
+tools/jira-connector/config.yml
 .DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+.venv/
