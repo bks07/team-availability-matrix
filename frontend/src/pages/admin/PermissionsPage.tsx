@@ -292,21 +292,37 @@ export default function PermissionsPage(): JSX.Element {
 
       <div className="permission-categories">
         {Array.from(categories.entries()).map(([category, entries]) => (
-          <fieldset key={category} className="permission-category">
-            <legend>{category}</legend>
-            {entries.map((entry) => (
-              <label key={entry.key} className="permission-checkbox">
-                <input
-                  type="checkbox"
-                  checked={profileForm.permissions.has(entry.key)}
-                  onChange={() => handleTogglePermission(entry.key)}
-                  disabled={isMutating}
-                />
-                <span className="permission-label">{entry.key}</span>
-                <span className="permission-desc">{entry.description}</span>
-              </label>
-            ))}
-          </fieldset>
+          <div key={category}>
+            <h3>{category}</h3>
+            <table className="permission-table">
+              <thead>
+                <tr>
+                  <th>Permission</th>
+                  <th>Description</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {entries.map((entry) => (
+                  <tr key={entry.key}>
+                    <td>{entry.key}</td>
+                    <td>{entry.description}</td>
+                    <td>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={profileForm.permissions.has(entry.key)}
+                        aria-label={`Toggle ${entry.key}`}
+                        className={`toggle-slider${profileForm.permissions.has(entry.key) ? ' active' : ''}`}
+                        disabled={isMutating}
+                        onClick={() => handleTogglePermission(entry.key)}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         ))}
       </div>
 
@@ -329,7 +345,17 @@ export default function PermissionsPage(): JSX.Element {
         </button>
       </div>
 
-      {showCreateForm && renderPermissionForm()}
+      {showCreateForm && (
+        <div
+          className="teams-modal-overlay"
+          onClick={(e) => { if (e.target === e.currentTarget) handleCancelForm(); }}
+        >
+          <div className="teams-modal" role="dialog" aria-modal="true" aria-label="Create Permission Profile">
+            <h2>Create Permission Profile</h2>
+            {renderPermissionForm()}
+          </div>
+        </div>
+      )}
 
       <div className="matrix-wrapper">
         <table className="permission-table">
@@ -357,17 +383,22 @@ export default function PermissionsPage(): JSX.Element {
                     <div className="action-buttons">
                       {!profile.isBuiltIn && (
                         <>
-                          <button type="button" onClick={() => handleStartEdit(profile)} disabled={isMutating}>
-                            Edit
+                          <button type="button" className="icon-btn" onClick={() => handleStartEdit(profile)} disabled={isMutating} title="Edit profile" aria-label={`Edit ${profile.name}`}>
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z" />
+                            </svg>
                           </button>
                           <button
                             type="button"
-                            className="danger"
+                            className="icon-btn danger"
                             onClick={() => void handleDeleteProfile(profile.id)}
                             disabled={isMutating || profile.userCount > 0}
-                            title={profile.userCount > 0 ? 'Unassign all users first' : undefined}
+                            title={profile.userCount > 0 ? 'Unassign all users first' : 'Delete profile'}
+                            aria-label={`Delete ${profile.name}`}
                           >
-                            Delete
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 011.334-1.334h2.666a1.333 1.333 0 011.334 1.334V4m2 0v9.333a1.333 1.333 0 01-1.334 1.334H4.667a1.333 1.333 0 01-1.334-1.334V4h9.334z" />
+                            </svg>
                           </button>
                         </>
                       )}
@@ -425,19 +456,40 @@ export default function PermissionsPage(): JSX.Element {
                       </select>
                       <button
                         type="button"
-                        className="primary"
+                        className="icon-btn"
                         onClick={() => void handleSaveAssignment()}
                         disabled={isMutating}
+                        title="Save"
+                        aria-label="Save assignment"
                       >
-                        {isMutating ? 'Saving...' : 'Save'}
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M2 8.5l4 4L14 3" />
+                        </svg>
                       </button>
-                      <button type="button" onClick={() => setAssigningUserId(null)} disabled={isMutating}>
-                        Cancel
+                      <button
+                        type="button"
+                        className="icon-btn"
+                        onClick={() => setAssigningUserId(null)}
+                        disabled={isMutating}
+                        title="Cancel"
+                        aria-label="Cancel assignment"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M3 3l10 10M13 3L3 13" />
+                        </svg>
                       </button>
                     </div>
                   ) : (
-                    <button type="button" onClick={() => handleStartAssign(user.id)}>
-                      Change
+                    <button
+                      type="button"
+                      className="icon-btn"
+                      onClick={() => handleStartAssign(user.id)}
+                      title="Change profile"
+                      aria-label={`Change profile for ${user.displayName}`}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M1 4h14M1 12h14M4 1l-3 3 3 3M12 10l3 3-3 3" />
+                      </svg>
                     </button>
                   )}
                 </td>
@@ -521,7 +573,7 @@ export default function PermissionsPage(): JSX.Element {
 
   const renderUsageReportTab = () => (
     <div className="users-tab">
-      <div className="tab-header">
+      <div className="tab-header toolbar-card">
         <div className="assign-form">
           <input
             type="text"
@@ -594,7 +646,7 @@ export default function PermissionsPage(): JSX.Element {
 
   const renderAuditLogTab = () => (
     <div className="users-tab">
-      <div className="tab-header">
+      <div className="tab-header toolbar-card">
         <div className="assign-form">
           <select
             value={auditEventType}

@@ -1,5 +1,5 @@
 ---
-status: NEW
+status: DONE
 ---
 
 # Rebrush Administration / Public Holidays Page
