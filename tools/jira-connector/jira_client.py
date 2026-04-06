@@ -59,11 +59,13 @@ def fetch_issue(cfg: dict, issue_key: str) -> dict:
 def search_issues(cfg: dict, jql: str, fields: str = "summary,status,description,issuetype", max_results: int = 50) -> list[dict]:
     session = _session(cfg)
     url = f"{cfg['base_url']}/rest/api/3/search/jql"
-    start_at = 0
     all_issues: list[dict] = []
+    next_page_token: str | None = None
 
     while True:
-        params = {"jql": jql, "fields": fields, "startAt": start_at, "maxResults": max_results}
+        params: dict = {"jql": jql, "fields": fields, "maxResults": max_results}
+        if next_page_token:
+            params["nextPageToken"] = next_page_token
         resp = session.get(url, params=params)
         resp.raise_for_status()
         data = resp.json()
@@ -71,7 +73,9 @@ def search_issues(cfg: dict, jql: str, fields: str = "summary,status,description
         all_issues.extend(issues)
         if data.get("isLast", True):
             break
-        start_at += len(issues)
+        next_page_token = data.get("nextPageToken")
+        if not next_page_token:
+            break
 
     return all_issues
 

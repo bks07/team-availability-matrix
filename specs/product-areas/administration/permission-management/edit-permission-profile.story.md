@@ -1,5 +1,5 @@
 ---
-status: DONE
+status: CHANGED
 ---
 
 # Edit Permission Profile
@@ -13,7 +13,7 @@ status: DONE
 ## Acceptance Criteria
 
 1. The administrator can edit the profile name (uniqueness is validated, case-insensitive).
-2. The administrator can add or remove permissions from the system-defined catalog using grouped checkboxes.
+2. The administrator can add or remove permissions from the system-defined catalog using toggle switches in a structured permission table grouped under category headlines.
 3. At least one permission must remain selected — a profile cannot be saved with zero permissions.
 4. The built-in Super Admin profile cannot be edited. Edit controls are disabled or hidden, with an explanation that it is a system-managed profile.
 5. Changes to a profile take effect immediately for all users assigned to that profile.
@@ -23,7 +23,7 @@ status: DONE
 
 ## In-Scope
 
-- Profile editing form with name field and permission selection checkboxes.
+- Profile editing interface with name field and toggle-switch permission selection in a structured table (permission name, description, toggle columns).
 - Backend validation for unique name and non-empty permission set.
 - Immediate propagation of changes to assigned users.
 - Impact warning showing the count of affected users.

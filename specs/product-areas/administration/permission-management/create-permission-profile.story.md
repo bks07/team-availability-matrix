@@ -1,5 +1,5 @@
 ---
-status: DONE
+status: CHANGED
 ---
 
 # Create Permission Profile
@@ -13,7 +13,7 @@ status: DONE
 ## Acceptance Criteria
 
 1. The administrator provides a unique profile name.
-2. The administrator selects one or more permissions from the system-defined permission catalog, displayed grouped by category with checkboxes.
+2. The administrator selects one or more permissions from the system-defined permission catalog, displayed grouped under category headlines in a structured table with toggle switches.
 3. The system validates that the profile name is unique (case-insensitive).
 4. At least one permission must be selected before the profile can be saved.
 5. A success message is displayed upon successful creation.
@@ -22,8 +22,8 @@ status: DONE
 
 ## In-Scope
 
-- Profile creation form with name field and permission selection checkboxes.
-- Permission catalog display grouped by category for selection.
+- Profile creation modal window with name field and toggle-switch permission selection in a structured table (permission name, description, toggle columns).
+- Permission catalog display grouped under category headlines in a structured table with toggle switches.
 - Backend validation for unique profile name and non-empty permission set.
 - Backend API endpoint for creating a profile.
 
