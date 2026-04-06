@@ -1519,6 +1519,58 @@ td.bulk-selected-last::after {
   text-align: center;
 }
 
+/* --- Toggle Slider Component --- */
+.toggle-slider {
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--bg-hover, #ccc);
+  border: 1px solid var(--border-color, #ddd);
+  border-radius: 11px;
+  width: 40px;
+  height: 22px;
+  position: relative;
+  cursor: pointer;
+  outline: none;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+  padding: 0;
+  margin: 0;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.toggle-slider::after {
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 18px;
+  height: 18px;
+  background-color: var(--toggle-knob-bg, #fff);
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transition: transform 0.2s ease;
+}
+
+.toggle-slider.active {
+  background: var(--btn-primary-bg);
+  border-color: var(--btn-primary-bg);
+}
+
+.toggle-slider.active::after {
+  transform: translateX(18px);
+}
+
+.toggle-slider:disabled,
+.toggle-slider.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.toggle-slider:focus-visible {
+  outline: 2px solid var(--btn-primary-bg);
+  outline-offset: 2px;
+}
+
 .schedule-cell {
   text-align: center;
   vertical-align: middle;

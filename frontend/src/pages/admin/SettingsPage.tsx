@@ -81,25 +81,32 @@ export default function SettingsPage(): JSX.Element {
       {loading ? (
         <p className="message">Loading settings...</p>
       ) : (
-        <div className="entity-row" style={{ border: '1px solid var(--border-light)', borderRadius: '0.375rem' }}>
-          <div>
-            <p className="entity-name" style={{ marginBottom: '0.25rem', fontWeight: 600 }}>
-              Self-Registration
-            </p>
-            <p className="message">Allow new users to register themselves</p>
-          </div>
-          <div className="entity-actions">
-            <label>
-              <input
-                type="checkbox"
-                checked={enabled}
-                onChange={(event) => void handleToggle(event.target.checked)}
-                disabled={isMutating}
-              />{' '}
-              Enabled
-            </label>
-          </div>
-        </div>
+        <table className="permission-table">
+          <thead>
+            <tr>
+              <th scope="col">Name</th>
+              <th scope="col">Description</th>
+              <th scope="col">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Self-Registration</td>
+              <td>Allow new users to register themselves</td>
+              <td>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={enabled}
+                  aria-label="Toggle self-registration"
+                  className={`toggle-slider${enabled ? ' active' : ''}`}
+                  disabled={isMutating}
+                  onClick={() => void handleToggle(!enabled)}
+                />
+              </td>
+            </tr>
+          </tbody>
+        </table>
       )}
     </section>
   );
