@@ -68,6 +68,7 @@ pub(crate) struct WorkScheduleResponse {
 pub(crate) struct LocationResponse {
     pub(crate) id: i64,
     pub(crate) name: String,
+    pub(crate) user_count: i64,
 }
 
 #[derive(Debug, Serialize)]

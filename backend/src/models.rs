@@ -87,6 +87,13 @@ pub(crate) struct LocationRow {
 }
 
 #[derive(Debug, FromRow)]
+pub(crate) struct LocationRowWithCount {
+    pub(crate) id: i64,
+    pub(crate) name: String,
+    pub(crate) user_count: i64,
+}
+
+#[derive(Debug, FromRow)]
 pub(crate) struct PublicHolidayRow {
     pub(crate) id: i64,
     pub(crate) holiday_date: NaiveDate,

@@ -10,11 +10,6 @@ function getErrorMessage(error: unknown): string {
   return 'Something went wrong. Please try again.';
 }
 
-function isInUseDeleteError(message: string): boolean {
-  const normalized = message.toLowerCase();
-  return normalized.includes('409') || normalized.includes('in use') || normalized.includes('referenced');
-}
-
 export default function LocationManagement(): JSX.Element {
   const [locations, setLocations] = useState<Location[]>([]);
   const [newName, setNewName] = useState('');
@@ -24,6 +19,7 @@ export default function LocationManagement(): JSX.Element {
   const [isMutating, setIsMutating] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<Location | null>(null);
 
   useEffect(() => {
     const loadLocations = async () => {
@@ -108,18 +104,25 @@ export default function LocationManagement(): JSX.Element {
     }
   };
 
-  const handleDelete = async (location: Location) => {
-    const confirmed = window.confirm(`Delete location \"${location.name}\"?`);
-    if (!confirmed) {
-      return;
+  const handleDeleteClick = (location: Location) => {
+    if (location.userCount > 0) {
+      setDeleteTarget(location);
+    } else {
+      const confirmed = window.confirm(`Delete location "${location.name}"?`);
+      if (confirmed) {
+        void performDelete(location, false);
+      }
     }
+  };
 
+  const performDelete = async (location: Location, force: boolean) => {
     setIsMutating(true);
     setError('');
     setSuccess('');
+    setDeleteTarget(null);
 
     try {
-      await deleteLocation(location.id);
+      await deleteLocation(location.id, force);
       setLocations((prevLocations) => prevLocations.filter((item) => item.id !== location.id));
       if (editingId === location.id) {
         setEditingId(null);
@@ -127,12 +130,7 @@ export default function LocationManagement(): JSX.Element {
       }
       setSuccess('Location deleted successfully.');
     } catch (deleteError) {
-      const message = getErrorMessage(deleteError);
-      if (isInUseDeleteError(message)) {
-        setError('Cannot delete this location because it is in use.');
-      } else {
-        setError(message);
-      }
+      setError(getErrorMessage(deleteError));
     } finally {
       setIsMutating(false);
     }
@@ -147,77 +145,173 @@ export default function LocationManagement(): JSX.Element {
         {error ? <p className="admin-alert error">{error}</p> : null}
       </div>
 
-      <form className="add-form" onSubmit={handleAddLocation}>
-        <input
-          type="text"
-          value={newName}
-          onChange={(event) => setNewName(event.target.value)}
-          placeholder="Enter location name"
-          disabled={isMutating}
-          aria-label="Location name"
-        />
-        <button type="submit" className="primary" disabled={isMutating}>
-          Add Location
-        </button>
-      </form>
+      <div className="toolbar-card">
+        <form className="add-form" onSubmit={handleAddLocation}>
+          <input
+            type="text"
+            value={newName}
+            onChange={(event) => setNewName(event.target.value)}
+            placeholder="Enter location name"
+            disabled={isMutating}
+            aria-label="Location name"
+          />
+          <button type="submit" className="primary" disabled={isMutating}>
+            Add Location
+          </button>
+        </form>
+      </div>
 
       {loading ? <p className="message">Loading locations...</p> : null}
 
       {!loading && locations.length === 0 ? <p className="empty-state">No locations found</p> : null}
 
       {!loading && locations.length > 0 ? (
-        <ul className="entity-list">
-          {locations.map((location) => {
-            const isEditing = editingId === location.id;
+        <div className="matrix-wrapper">
+          <table className="permission-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Users</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {locations.map((location) => {
+                const isEditing = editingId === location.id;
 
-            return (
-              <li key={location.id} className="entity-row">
-                {isEditing ? (
-                  <>
-                    <input
-                      type="text"
-                      className="edit-input"
-                      value={editingName}
-                      onChange={(event) => setEditingName(event.target.value)}
-                      disabled={isMutating}
-                      aria-label={`Edit ${location.name}`}
-                    />
-                    <div className="entity-actions">
-                      <button
-                        type="button"
-                        className="primary"
-                        onClick={() => void handleSaveEdit(location.id)}
-                        disabled={isMutating}
-                      >
-                        Save
-                      </button>
-                      <button type="button" onClick={cancelEditing} disabled={isMutating}>
-                        Cancel
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <span className="entity-name">{location.name}</span>
-                    <div className="entity-actions">
-                      <button type="button" onClick={() => startEditing(location)} disabled={isMutating}>
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        className="danger"
-                        onClick={() => void handleDelete(location)}
-                        disabled={isMutating}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </>
-                )}
-              </li>
-            );
-          })}
-        </ul>
+                return (
+                  <tr key={location.id}>
+                    <td>{location.id}</td>
+                    {isEditing ? (
+                      <>
+                        <td>
+                          <input
+                            type="text"
+                            className="edit-input"
+                            value={editingName}
+                            onChange={(event) => setEditingName(event.target.value)}
+                            disabled={isMutating}
+                            aria-label={`Edit ${location.name}`}
+                          />
+                        </td>
+                        <td>{location.userCount}</td>
+                        <td>
+                          <div className="entity-actions">
+                            <button
+                              type="button"
+                              className="icon-btn"
+                              onClick={() => void handleSaveEdit(location.id)}
+                              disabled={isMutating}
+                              title="Save"
+                              aria-label={`Save ${location.name}`}
+                            >
+                              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M2 8.5l4 4L14 3" />
+                              </svg>
+                            </button>
+                            <button
+                              type="button"
+                              className="icon-btn"
+                              onClick={cancelEditing}
+                              disabled={isMutating}
+                              title="Cancel"
+                              aria-label="Cancel editing"
+                            >
+                              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M3 3l10 10M13 3L3 13" />
+                              </svg>
+                            </button>
+                          </div>
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td>{location.name}</td>
+                        <td>{location.userCount}</td>
+                        <td>
+                          <div className="entity-actions">
+                            <button
+                              type="button"
+                              className="icon-btn"
+                              onClick={() => startEditing(location)}
+                              disabled={isMutating}
+                              title="Edit location"
+                              aria-label={`Edit ${location.name}`}
+                            >
+                              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z" />
+                              </svg>
+                            </button>
+                            <button
+                              type="button"
+                              className="icon-btn danger"
+                              onClick={() => handleDeleteClick(location)}
+                              disabled={isMutating}
+                              title="Delete location"
+                              aria-label={`Delete ${location.name}`}
+                            >
+                              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 011.334-1.334h2.666a1.333 1.333 0 011.334 1.334V4m2 0v9.333a1.333 1.333 0 01-1.334 1.334H4.667a1.333 1.333 0 01-1.334-1.334V4h9.334z" />
+                              </svg>
+                            </button>
+                          </div>
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+
+      {deleteTarget !== null ? (
+        <div
+          className="teams-modal-overlay"
+          role="presentation"
+          onClick={() => !isMutating && setDeleteTarget(null)}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape' && !isMutating) {
+              setDeleteTarget(null);
+            }
+          }}
+        >
+          <section
+            className="teams-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Confirm deletion"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2>Delete Location</h2>
+            <p>
+              The location <strong>{deleteTarget.name}</strong> is currently assigned to{' '}
+              <strong>
+                {deleteTarget.userCount} user{deleteTarget.userCount === 1 ? '' : 's'}
+              </strong>
+              . Deleting it will remove the location assignment from these users.
+            </p>
+            <div className="teams-modal__actions">
+              <button
+                type="button"
+                className="primary"
+                onClick={() => void performDelete(deleteTarget, true)}
+                disabled={isMutating}
+              >
+                Approve
+              </button>
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                disabled={isMutating}
+              >
+                Cancel
+              </button>
+            </div>
+          </section>
+        </div>
       ) : null}
     </section>
   );

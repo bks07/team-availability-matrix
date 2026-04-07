@@ -13,6 +13,7 @@ export function updateLocation(id: number, name: string): Promise<Location> {
   return httpClient.put<Location, { name: string }>(`/admin/locations/${id}`, { name });
 }
 
-export function deleteLocation(id: number): Promise<void> {
-  return httpClient.delete<void>(`/admin/locations/${id}`);
+export function deleteLocation(id: number, force?: boolean): Promise<void> {
+  const query = force ? '?force=true' : '';
+  return httpClient.delete<void>(`/admin/locations/${id}${query}`);
 }
