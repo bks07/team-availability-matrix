@@ -1,5 +1,5 @@
 ---
-status: DONE
+status: CHANGED
 ---
 
 # Remove location
@@ -14,7 +14,7 @@ status: DONE
 
 1. An admin user can remove an existing location from the list of locations.
 2. The admin user is asked to confirm before a location is permanently removed.
-3. A location that is currently assigned to one or more employees cannot be removed; the operation is rejected with a clear error message.
+3. If a location is currently assigned to one or more employees, the system shall display a confirmation modal informing the admin that users are assigned. The modal presents an "Approve" button and a "Cancel" button. Only after explicit approval shall the system delete the location.
 4. After successful removal, the location no longer appears in the list of locations.
 5. Non-admin users cannot remove locations.
 6. The admin user receives clear feedback on success or failure of the operation.
@@ -23,7 +23,7 @@ status: DONE
 
 - Removing an existing location from the list.
 - Confirmation step before removal.
-- Prevention of removing a location that is still in use.
+- Confirmation modal with user-assignment warning for locations that are still in use.
 - Feedback to the admin user on success or failure.
 - Restricting access to admin users only.
 
@@ -39,7 +39,7 @@ status: DONE
 ### Assumptions
 
 - An admin role exists and can be distinguished from regular users.
-- A location can only be removed if no employees are currently assigned to it.
+- A location with assigned employees can be removed after the admin explicitly approves via the confirmation modal.
 
 ### Dependencies
 
@@ -49,7 +49,7 @@ status: DONE
 ### Validation scenarios
 
 1. Admin removes a location that is not assigned to any employee — location is removed successfully.
-2. Admin attempts to remove a location that is still assigned to one or more employees — operation is rejected with an error message.
-3. Admin is prompted for confirmation before removal proceeds.
-4. Non-admin user attempts to remove a location — operation is denied.
-
+2. Admin attempts to remove a location that is assigned to one or more employees — confirmation modal appears with warning. Admin clicks "Approve" — location is removed successfully.
+3. Admin attempts to remove a location that is assigned to one or more employees — confirmation modal appears. Admin clicks "Cancel" — location is not removed.
+4. Admin is prompted for confirmation before removal proceeds.
+5. Non-admin user attempts to remove a location — operation is denied.
