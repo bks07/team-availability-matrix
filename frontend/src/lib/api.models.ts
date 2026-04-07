@@ -19,6 +19,7 @@ export interface User {
 export interface Location {
   id: number;
   name: string;
+  userCount: number;
 }
 
 export interface PublicHoliday {
