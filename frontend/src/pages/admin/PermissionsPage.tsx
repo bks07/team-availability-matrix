@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -39,6 +39,8 @@ interface ProfileFormState {
   permissions: Set<string>;
 }
 
+const PAGE_SIZES = [10, 25, 50, 100] as const;
+
 export default function PermissionsPage(): JSX.Element {
   const { currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('profiles');
@@ -67,14 +69,17 @@ export default function PermissionsPage(): JSX.Element {
   const [auditDateTo, setAuditDateTo] = useState('');
   const [auditSearch, setAuditSearch] = useState('');
 
-  // Profile form
+  // Profile form (modal)
   const [editingProfileId, setEditingProfileId] = useState<number | null>(null);
-  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
   const [profileForm, setProfileForm] = useState<ProfileFormState>({ name: '', permissions: new Set() });
 
-  // User assignment
-  const [assigningUserId, setAssigningUserId] = useState<number | null>(null);
-  const [selectedProfileId, setSelectedProfileId] = useState<string>('');
+  // User assignment filters & pagination
+  const [userFilterName, setUserFilterName] = useState('');
+  const [userFilterEmail, setUserFilterEmail] = useState('');
+  const [userFilterProfile, setUserFilterProfile] = useState('');
+  const [userPageSize, setUserPageSize] = useState<number>(10);
+  const [userPage, setUserPage] = useState(1);
 
   const canManageProfiles = currentUser?.permissions.includes('permission_profiles.view') ?? false;
 
@@ -165,6 +170,33 @@ export default function PermissionsPage(): JSX.Element {
     return acc;
   }, new Map());
 
+  // --- Filtered + paginated users ---
+  const filteredUsers = useMemo(() => {
+    return users.filter((u) => {
+      if (userFilterName && !u.displayName.toLowerCase().includes(userFilterName.toLowerCase())) return false;
+      if (userFilterEmail && !u.email.toLowerCase().includes(userFilterEmail.toLowerCase())) return false;
+      if (userFilterProfile) {
+        if (userFilterProfile === '__none__') {
+          if (u.permissionProfileName) return false;
+        } else {
+          if (u.permissionProfileName !== userFilterProfile) return false;
+        }
+      }
+      return true;
+    });
+  }, [users, userFilterName, userFilterEmail, userFilterProfile]);
+
+  const userTotalPages = Math.max(1, Math.ceil(filteredUsers.length / userPageSize));
+  const paginatedUsers = useMemo(() => {
+    const start = (userPage - 1) * userPageSize;
+    return filteredUsers.slice(start, start + userPageSize);
+  }, [filteredUsers, userPage, userPageSize]);
+
+  // Reset page when filters or page size change
+  useEffect(() => {
+    setUserPage(1);
+  }, [userFilterName, userFilterEmail, userFilterProfile, userPageSize]);
+
   const handleTogglePermission = (key: string) => {
     setProfileForm((prev) => {
       const next = new Set(prev.permissions);
@@ -177,25 +209,25 @@ export default function PermissionsPage(): JSX.Element {
     });
   };
 
-  const handleStartCreate = () => {
+  const handleOpenCreateModal = () => {
     setEditingProfileId(null);
     setProfileForm({ name: '', permissions: new Set() });
-    setShowCreateForm(true);
+    setShowProfileModal(true);
     setSuccess('');
     setError('');
   };
 
-  const handleStartEdit = (profile: PermissionProfile) => {
-    setShowCreateForm(false);
+  const handleOpenEditModal = (profile: PermissionProfile) => {
     setEditingProfileId(profile.id);
     setProfileForm({ name: profile.name, permissions: new Set(profile.permissions) });
+    setShowProfileModal(true);
     setSuccess('');
     setError('');
   };
 
-  const handleCancelForm = () => {
+  const handleCloseProfileModal = () => {
     setEditingProfileId(null);
-    setShowCreateForm(false);
+    setShowProfileModal(false);
     setProfileForm({ name: '', permissions: new Set() });
   };
 
@@ -216,7 +248,7 @@ export default function PermissionsPage(): JSX.Element {
         await createPermissionProfile(profileForm.name.trim(), perms);
         setSuccess('Profile created.');
       }
-      handleCancelForm();
+      handleCloseProfileModal();
       await loadData();
     } catch (err) {
       setError(getErrorMessage(err));
@@ -240,25 +272,14 @@ export default function PermissionsPage(): JSX.Element {
     }
   };
 
-  const handleStartAssign = (userId: number) => {
-    const user = users.find((u) => u.id === userId);
-    const currentProfile = profiles.find((p) => p.name === user?.permissionProfileName);
-    setAssigningUserId(userId);
-    setSelectedProfileId(currentProfile ? String(currentProfile.id) : '');
-    setSuccess('');
-    setError('');
-  };
-
-  const handleSaveAssignment = async () => {
-    if (assigningUserId === null) return;
+  const handleInlineAssign = async (userId: number, profileIdStr: string) => {
     setIsMutating(true);
     setError('');
     setSuccess('');
     try {
-      const profileId = selectedProfileId ? Number(selectedProfileId) : null;
-      await assignUserProfile(assigningUserId, profileId);
+      const profileId = profileIdStr ? Number(profileIdStr) : null;
+      await assignUserProfile(userId, profileId);
       setSuccess('Profile assigned.');
-      setAssigningUserId(null);
       await loadData();
     } catch (err) {
       setError(getErrorMessage(err));
@@ -277,85 +298,95 @@ export default function PermissionsPage(): JSX.Element {
     );
   }
 
-  const renderPermissionForm = () => (
-    <div className="permission-form">
-      <div className="form-group">
-        <label htmlFor="profile-name">Profile Name</label>
-        <input
-          id="profile-name"
-          type="text"
-          value={profileForm.name}
-          onChange={(e) => setProfileForm((prev) => ({ ...prev, name: e.target.value }))}
-          disabled={isMutating}
-        />
-      </div>
+  const renderProfileModal = () => {
+    if (!showProfileModal) return null;
+    const isEditing = editingProfileId !== null;
+    return (
+      <div
+        className="teams-modal-overlay"
+        role="presentation"
+        onClick={(e) => { if (e.target === e.currentTarget && !isMutating) handleCloseProfileModal(); }}
+        onKeyDown={(e) => { if (e.key === 'Escape' && !isMutating) handleCloseProfileModal(); }}
+      >
+        <section
+          className="teams-modal teams-modal--wide"
+          role="dialog"
+          aria-modal="true"
+          aria-label={isEditing ? 'Edit Permission Profile' : 'Create Permission Profile'}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <h2>{isEditing ? 'Edit Permission Profile' : 'Create Permission Profile'}</h2>
 
-      <div className="permission-categories">
-        {Array.from(categories.entries()).map(([category, entries]) => (
-          <div key={category}>
-            <h3>{category}</h3>
-            <table className="permission-table">
-              <thead>
-                <tr>
-                  <th>Permission</th>
-                  <th>Description</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {entries.map((entry) => (
-                  <tr key={entry.key}>
-                    <td>{entry.key}</td>
-                    <td>{entry.description}</td>
-                    <td>
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={profileForm.permissions.has(entry.key)}
-                        aria-label={`Toggle ${entry.key}`}
-                        className={`toggle-slider${profileForm.permissions.has(entry.key) ? ' active' : ''}`}
-                        disabled={isMutating}
-                        onClick={() => handleTogglePermission(entry.key)}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="permission-modal-top-actions">
+            <button type="button" className="primary-button" onClick={() => void handleSaveProfile()} disabled={isMutating}>
+              {isMutating ? 'Saving...' : isEditing ? 'Update' : 'Create'}
+            </button>
+            <button type="button" className="teams-action-btn teams-action-btn--reject" onClick={handleCloseProfileModal} disabled={isMutating}>
+              Cancel
+            </button>
           </div>
-        ))}
-      </div>
 
-      <div className="form-actions">
-        <button type="button" className="primary" onClick={() => void handleSaveProfile()} disabled={isMutating}>
-          {isMutating ? 'Saving...' : editingProfileId ? 'Update Profile' : 'Create Profile'}
-        </button>
-        <button type="button" onClick={handleCancelForm} disabled={isMutating}>
-          Cancel
-        </button>
+          <div className="modal-form">
+            <label>
+              Profile Name
+              <input
+                type="text"
+                value={profileForm.name}
+                onChange={(e) => setProfileForm((prev) => ({ ...prev, name: e.target.value }))}
+                disabled={isMutating}
+              />
+            </label>
+          </div>
+
+          <div className="permission-modal-body">
+            {Array.from(categories.entries()).map(([category, entries]) => (
+              <div key={category}>
+                <h3>{category}</h3>
+                <table className="permission-table">
+                  <thead>
+                    <tr>
+                      <th>Permission</th>
+                      <th>Description</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {entries.map((entry) => (
+                      <tr key={entry.key}>
+                        <td>{entry.key}</td>
+                        <td>{entry.description}</td>
+                        <td>
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={profileForm.permissions.has(entry.key)}
+                            aria-label={`Toggle ${entry.key}`}
+                            className={`toggle-slider${profileForm.permissions.has(entry.key) ? ' active' : ''}`}
+                            disabled={isMutating}
+                            onClick={() => handleTogglePermission(entry.key)}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))}
+          </div>
+        </section>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderProfilesTab = () => (
     <div className="profiles-tab">
       <div className="tab-header">
-        <button type="button" className="primary" onClick={handleStartCreate} disabled={showCreateForm || editingProfileId !== null}>
+        <button type="button" className="primary-button" onClick={handleOpenCreateModal} disabled={showProfileModal}>
           New Profile
         </button>
       </div>
 
-      {showCreateForm && (
-        <div
-          className="teams-modal-overlay"
-          onClick={(e) => { if (e.target === e.currentTarget) handleCancelForm(); }}
-        >
-          <div className="teams-modal" role="dialog" aria-modal="true" aria-label="Create Permission Profile">
-            <h2>Create Permission Profile</h2>
-            {renderPermissionForm()}
-          </div>
-        </div>
-      )}
+      {renderProfileModal()}
 
       <div className="matrix-wrapper">
         <table className="permission-table">
@@ -377,33 +408,29 @@ export default function PermissionsPage(): JSX.Element {
                 <td>{profile.permissions.length}</td>
                 <td>{profile.userCount}</td>
                 <td>
-                  {editingProfileId === profile.id ? (
-                    renderPermissionForm()
-                  ) : (
-                    <div className="action-buttons">
-                      {!profile.isBuiltIn && (
-                        <>
-                          <button type="button" className="icon-btn" onClick={() => handleStartEdit(profile)} disabled={isMutating} title="Edit profile" aria-label={`Edit ${profile.name}`}>
-                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z" />
-                            </svg>
-                          </button>
-                          <button
-                            type="button"
-                            className="icon-btn danger"
-                            onClick={() => void handleDeleteProfile(profile.id)}
-                            disabled={isMutating || profile.userCount > 0}
-                            title={profile.userCount > 0 ? 'Unassign all users first' : 'Delete profile'}
-                            aria-label={`Delete ${profile.name}`}
-                          >
-                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 011.334-1.334h2.666a1.333 1.333 0 011.334 1.334V4m2 0v9.333a1.333 1.333 0 01-1.334 1.334H4.667a1.333 1.333 0 01-1.334-1.334V4h9.334z" />
-                            </svg>
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  )}
+                  <div className="entity-actions">
+                    {!profile.isBuiltIn && (
+                      <>
+                        <button type="button" className="icon-btn" onClick={() => handleOpenEditModal(profile)} disabled={isMutating || showProfileModal} title="Edit profile" aria-label={`Edit ${profile.name}`}>
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          className="icon-btn danger"
+                          onClick={() => void handleDeleteProfile(profile.id)}
+                          disabled={isMutating || profile.userCount > 0}
+                          title={profile.userCount > 0 ? 'Unassign all users first' : 'Delete profile'}
+                          aria-label={`Delete ${profile.name}`}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 011.334-1.334h2.666a1.333 1.333 0 011.334 1.334V4m2 0v9.333a1.333 1.333 0 01-1.334 1.334H4.667a1.333 1.333 0 01-1.334-1.334V4h9.334z" />
+                          </svg>
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -418,93 +445,129 @@ export default function PermissionsPage(): JSX.Element {
     </div>
   );
 
-  const renderUsersTab = () => (
-    <div className="users-tab">
-      <div className="matrix-wrapper">
-        <table className="permission-table">
-          <thead>
-            <tr>
-              <th>User</th>
-              <th>Current Profile</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map((user) => (
-              <tr key={user.id}>
-                <td>
-                  <div className="user-info">
-                    <div className="user-name">{user.displayName}</div>
-                    <div className="user-email">{user.email}</div>
-                  </div>
-                </td>
-                <td>{user.permissionProfileName ?? <em>None</em>}</td>
-                <td>
-                  {assigningUserId === user.id ? (
-                    <div className="assign-form">
+  const renderUsersTab = () => {
+    const getCurrentProfileId = (user: UserWithPermissions): string => {
+      const profile = profiles.find((p) => p.name === user.permissionProfileName);
+      return profile ? String(profile.id) : '';
+    };
+
+    return (
+      <div className="users-tab">
+        <div className="toolbar-card">
+          <div className="permission-filter-row">
+            <input
+              type="text"
+              placeholder="Filter by name"
+              value={userFilterName}
+              onChange={(e) => setUserFilterName(e.target.value)}
+              aria-label="Filter by user name"
+            />
+            <input
+              type="text"
+              placeholder="Filter by email"
+              value={userFilterEmail}
+              onChange={(e) => setUserFilterEmail(e.target.value)}
+              aria-label="Filter by email"
+            />
+            <select
+              value={userFilterProfile}
+              onChange={(e) => setUserFilterProfile(e.target.value)}
+              aria-label="Filter by profile"
+            >
+              <option value="">All profiles</option>
+              <option value="__none__">No profile</option>
+              {profiles.map((p) => (
+                <option key={p.id} value={p.name}>{p.name}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => { setUserFilterName(''); setUserFilterEmail(''); setUserFilterProfile(''); }}
+            >
+              Clear Filters
+            </button>
+          </div>
+          <div className="permission-filter-row">
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}>
+              Show
+              <select
+                value={userPageSize}
+                onChange={(e) => setUserPageSize(Number(e.target.value))}
+                aria-label="Page size"
+              >
+                {PAGE_SIZES.map((size) => (
+                  <option key={size} value={size}>{size}</option>
+                ))}
+              </select>
+              per page
+            </label>
+          </div>
+        </div>
+
+        <div className="matrix-wrapper">
+          <table className="permission-table">
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Current Profile</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {paginatedUsers.map((user) => {
+                const isUser1 = user.id === 1;
+                const superAdminProfile = profiles.find((p) => p.isBuiltIn);
+                return (
+                  <tr key={user.id}>
+                    <td>
+                      <div className="user-info">
+                        <div className="user-name">{user.displayName}</div>
+                        <div className="user-email">{user.email}</div>
+                      </div>
+                    </td>
+                    <td>
                       <select
-                        value={selectedProfileId}
-                        onChange={(e) => setSelectedProfileId(e.target.value)}
+                        className="inline-profile-select"
+                        value={getCurrentProfileId(user)}
+                        onChange={(e) => void handleInlineAssign(user.id, e.target.value)}
                         disabled={isMutating}
+                        aria-label={`Profile for ${user.displayName}`}
                       >
-                        <option value="">No profile</option>
+                        {!(isUser1 && superAdminProfile) && <option value="">No profile</option>}
                         {profiles.map((p) => (
                           <option key={p.id} value={String(p.id)}>
                             {p.name}
                           </option>
                         ))}
                       </select>
-                      <button
-                        type="button"
-                        className="icon-btn"
-                        onClick={() => void handleSaveAssignment()}
-                        disabled={isMutating}
-                        title="Save"
-                        aria-label="Save assignment"
-                      >
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M2 8.5l4 4L14 3" />
-                        </svg>
-                      </button>
-                      <button
-                        type="button"
-                        className="icon-btn"
-                        onClick={() => setAssigningUserId(null)}
-                        disabled={isMutating}
-                        title="Cancel"
-                        aria-label="Cancel assignment"
-                      >
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M3 3l10 10M13 3L3 13" />
-                        </svg>
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      className="icon-btn"
-                      onClick={() => handleStartAssign(user.id)}
-                      title="Change profile"
-                      aria-label={`Change profile for ${user.displayName}`}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M1 4h14M1 12h14M4 1l-3 3 3 3M12 10l3 3-3 3" />
-                      </svg>
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-            {users.length === 0 && (
-              <tr>
-                <td colSpan={3}>No users found.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+                    </td>
+                    <td />
+                  </tr>
+                );
+              })}
+              {paginatedUsers.length === 0 && (
+                <tr>
+                  <td colSpan={3}>No users match the current filters.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {userTotalPages > 1 && (
+          <div className="pagination-row">
+            <button type="button" disabled={userPage <= 1} onClick={() => setUserPage((p) => p - 1)}>
+              Previous
+            </button>
+            <span>Page {userPage} of {userTotalPages} ({filteredUsers.length} users)</span>
+            <button type="button" disabled={userPage >= userTotalPages} onClick={() => setUserPage((p) => p + 1)}>
+              Next
+            </button>
+          </div>
+        )}
       </div>
-    </div>
-  );
+    );
+  };
 
   const handleApplyUsageFilters = async () => {
     await loadUsageReport({
@@ -573,8 +636,8 @@ export default function PermissionsPage(): JSX.Element {
 
   const renderUsageReportTab = () => (
     <div className="users-tab">
-      <div className="tab-header toolbar-card">
-        <div className="assign-form">
+      <div className="toolbar-card">
+        <div className="permission-filter-row">
           <input
             type="text"
             placeholder="Filter by profile name"
@@ -646,8 +709,8 @@ export default function PermissionsPage(): JSX.Element {
 
   const renderAuditLogTab = () => (
     <div className="users-tab">
-      <div className="tab-header toolbar-card">
-        <div className="assign-form">
+      <div className="toolbar-card">
+        <div className="permission-filter-row">
           <select
             value={auditEventType}
             onChange={(e) => setAuditEventType(e.target.value)}
@@ -744,7 +807,7 @@ export default function PermissionsPage(): JSX.Element {
       </div>
 
       {totalPages > 1 && (
-        <div className="form-actions" style={{ justifyContent: 'center', gap: '0.5rem', marginTop: '1rem' }}>
+        <div className="pagination-row">
           <button type="button" disabled={auditPage <= 1 || auditLoading} onClick={() => { setAuditPage(p => p - 1); void loadAuditLog(auditPage - 1); }}>
             Previous
           </button>
