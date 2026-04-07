@@ -1,5 +1,5 @@
 ---
-status: DONE
+status: CHANGED
 ---
 
 # Create Permission Profile
@@ -22,7 +22,7 @@ status: DONE
 
 ## In-Scope
 
-- Profile creation modal window with name field and toggle-switch permission selection in a structured table (permission name, description, toggle columns).
+- Profile creation modal window with a "Profile Name" input field at the top, followed by a scrollable area containing the permission catalog grouped under category headlines in a structured table (permission name, description, toggle columns). "Create" and "Cancel" buttons appear at the top of the modal, directly below the headline.
 - Permission catalog display grouped under category headlines in a structured table with toggle switches.
 - Backend validation for unique profile name and non-empty permission set.
 - Backend API endpoint for creating a profile.
@@ -37,4 +37,5 @@ status: DONE
 
 - Requires `permission_profiles.create` permission.
 - The permission selection interface reuses the system-defined permission catalog described in view-permissions.
+- The modal design (scrollability, button placement, toggle switches) is defined in the permission management page rebrush: `specs/rebrushes/2026/26q2/2026-04-06-003-rebrush-permission-management-page.rebrush.md`.
 - See the technical initiative for the full permission catalog: `specs/technical-initiatives/2026/26q2/2026-04-01-001-permission-system-overhaul.md`.

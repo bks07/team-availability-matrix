@@ -1,5 +1,5 @@
 ---
-status: DONE
+status: CHANGED
 ---
 
 # Edit Permission Profile
@@ -23,7 +23,7 @@ status: DONE
 
 ## In-Scope
 
-- Profile editing interface with name field and toggle-switch permission selection in a structured table (permission name, description, toggle columns).
+- Profile editing via a modal window identical to the create-profile modal, with the headline "Edit Permission Profile" and an "Update" button replacing the "Create" button. The same scrollable layout, button placement, and toggle-switch structured-table pattern apply.
 - Backend validation for unique name and non-empty permission set.
 - Immediate propagation of changes to assigned users.
 - Impact warning showing the count of affected users.
@@ -39,4 +39,5 @@ status: DONE
 
 - Requires `permission_profiles.edit` permission.
 - Editing a profile with many assigned users has an immediate system-wide effect. The impact warning is essential to prevent accidental access revocation.
+- The modal design is defined in the permission management page rebrush: `specs/rebrushes/2026/26q2/2026-04-06-003-rebrush-permission-management-page.rebrush.md`.
 - See the technical initiative for the full permission catalog: `specs/technical-initiatives/2026/26q2/2026-04-01-001-permission-system-overhaul.md`.
