@@ -9,7 +9,7 @@ use crate::handlers::admin_teams;
 use crate::handlers::teams::{
     accept_invitation, cancel_invitation, create_team, delete_team, get_team_detail,
     invite_to_team, leave_team, list_my_invitations, list_my_teams, reject_invitation,
-    remove_member, search_users, transfer_ownership, update_member_role, update_team,
+    remove_member, search_users, toggle_favorite, transfer_ownership, update_member_role, update_team,
 };
 use crate::state::AppState;
 
@@ -66,6 +66,7 @@ pub(crate) fn build_router(state: AppState, cors: CorsLayer, upload_dir: &str) -
                 "/api/teams/:id/transfer-ownership",
                 post(transfer_ownership),
             )
+            .route("/api/teams/:id/favorite", put(toggle_favorite))
         .route("/api/users/search", get(search_users))
         .route(
             "/api/admin/locations",

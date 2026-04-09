@@ -24,6 +24,9 @@ struct TeamSummaryRow {
     description: String,
     member_count: i64,
     my_role: String,
+    owner_name: String,
+    created_at: chrono::DateTime<chrono::Utc>,
+    is_favorite: bool,
 }
 
 #[derive(Debug, FromRow)]
@@ -286,6 +289,32 @@ pub(crate) async fn create_team(
         )
     })?;
 
+    let caller_name = sqlx::query_scalar::<_, String>(
+        "SELECT display_name FROM users WHERE id = $1",
+    )
+    .bind(claims.sub)
+    .fetch_one(&state.db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to load user: {error}"),
+        )
+    })?;
+
+    let created_at = sqlx::query_scalar::<_, chrono::DateTime<chrono::Utc>>(
+        "SELECT created_at FROM teams WHERE id = $1",
+    )
+    .bind(team.id)
+    .fetch_one(&state.db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to load team created_at: {error}"),
+        )
+    })?;
+
     Ok((
         StatusCode::CREATED,
         AxumJson(TeamResponse {
@@ -294,6 +323,9 @@ pub(crate) async fn create_team(
             description: team.description,
             member_count: 1,
             my_role: "owner".to_string(),
+            owner_name: caller_name,
+            created_at,
+            is_favorite: false,
         }),
     ))
 }
@@ -311,15 +343,20 @@ pub(crate) async fn list_my_teams(
             t.name,
             t.description,
             counts.member_count,
-            tm.role AS my_role
+            tm.role AS my_role,
+            owner_u.display_name AS owner_name,
+            t.created_at,
+            CASE WHEN utf.user_id IS NOT NULL THEN TRUE ELSE FALSE END AS is_favorite
         FROM teams t
-        INNER JOIN team_members tm ON tm.team_id = t.id
+        INNER JOIN team_members tm ON tm.team_id = t.id AND tm.user_id = $1
         INNER JOIN (
             SELECT team_id, COUNT(*)::BIGINT AS member_count
             FROM team_members
             GROUP BY team_id
         ) counts ON counts.team_id = t.id
-        WHERE tm.user_id = $1
+        INNER JOIN team_members owner_tm ON owner_tm.team_id = t.id AND owner_tm.role = 'owner'
+        INNER JOIN users owner_u ON owner_u.id = owner_tm.user_id
+        LEFT JOIN user_team_favorites utf ON utf.team_id = t.id AND utf.user_id = $1
         ORDER BY LOWER(t.name) ASC, t.id ASC
         "#,
     )
@@ -341,6 +378,9 @@ pub(crate) async fn list_my_teams(
             description: team.description,
             member_count: team.member_count,
             my_role: team.my_role,
+            owner_name: team.owner_name,
+            created_at: team.created_at,
+            is_favorite: team.is_favorite,
         })
         .collect::<Vec<_>>();
 
@@ -464,12 +504,62 @@ pub(crate) async fn update_team(
         )
     })?;
 
+    let owner_name = sqlx::query_scalar::<_, String>(
+        r#"
+        SELECT u.display_name
+        FROM team_members tm
+        INNER JOIN users u ON u.id = tm.user_id
+        WHERE tm.team_id = $1 AND tm.role = 'owner'
+        LIMIT 1
+        "#,
+    )
+    .bind(id)
+    .fetch_one(&state.db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to load team owner: {error}"),
+        )
+    })?;
+
+    let created_at = sqlx::query_scalar::<_, chrono::DateTime<chrono::Utc>>(
+        "SELECT created_at FROM teams WHERE id = $1",
+    )
+    .bind(id)
+    .fetch_one(&state.db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to load team created_at: {error}"),
+        )
+    })?;
+
+    let is_favorite = sqlx::query_scalar::<_, i32>(
+        "SELECT 1 FROM user_team_favorites WHERE user_id = $1 AND team_id = $2 LIMIT 1",
+    )
+    .bind(claims.sub)
+    .bind(id)
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to check favorite: {error}"),
+        )
+    })?
+    .is_some();
+
     Ok(AxumJson(TeamResponse {
         id,
         name,
         description,
         member_count,
         my_role: "owner".to_string(),
+        owner_name,
+        created_at,
+        is_favorite,
     }))
 }
 
@@ -1167,4 +1257,59 @@ pub(crate) async fn cancel_invitation(
     }
 
     Ok(StatusCode::NO_CONTENT)
+}
+
+pub(crate) async fn toggle_favorite(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+) -> Result<impl IntoResponse, ApiError> {
+    let claims = authorize(&headers, &state.jwt_secret)?;
+
+    ensure_team_exists(&state.db, id).await?;
+    ensure_team_member(&state.db, id, claims.sub).await?;
+
+    let existing = sqlx::query_scalar::<_, i32>(
+        "SELECT 1 FROM user_team_favorites WHERE user_id = $1 AND team_id = $2 LIMIT 1",
+    )
+    .bind(claims.sub)
+    .bind(id)
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to check favorite: {error}"),
+        )
+    })?;
+
+    let is_favorite = if existing.is_some() {
+        sqlx::query("DELETE FROM user_team_favorites WHERE user_id = $1 AND team_id = $2")
+            .bind(claims.sub)
+            .bind(id)
+            .execute(&state.db)
+            .await
+            .map_err(|error| {
+                ApiError::new(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Failed to remove favorite: {error}"),
+                )
+            })?;
+        false
+    } else {
+        sqlx::query("INSERT INTO user_team_favorites (user_id, team_id) VALUES ($1, $2)")
+            .bind(claims.sub)
+            .bind(id)
+            .execute(&state.db)
+            .await
+            .map_err(|error| {
+                ApiError::new(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Failed to add favorite: {error}"),
+                )
+            })?;
+        true
+    };
+
+    Ok(AxumJson(json!({ "isFavorite": is_favorite })))
 }

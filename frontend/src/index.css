@@ -2144,79 +2144,152 @@ td.bulk-selected-last::after {
   background: var(--btn-secondary-bg);
 }
 
-.teams-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 24px;
-}
-
-.team-card {
-  background: var(--bg-card);
-  border-radius: 8px;
-  border: 1px solid var(--border-light);
-  box-shadow: 0 8px 20px color-mix(in srgb, var(--shadow-color) 85%, transparent);
-  padding: 20px;
-  cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.team-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 24px color-mix(in srgb, var(--shadow-heavy) 80%, transparent);
-}
-
-.team-card__name {
-  margin: 0 0 8px;
-  color: var(--text-link);
-  font-size: 1.2rem;
-}
-
-.team-card__description {
-  margin: 0;
-  color: var(--text-secondary);
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
-  min-height: 42px;
-}
-
-.team-card__footer {
-  margin-top: 16px;
+/* Teams toolbar (search) */
+.teams-toolbar {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+  margin-bottom: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 12px 16px;
 }
 
-.team-card__member-count {
-  color: var(--text-muted);
+.teams-search-wrapper {
+  position: relative;
+  flex: 1;
+  max-width: 400px;
+}
+
+.teams-search {
+  width: 100%;
+  padding: 8px 32px 8px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border-input);
+  background: var(--bg-input);
+  color: var(--text-primary);
   font-size: 0.875rem;
 }
 
-.team-role-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+.teams-search:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 25%, transparent);
+}
+
+.teams-search-clear {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.teams-search-clear:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+/* Teams table overrides */
+.teams-table .teams-col-fav {
+  width: 48px;
+  text-align: center;
+}
+
+.teams-col-desc {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sortable-header {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.sortable-header:hover {
+  color: var(--accent-primary);
+}
+
+/* Star (favorite) button */
+.star-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.25rem;
+  line-height: 1;
+  padding: 2px;
+  color: var(--text-muted);
+  transition: color 0.15s ease;
+}
+
+.star-btn:hover {
+  color: #f5a623;
+}
+
+.star-btn--active {
+  color: #f5a623;
+}
+
+/* Admin badge (inline tag after team name) */
+.admin-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
   border-radius: 999px;
-  padding: 4px 10px;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 700;
-}
-
-.team-role-badge--owner {
-  background: var(--status-a-solid);
-  color: var(--text-inverse);
-}
-
-.team-role-badge--admin {
   background: var(--accent-primary);
   color: var(--text-inverse);
+  vertical-align: middle;
 }
 
-.team-role-badge--member {
-  background: var(--bg-secondary);
-  color: var(--text-secondary);
+/* Owner name highlight */
+.owner-highlight {
+  font-weight: 600;
+  color: var(--accent-primary);
+}
+
+/* Danger button variant */
+.danger-button {
+  background: var(--status-a-solid, #e53935);
+  border-color: var(--status-a-solid, #e53935);
+}
+
+.danger-button:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+/* Invite results list */
+.invite-results {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.invite-results__item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-light);
+  gap: 12px;
+}
+
+.invite-results__item:last-child {
+  border-bottom: none;
 }
 
 .teams-empty-state {
@@ -2586,8 +2659,8 @@ td.bulk-selected-last::after {
     padding: 16px;
   }
 
-  .teams-grid {
-    grid-template-columns: 1fr;
+  .teams-table {
+    font-size: 0.85rem;
   }
 
   .teams-page__header,

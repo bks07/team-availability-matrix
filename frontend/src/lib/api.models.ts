@@ -135,6 +135,9 @@ export interface Team {
   description: string;
   memberCount: number;
   myRole: string;
+  ownerName: string;
+  createdAt: string;
+  isFavorite: boolean;
 }
 
 export interface AdminTeam {

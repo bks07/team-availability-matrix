@@ -255,6 +255,19 @@ pub(crate) async fn initialize_database(db: &PgPool) -> Result<(), sqlx::Error> 
     )
     .execute(db)
     .await?;
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS user_team_favorites (
+            user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            team_id BIGINT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            PRIMARY KEY (user_id, team_id)
+        );
+        "#,
+    )
+    .execute(db)
+    .await?;
+
 
     sqlx::query(
         r#"

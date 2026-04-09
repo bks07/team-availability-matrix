@@ -124,6 +124,9 @@ pub(crate) struct TeamResponse {
     pub(crate) description: String,
     pub(crate) member_count: i64,
     pub(crate) my_role: String,
+    pub(crate) owner_name: String,
+    pub(crate) created_at: chrono::DateTime<chrono::Utc>,
+    pub(crate) is_favorite: bool,
 }
 
 #[allow(dead_code)]

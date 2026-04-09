@@ -55,6 +55,10 @@ export const teamService = {
     httpClient.post(`/teams/${teamId}/transfer-ownership`, { newOwnerId }),
 
   // User search (for invite modal)
+  // Favorites
+  toggleFavorite: (teamId: number): Promise<{ isFavorite: boolean }> =>
+    httpClient.put(`/teams/${teamId}/favorite`),
+
   searchUsers: (query: string): Promise<UserSearchResult[]> =>
     httpClient.get('/users/search', { q: query }),
 };
