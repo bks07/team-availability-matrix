@@ -482,9 +482,12 @@ export default function PermissionsPage(): JSX.Element {
             </select>
             <button
               type="button"
+              className="icon-btn"
               onClick={() => { setUserFilterName(''); setUserFilterEmail(''); setUserFilterProfile(''); }}
+              title="Clear Filters"
+              aria-label="Clear Filters"
             >
-              Clear Filters
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3l10 10M13 3L3 13" /></svg>
             </button>
           </div>
           <div className="permission-filter-row">
@@ -652,15 +655,15 @@ export default function PermissionsPage(): JSX.Element {
             onChange={(e) => setUsageUserName(e.target.value)}
             disabled={usageLoading || isDownloadingCsv}
           />
-          <button type="button" onClick={() => void handleApplyUsageFilters()} disabled={usageLoading || isDownloadingCsv}>
-            {usageLoading ? 'Filtering...' : 'Apply Filters'}
+          <button type="button" className="icon-btn" onClick={() => void handleApplyUsageFilters()} disabled={usageLoading || isDownloadingCsv} title="Apply Filters" aria-label="Apply Filters">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1.5 2.5h13l-5 5.5v4l-3 2v-6L1.5 2.5z" /></svg>
           </button>
-          <button type="button" onClick={() => void handleResetUsageFilters()} disabled={usageLoading || isDownloadingCsv}>
-            Reset
+          <button type="button" className="icon-btn" onClick={() => void handleResetUsageFilters()} disabled={usageLoading || isDownloadingCsv} title="Clear Filters" aria-label="Clear Filters">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3l10 10M13 3L3 13" /></svg>
           </button>
         </div>
-        <button type="button" className="primary" onClick={() => void handleDownloadUsageCsv()} disabled={isDownloadingCsv}>
-          {isDownloadingCsv ? 'Downloading...' : 'Download CSV'}
+        <button type="button" className="icon-btn" onClick={() => void handleDownloadUsageCsv()} disabled={isDownloadingCsv} title="Download CSV" aria-label="Download CSV">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M8 2v8m-3-3l3 3 3-3" /><path d="M2 12v2h12v-2" /></svg>
         </button>
       </div>
 
@@ -742,27 +745,29 @@ export default function PermissionsPage(): JSX.Element {
             disabled={auditLoading}
             placeholder="Search admin, user, or profile"
           />
-          <button type="button" onClick={() => { setAuditPage(1); void loadAuditLog(1); }} disabled={auditLoading}>
-            {auditLoading ? 'Loading...' : 'Apply'}
+          <button type="button" className="icon-btn" onClick={() => { setAuditPage(1); void loadAuditLog(1); }} disabled={auditLoading} title="Apply Filters" aria-label="Apply Filters">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1.5 2.5h13l-5 5.5v4l-3 2v-6L1.5 2.5z" /></svg>
           </button>
-          <button type="button" onClick={() => {
+          <button type="button" className="icon-btn" onClick={() => {
             setAuditEventType('');
             setAuditDateFrom('');
             setAuditDateTo('');
             setAuditSearch('');
             setAuditPage(1);
             void loadAuditLog(1);
-          }} disabled={auditLoading}>
-            Reset
+          }} disabled={auditLoading} title="Clear Filters" aria-label="Clear Filters">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3l10 10M13 3L3 13" /></svg>
           </button>
         </div>
         <button
           type="button"
-          className="primary"
+          className="icon-btn"
           onClick={() => void handleDownloadAuditCsv()}
           disabled={isDownloadingCsv || auditLoading}
+          title="Download CSV"
+          aria-label="Download CSV"
         >
-          {isDownloadingCsv ? 'Downloading...' : 'Download CSV'}
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M8 2v8m-3-3l3 3 3-3" /><path d="M2 12v2h12v-2" /></svg>
         </button>
       </div>
 
