@@ -11,6 +11,7 @@ import { clearSession, loadSession, saveSession } from './lib/storage';
 import { useSessionTimeout } from './hooks/useSessionTimeout';
 import LoginPage from './pages/LoginPage';
 import MyCalendarPage from './pages/MyCalendarPage';
+import ChangePasswordPage from './pages/ChangePasswordPage';
 import ProfilePage from './pages/ProfilePage';
 import TeamDetailPage from './pages/TeamDetailPage';
 import TeamsPage from './pages/TeamsPage';
@@ -99,6 +100,7 @@ export default function App(): JSX.Element {
               <Route path="/" element={<Navigate to="/workspace" replace />} />
               <Route path="/workspace" element={<WorkspaceLayout />} />
               <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/change-password" element={<ChangePasswordPage />} />
               <Route path="/my-calendar" element={<MyCalendarPage />} />
               <Route path="/teams" element={<TeamsPage />} />
               <Route path="/teams/:id" element={<TeamDetailPage />} />

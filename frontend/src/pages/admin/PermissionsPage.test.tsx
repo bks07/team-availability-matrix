@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthContext } from '../../context/AuthContext';
 import type { User } from '../../lib/api.models';
 import PermissionsPage from './PermissionsPage';

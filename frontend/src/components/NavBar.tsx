@@ -282,11 +282,8 @@ export default function NavBar(): JSX.Element | null {
 
                 <div className="navbar-dropdown-separator" />
 
-                <Link to="/profile" className="navbar-dropdown-item" role="menuitem" onClick={() => setOpen(false)}>
-                  Profile
-                </Link>
                 <Link
-                  to="/profile#change-password"
+                  to="/change-password"
                   className="navbar-dropdown-item"
                   role="menuitem"
                   onClick={() => setOpen(false)}

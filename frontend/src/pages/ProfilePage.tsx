@@ -24,21 +24,12 @@ export default function ProfilePage(): JSX.Element {
     setLocationIdValue,
     defaultTeamIdValue,
     setDefaultTeamIdValue,
-    currentPassword,
-    setCurrentPassword,
-    newPassword,
-    setNewPassword,
-    confirmNewPassword,
-    setConfirmNewPassword,
     isSavingProfile,
-    isSavingPassword,
     isUploadingPhoto,
     isDeletingPhoto,
     isPhotoBusy,
     profileError,
     profileSuccess,
-    passwordError,
-    passwordSuccess,
     photoError,
     photoSuccess,
     photoCropSource,
@@ -48,8 +39,7 @@ export default function ProfilePage(): JSX.Element {
     handlePhotoFileChange,
     handlePhotoConfirm,
     handlePhotoDelete,
-    handleProfileSubmit,
-    handlePasswordSubmit
+    handleProfileSubmit
   } = useProfilePage();
 
   if (!currentUser) {
@@ -240,56 +230,6 @@ export default function ProfilePage(): JSX.Element {
           <div className="profile-actions">
             <button type="submit" className="primary-button" disabled={isSavingProfile}>
               Save Profile
-            </button>
-          </div>
-        </form>
-      </section>
-
-      <section className="profile-card">
-        <h2>Change Password</h2>
-
-        <div aria-live="polite">
-          {passwordSuccess ? <p className="message success">{passwordSuccess}</p> : null}
-          {passwordError ? <p className="message error">{passwordError}</p> : null}
-        </div>
-
-        <form className="profile-form" onSubmit={handlePasswordSubmit}>
-          <label>
-            Current Password
-            <input
-              type="password"
-              value={currentPassword}
-              onChange={(event) => setCurrentPassword(event.target.value)}
-              disabled={isSavingPassword}
-              required
-            />
-          </label>
-
-          <label>
-            New Password
-            <input
-              type="password"
-              value={newPassword}
-              onChange={(event) => setNewPassword(event.target.value)}
-              disabled={isSavingPassword}
-              required
-            />
-          </label>
-
-          <label>
-            Confirm New Password
-            <input
-              type="password"
-              value={confirmNewPassword}
-              onChange={(event) => setConfirmNewPassword(event.target.value)}
-              disabled={isSavingPassword}
-              required
-            />
-          </label>
-
-          <div className="profile-actions">
-            <button type="submit" className="primary-button" disabled={isSavingPassword}>
-              Update Password
             </button>
           </div>
         </form>

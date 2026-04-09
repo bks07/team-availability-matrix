@@ -3,7 +3,7 @@ import type { ChangeEvent, Dispatch, FormEvent, RefObject, SetStateAction } from
 import { useAuth } from '../context/AuthContext';
 import type { Location, Team, User } from '../lib/api.models';
 import { getLocations } from '../services/location.service';
-import { changePassword, deleteProfilePhoto, updateProfile, uploadProfilePhoto } from '../services/profile.service';
+import { deleteProfilePhoto, updateProfile, uploadProfilePhoto } from '../services/profile.service';
 import { teamService } from '../services/team.service';
 import { deriveDisplayName } from '../lib/name.utils';
 
@@ -42,21 +42,12 @@ export interface UseProfilePageResult {
   setLocationIdValue: Dispatch<SetStateAction<string>>;
   defaultTeamIdValue: string;
   setDefaultTeamIdValue: Dispatch<SetStateAction<string>>;
-  currentPassword: string;
-  setCurrentPassword: Dispatch<SetStateAction<string>>;
-  newPassword: string;
-  setNewPassword: Dispatch<SetStateAction<string>>;
-  confirmNewPassword: string;
-  setConfirmNewPassword: Dispatch<SetStateAction<string>>;
   isSavingProfile: boolean;
-  isSavingPassword: boolean;
   isUploadingPhoto: boolean;
   isDeletingPhoto: boolean;
   isPhotoBusy: boolean;
   profileError: string;
   profileSuccess: string;
-  passwordError: string;
-  passwordSuccess: string;
   photoError: string;
   photoSuccess: string;
   photoCropSource: string | null;
@@ -67,7 +58,6 @@ export interface UseProfilePageResult {
   handlePhotoConfirm: (croppedBlob: Blob) => Promise<void>;
   handlePhotoDelete: () => Promise<void>;
   handleProfileSubmit: (event: FormEvent<HTMLFormElement>) => Promise<void>;
-  handlePasswordSubmit: (event: FormEvent<HTMLFormElement>) => Promise<void>;
 }
 
 export function useProfilePage(): UseProfilePageResult {
@@ -87,19 +77,13 @@ export function useProfilePage(): UseProfilePageResult {
   const [locationIdValue, setLocationIdValue] = useState('');
   const [defaultTeamIdValue, setDefaultTeamIdValue] = useState('');
 
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmNewPassword, setConfirmNewPassword] = useState('');
 
   const [isSavingProfile, setIsSavingProfile] = useState(false);
-  const [isSavingPassword, setIsSavingPassword] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [isDeletingPhoto, setIsDeletingPhoto] = useState(false);
 
   const [profileError, setProfileError] = useState('');
   const [profileSuccess, setProfileSuccess] = useState('');
-  const [passwordError, setPasswordError] = useState('');
-  const [passwordSuccess, setPasswordSuccess] = useState('');
   const [photoError, setPhotoError] = useState('');
   const [photoSuccess, setPhotoSuccess] = useState('');
   const [photoCropSource, setPhotoCropSource] = useState<string | null>(null);
@@ -293,30 +277,6 @@ export function useProfilePage(): UseProfilePageResult {
     }
   };
 
-  const handlePasswordSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setPasswordError('');
-    setPasswordSuccess('');
-
-    if (newPassword !== confirmNewPassword) {
-      setPasswordError('New password and confirmation must match.');
-      return;
-    }
-
-    setIsSavingPassword(true);
-    try {
-      const response = await changePassword({ currentPassword, newPassword });
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmNewPassword('');
-      setPasswordSuccess(response.message);
-    } catch (error) {
-      setPasswordError(getErrorMessage(error));
-    } finally {
-      setIsSavingPassword(false);
-    }
-  };
-
   return {
     currentUser,
     fileInputRef,
@@ -338,21 +298,12 @@ export function useProfilePage(): UseProfilePageResult {
     setLocationIdValue,
     defaultTeamIdValue,
     setDefaultTeamIdValue,
-    currentPassword,
-    setCurrentPassword,
-    newPassword,
-    setNewPassword,
-    confirmNewPassword,
-    setConfirmNewPassword,
     isSavingProfile,
-    isSavingPassword,
     isUploadingPhoto,
     isDeletingPhoto,
     isPhotoBusy,
     profileError,
     profileSuccess,
-    passwordError,
-    passwordSuccess,
     photoError,
     photoSuccess,
     photoCropSource,
@@ -362,7 +313,6 @@ export function useProfilePage(): UseProfilePageResult {
     handlePhotoFileChange,
     handlePhotoConfirm,
     handlePhotoDelete,
-    handleProfileSubmit,
-    handlePasswordSubmit
+    handleProfileSubmit
   };
 }
