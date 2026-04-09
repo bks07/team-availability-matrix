@@ -1,5 +1,5 @@
 ---
-status: NEW
+status: DONE
 ---
 
 # Search and filter teams
