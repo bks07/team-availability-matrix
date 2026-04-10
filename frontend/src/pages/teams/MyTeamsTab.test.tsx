@@ -120,7 +120,6 @@ describe('MyTeamsTab', () => {
     renderTab();
     await waitForLoaded();
 
-    const rows = screen.getAllByRole('row');
     // Find Charlie row (memberTeam with empty description)
     // Favorites sort puts adminTeam (isFavorite:true) first, then Alpha, then Charlie
     const descriptionCells = document.querySelectorAll('td.teams-col-desc');
