@@ -7,8 +7,8 @@ use tower_http::{cors::CorsLayer, services::ServeDir};
 use crate::handlers;
 use crate::handlers::admin_teams;
 use crate::handlers::teams::{
-    accept_invitation, cancel_invitation, create_team, delete_team, get_team_detail,
-    invite_to_team, leave_team, list_my_invitations, list_my_teams, reject_invitation,
+    accept_invitation, cancel_invitation, create_team, delete_team, get_team_detail, list_invitation_responses,
+    invite_to_team, leave_team, list_my_invitations, list_my_teams, list_sent_invitations, reject_invitation,
     remove_member, search_users, toggle_favorite, transfer_ownership, update_member_role, update_team,
 };
 use crate::state::AppState;
@@ -42,6 +42,8 @@ pub(crate) fn build_router(state: AppState, cors: CorsLayer, upload_dir: &str) -
         )
         .route("/api/teams", get(list_my_teams).post(create_team))
             .route("/api/teams/invitations", get(list_my_invitations))
+            .route("/api/teams/invitations/sent", get(list_sent_invitations))
+            .route("/api/teams/invitations/responses", get(list_invitation_responses))
             .route(
                 "/api/teams/invitations/:id/accept",
                 post(accept_invitation),

@@ -191,3 +191,29 @@ pub(crate) struct UserPermissionProfileResponse {
     pub(crate) profile_name: Option<String>,
     pub(crate) permissions: Vec<String>,
 }
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct SentInvitationResponse {
+    pub(crate) id: i64,
+    pub(crate) team_id: i64,
+    pub(crate) team_name: String,
+    pub(crate) invitee_name: String,
+    pub(crate) invitee_email: String,
+    pub(crate) created_at: chrono::DateTime<chrono::Utc>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct InvitationResponseEntry {
+    pub(crate) id: i64,
+    pub(crate) team_id: i64,
+    pub(crate) team_name: String,
+    pub(crate) invitee_name: String,
+    pub(crate) invitee_email: String,
+    pub(crate) status: String,
+    pub(crate) created_at: chrono::DateTime<chrono::Utc>,
+    pub(crate) responded_at: chrono::DateTime<chrono::Utc>,
+}

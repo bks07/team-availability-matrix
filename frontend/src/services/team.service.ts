@@ -3,6 +3,8 @@ import {
   Team,
   TeamDetail,
   TeamInvitation,
+  SentInvitation,
+  InvitationResponse,
   CreateTeamRequest,
   UpdateTeamRequest,
   UserSearchResult,
@@ -31,6 +33,12 @@ export const teamService = {
 
   getMyInvitations: (): Promise<TeamInvitation[]> =>
     httpClient.get('/teams/invitations'),
+
+  getSentInvitations: (): Promise<SentInvitation[]> =>
+    httpClient.get('/teams/invitations/sent'),
+
+  getInvitationResponses: (): Promise<InvitationResponse[]> =>
+    httpClient.get('/teams/invitations/responses'),
 
   acceptInvitation: (id: number): Promise<TeamInvitation> =>
     httpClient.post(`/teams/invitations/${id}/accept`),

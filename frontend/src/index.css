@@ -2198,6 +2198,27 @@ td.bulk-selected-last::after {
   background: var(--bg-hover);
 }
 
+.status-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 84px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #ffffff;
+}
+
+.status-tag--accepted {
+  background: #2e7d32;
+}
+
+.status-tag--rejected {
+  background: #c62828;
+}
+
 /* Teams table overrides */
 .teams-table .teams-col-fav {
   width: 48px;

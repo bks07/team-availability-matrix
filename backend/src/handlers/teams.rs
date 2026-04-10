@@ -1313,3 +1313,123 @@ pub(crate) async fn toggle_favorite(
 
     Ok(AxumJson(json!({ "isFavorite": is_favorite })))
 }
+
+#[derive(Debug, FromRow)]
+struct SentInvitationRow {
+    id: i64,
+    team_id: i64,
+    team_name: String,
+    invitee_name: String,
+    invitee_email: String,
+    created_at: chrono::DateTime<chrono::Utc>,
+}
+
+#[derive(Debug, FromRow)]
+struct InvitationResponseDetailRow {
+    id: i64,
+    team_id: i64,
+    team_name: String,
+    invitee_name: String,
+    invitee_email: String,
+    status: String,
+    created_at: chrono::DateTime<chrono::Utc>,
+    responded_at: chrono::DateTime<chrono::Utc>,
+}
+
+pub(crate) async fn list_sent_invitations(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+) -> Result<impl IntoResponse, ApiError> {
+    let claims = authorize(&headers, &state.jwt_secret)?;
+
+    let invitations = sqlx::query_as::<_, SentInvitationRow>(
+        r#"
+        SELECT
+            ti.id,
+            ti.team_id,
+            t.name AS team_name,
+            invitee.display_name AS invitee_name,
+            invitee.email AS invitee_email,
+            ti.created_at
+        FROM team_invitations ti
+        INNER JOIN teams t ON t.id = ti.team_id
+        INNER JOIN users invitee ON invitee.id = ti.invitee_id
+        WHERE ti.inviter_id = $1 AND ti.status = 'pending'
+        ORDER BY ti.created_at DESC
+        "#,
+    )
+    .bind(claims.sub)
+    .fetch_all(&state.db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to load sent invitations: {error}"),
+        )
+    })?;
+
+    Ok(AxumJson(
+        invitations
+            .into_iter()
+            .map(|row| crate::types::responses::SentInvitationResponse {
+                id: row.id,
+                team_id: row.team_id,
+                team_name: row.team_name,
+                invitee_name: row.invitee_name,
+                invitee_email: row.invitee_email,
+                created_at: row.created_at,
+            })
+            .collect::<Vec<_>>(),
+    ))
+}
+
+pub(crate) async fn list_invitation_responses(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+) -> Result<impl IntoResponse, ApiError> {
+    let claims = authorize(&headers, &state.jwt_secret)?;
+
+    let responses = sqlx::query_as::<_, InvitationResponseDetailRow>(
+        r#"
+        SELECT
+            ti.id,
+            ti.team_id,
+            t.name AS team_name,
+            invitee.display_name AS invitee_name,
+            invitee.email AS invitee_email,
+            ti.status,
+            ti.created_at,
+            ti.updated_at AS responded_at
+        FROM team_invitations ti
+        INNER JOIN teams t ON t.id = ti.team_id
+        INNER JOIN users invitee ON invitee.id = ti.invitee_id
+        WHERE ti.inviter_id = $1 AND ti.status IN ('accepted', 'rejected')
+        ORDER BY ti.updated_at DESC
+        "#,
+    )
+    .bind(claims.sub)
+    .fetch_all(&state.db)
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to load invitation responses: {error}"),
+        )
+    })?;
+
+    Ok(AxumJson(
+        responses
+            .into_iter()
+            .map(|row| crate::types::responses::InvitationResponseEntry {
+                id: row.id,
+                team_id: row.team_id,
+                team_name: row.team_name,
+                invitee_name: row.invitee_name,
+                invitee_email: row.invitee_email,
+                status: row.status,
+                created_at: row.created_at,
+                responded_at: row.responded_at,
+            })
+            .collect::<Vec<_>>(),
+    ))
+}

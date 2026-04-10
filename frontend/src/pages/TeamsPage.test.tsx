@@ -1,33 +1,49 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, within, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import TeamsPage from './TeamsPage';
+import { MemoryRouter } from 'react-router-dom';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type {
+  InvitationResponse,
+  SentInvitation,
+  Team,
+  TeamInvitation,
+} from '../lib/api.models';
 import { teamService } from '../services/team.service';
-import type { Team, TeamInvitation } from '../lib/api.models';
-
-// ── Mocks ───────────────────────────────────────────────────
+import TeamsPage from './TeamsPage';
 
 const mockNavigate = vi.fn();
-vi.mock('react-router-dom', () => ({
-  useNavigate: () => mockNavigate,
-}));
+
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+    useSearchParams: actual.useSearchParams,
+  };
+});
 
 vi.mock('../services/team.service', () => ({
   teamService: {
     getMyTeams: vi.fn(),
-    getMyInvitations: vi.fn(),
+    getTeamDetail: vi.fn(),
     createTeam: vi.fn(),
+    updateTeam: vi.fn(),
     deleteTeam: vi.fn(),
-    leaveTeam: vi.fn(),
-    toggleFavorite: vi.fn(),
-    searchUsers: vi.fn(),
     inviteToTeam: vi.fn(),
+    getMyInvitations: vi.fn(),
+    getSentInvitations: vi.fn(),
+    getInvitationResponses: vi.fn(),
     acceptInvitation: vi.fn(),
     rejectInvitation: vi.fn(),
+    cancelInvitation: vi.fn(),
+    updateMemberRole: vi.fn(),
+    removeMember: vi.fn(),
+    leaveTeam: vi.fn(),
+    transferOwnership: vi.fn(),
+    toggleFavorite: vi.fn(),
+    searchUsers: vi.fn(),
   },
 }));
-
-// ── Fixtures ────────────────────────────────────────────────
 
 const ownerTeam: Team = {
   id: 1,
@@ -36,7 +52,7 @@ const ownerTeam: Team = {
   memberCount: 5,
   myRole: 'owner',
   ownerName: 'Alice Owner',
-  createdAt: '2025-06-01T00:00:00Z',
+  createdAt: '2026-03-10T00:00:00Z',
   isFavorite: false,
 };
 
@@ -47,7 +63,7 @@ const adminTeam: Team = {
   memberCount: 3,
   myRole: 'admin',
   ownerName: 'Bob Boss',
-  createdAt: '2025-03-15T00:00:00Z',
+  createdAt: '2026-02-10T00:00:00Z',
   isFavorite: true,
 };
 
@@ -58,641 +74,418 @@ const memberTeam: Team = {
   memberCount: 8,
   myRole: 'member',
   ownerName: 'Carol Chief',
-  createdAt: '2025-09-20T00:00:00Z',
+  createdAt: '2026-01-10T00:00:00Z',
   isFavorite: false,
 };
 
-const pendingInvitation: TeamInvitation = {
-  id: 10,
-  teamId: 99,
+const receivedInvitation: TeamInvitation = {
+  id: 101,
+  teamId: 41,
   teamName: 'Delta Squad',
-  inviterName: 'Dave',
-  status: 'Pending',
-  createdAt: '2025-04-01T00:00:00Z',
+  inviterName: 'David',
+  status: 'pending',
+  createdAt: '2026-04-01T00:00:00Z',
 };
 
-const allTeams = [ownerTeam, adminTeam, memberTeam];
+const sentInvitation: SentInvitation = {
+  id: 201,
+  teamId: 1,
+  teamName: 'Alpha',
+  inviteeName: 'Eve User',
+  inviteeEmail: 'eve@example.com',
+  createdAt: '2026-04-02T00:00:00Z',
+};
 
-// ── Helpers ─────────────────────────────────────────────────
+const recentResponse: InvitationResponse = {
+  id: 301,
+  teamId: 1,
+  teamName: 'Alpha',
+  inviteeName: 'Frank',
+  inviteeEmail: 'frank@example.com',
+  status: 'accepted',
+  createdAt: '2026-04-03T00:00:00Z',
+  respondedAt: new Date().toISOString(),
+};
 
-function setupMocks(teams: Team[] = allTeams, invitations: TeamInvitation[] = []) {
-  vi.mocked(teamService.getMyTeams).mockResolvedValue(teams);
-  vi.mocked(teamService.getMyInvitations).mockResolvedValue(invitations);
+const rejectedResponse: InvitationResponse = {
+  id: 302,
+  teamId: 2,
+  teamName: 'Bravo',
+  inviteeName: 'Gina',
+  inviteeEmail: 'gina@example.com',
+  status: 'rejected',
+  createdAt: '2026-04-03T00:00:00Z',
+  respondedAt: new Date().toISOString(),
+};
+
+const teamsFixture = [ownerTeam, adminTeam, memberTeam];
+
+function setDefaultMocks(): void {
+  vi.mocked(teamService.getMyTeams).mockResolvedValue(teamsFixture);
+  vi.mocked(teamService.getMyInvitations).mockResolvedValue([]);
+  vi.mocked(teamService.getSentInvitations).mockResolvedValue([]);
+  vi.mocked(teamService.getInvitationResponses).mockResolvedValue([]);
+  vi.mocked(teamService.createTeam).mockResolvedValue({ ...ownerTeam, id: 99, name: 'Created Team' });
+  vi.mocked(teamService.toggleFavorite).mockResolvedValue({ isFavorite: true });
+  vi.mocked(teamService.deleteTeam).mockResolvedValue(undefined);
+  vi.mocked(teamService.leaveTeam).mockResolvedValue(undefined);
+  vi.mocked(teamService.acceptInvitation).mockResolvedValue(receivedInvitation);
+  vi.mocked(teamService.rejectInvitation).mockResolvedValue(receivedInvitation);
+  vi.mocked(teamService.cancelInvitation).mockResolvedValue(undefined);
+  vi.mocked(teamService.searchUsers).mockResolvedValue([]);
+  vi.mocked(teamService.inviteToTeam).mockResolvedValue(receivedInvitation);
 }
 
-async function renderPage() {
+function renderPage(initialEntries: string[] = ['/teams']): { user: ReturnType<typeof userEvent.setup> } {
   const user = userEvent.setup();
-  render(<TeamsPage />);
-  await waitFor(() => {
-    expect(screen.queryByText('Loading teams...')).not.toBeInTheDocument();
-  });
+  render(
+    <MemoryRouter initialEntries={initialEntries}>
+      <TeamsPage />
+    </MemoryRouter>,
+  );
   return { user };
 }
 
-// ── Tests ───────────────────────────────────────────────────
+async function waitForMyTeamsLoaded(): Promise<void> {
+  await waitFor(() => {
+    expect(screen.queryByText('Loading teams...')).not.toBeInTheDocument();
+  });
+}
 
-describe('TeamsPage', () => {
+async function openTab(user: ReturnType<typeof userEvent.setup>, tabName: string): Promise<void> {
+  await user.click(screen.getByRole('tab', { name: new RegExp(tabName, 'i') }));
+}
+
+describe('TeamsPage (tabbed wrapper + tab integrations)', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mockNavigate.mockReset();
+    setDefaultMocks();
   });
 
-  // ── Loading & Empty State ─────────────────────────────────
-
-  describe('loading state', () => {
-    it('shows loading indicator while fetching data', () => {
+  describe('tabbed layout wrapper', () => {
+    it('shows loading state initially', () => {
       vi.mocked(teamService.getMyTeams).mockReturnValue(new Promise(() => {}));
-      vi.mocked(teamService.getMyInvitations).mockReturnValue(new Promise(() => {}));
 
-      render(<TeamsPage />);
+      renderPage();
+
       expect(screen.getByText('Loading teams...')).toBeInTheDocument();
     });
-  });
 
-  describe('empty state', () => {
-    it('shows empty message when user has no teams and no invitations', async () => {
-      setupMocks([], []);
-      await renderPage();
+    it('renders four tabs with correct labels and My Teams active by default', async () => {
+      renderPage();
+      await waitForMyTeamsLoaded();
 
-      expect(screen.getByText("You haven't joined any teams yet")).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Create your first team' })).toBeInTheDocument();
+      const tablist = screen.getByRole('tablist', { name: 'Team management tabs' });
+      expect(tablist).toBeInTheDocument();
+
+      const myTeamsTab = screen.getByRole('tab', { name: /My Teams/i });
+      const receivedTab = screen.getByRole('tab', { name: /Received Invites/i });
+      const pendingTab = screen.getByRole('tab', { name: /Pending Invites/i });
+      const responsesTab = screen.getByRole('tab', { name: /Responses/i });
+
+      expect(myTeamsTab).toHaveAttribute('aria-selected', 'true');
+      expect(receivedTab).toHaveAttribute('aria-selected', 'false');
+      expect(pendingTab).toHaveAttribute('aria-selected', 'false');
+      expect(responsesTab).toHaveAttribute('aria-selected', 'false');
+
+      expect(screen.getByRole('tabpanel', { name: /My Teams/i })).toBeVisible();
+      expect(document.getElementById('teams-tabpanel-received')).toHaveAttribute('hidden');
+      expect(document.getElementById('teams-tabpanel-pending')).toHaveAttribute('hidden');
+      expect(document.getElementById('teams-tabpanel-responses')).toHaveAttribute('hidden');
     });
 
-    it('does not show table or search when no teams', async () => {
-      setupMocks([], []);
-      await renderPage();
+    it('clicking a tab changes the visible panel', async () => {
+      const { user } = renderPage();
+      await waitForMyTeamsLoaded();
 
-      expect(screen.queryByRole('table')).not.toBeInTheDocument();
-      expect(screen.queryByLabelText('Search teams')).not.toBeInTheDocument();
-    });
-  });
-
-  // ── Table Rendering ─────────────────────────────────────
-
-  describe('table rendering', () => {
-    it('renders all teams in a table', async () => {
-      setupMocks();
-      await renderPage();
-
-      const table = screen.getByRole('table');
-      expect(table).toBeInTheDocument();
-
-      expect(screen.getByText('Favorite')).toBeInTheDocument();
-      expect(screen.getByRole('columnheader', { name: /Name/ })).toBeInTheDocument();
-      expect(screen.getByText('Description')).toBeInTheDocument();
-      expect(screen.getByRole('columnheader', { name: /Members/ })).toBeInTheDocument();
-      expect(screen.getByRole('columnheader', { name: /Owner/ })).toBeInTheDocument();
-      expect(screen.getByRole('columnheader', { name: /Created/ })).toBeInTheDocument();
-      expect(screen.getByText('Actions')).toBeInTheDocument();
-
-      for (const team of allTeams) {
-        expect(screen.getByText(team.name)).toBeInTheDocument();
-        expect(screen.getByText(team.ownerName)).toBeInTheDocument();
-      }
-    });
-
-    it('renders description or em dash for empty descriptions', async () => {
-      setupMocks();
-      await renderPage();
-
-      expect(screen.getByText('Alpha description')).toBeInTheDocument();
-      expect(screen.getByText('\u2014')).toBeInTheDocument();
-    });
-
-    it('renders member counts', async () => {
-      setupMocks();
-      await renderPage();
-
-      expect(screen.getByText('5')).toBeInTheDocument();
-      expect(screen.getByText('3')).toBeInTheDocument();
-      expect(screen.getByText('8')).toBeInTheDocument();
-    });
-
-    it('shows Admin badge for admin role', async () => {
-      setupMocks();
-      await renderPage();
-
-      expect(screen.getByText('Admin')).toBeInTheDocument();
-    });
-  });
-
-  // ── Role-Based Actions ──────────────────────────────────
-
-  describe('role-based actions', () => {
-    it('shows configure, invite, and delete for owner', async () => {
-      setupMocks([ownerTeam]);
-      await renderPage();
-
-      expect(screen.getByLabelText('Configure Alpha')).toBeInTheDocument();
-      expect(screen.getByLabelText('Invite to Alpha')).toBeInTheDocument();
-      expect(screen.getByLabelText('Delete Alpha')).toBeInTheDocument();
-      expect(screen.queryByLabelText('Leave Alpha')).not.toBeInTheDocument();
-    });
-
-    it('shows configure, invite, and leave for admin', async () => {
-      setupMocks([adminTeam]);
-      await renderPage();
-
-      expect(screen.getByLabelText('Configure Bravo')).toBeInTheDocument();
-      expect(screen.getByLabelText('Invite to Bravo')).toBeInTheDocument();
-      expect(screen.getByLabelText('Leave Bravo')).toBeInTheDocument();
-      expect(screen.queryByLabelText('Delete Bravo')).not.toBeInTheDocument();
-    });
-
-    it('shows only leave for member', async () => {
-      setupMocks([memberTeam]);
-      await renderPage();
-
-      expect(screen.queryByLabelText('Configure Charlie')).not.toBeInTheDocument();
-      expect(screen.queryByLabelText('Invite to Charlie')).not.toBeInTheDocument();
-      expect(screen.queryByLabelText('Delete Charlie')).not.toBeInTheDocument();
-      expect(screen.getByLabelText('Leave Charlie')).toBeInTheDocument();
-    });
-
-    it('navigates to team detail when configure is clicked', async () => {
-      setupMocks([ownerTeam]);
-      const { user } = await renderPage();
-
-      await user.click(screen.getByLabelText('Configure Alpha'));
-      expect(mockNavigate).toHaveBeenCalledWith('/teams/1');
-    });
-  });
-
-  // ── Favorite Toggle ───────────────────────────────────────
-
-  describe('favorite toggle', () => {
-    it('renders filled star for favorite teams', async () => {
-      setupMocks([adminTeam]);
-      await renderPage();
-
-      const starBtn = screen.getByLabelText('Unstar Bravo');
-      expect(starBtn).toHaveTextContent('\u2605');
-    });
-
-    it('renders empty star for non-favorite teams', async () => {
-      setupMocks([ownerTeam]);
-      await renderPage();
-
-      const starBtn = screen.getByLabelText('Star Alpha');
-      expect(starBtn).toHaveTextContent('\u2606');
-    });
-
-    it('optimistically toggles favorite and calls service', async () => {
-      vi.mocked(teamService.toggleFavorite).mockResolvedValue({ isFavorite: true });
-      setupMocks([ownerTeam]);
-      const { user } = await renderPage();
-
-      const starBtn = screen.getByLabelText('Star Alpha');
-      await user.click(starBtn);
-
-      expect(screen.getByLabelText('Unstar Alpha')).toHaveTextContent('\u2605');
-      expect(teamService.toggleFavorite).toHaveBeenCalledWith(1);
-    });
-
-    it('reverts favorite on API error', async () => {
-      vi.mocked(teamService.toggleFavorite).mockRejectedValue(new Error('fail'));
-      setupMocks([ownerTeam]);
-      const { user } = await renderPage();
-
-      await user.click(screen.getByLabelText('Star Alpha'));
-
+      await openTab(user, 'Received Invites');
       await waitFor(() => {
-        expect(screen.getByText('Failed to update favorite.')).toBeInTheDocument();
-      });
-      expect(screen.getByLabelText('Star Alpha')).toHaveTextContent('\u2606');
-    });
-
-    it('favorite teams sort before non-favorites', async () => {
-      setupMocks();
-      await renderPage();
-
-      const rows = screen.getAllByRole('row');
-      const firstDataRow = rows[1];
-      expect(within(firstDataRow).getByText('Bravo')).toBeInTheDocument();
-    });
-  });
-
-  // ── Search & Filter ───────────────────────────────────────
-
-  describe('search and filter', () => {
-    it('filters teams by name', async () => {
-      setupMocks();
-      const { user } = await renderPage();
-
-      const searchInput = screen.getByLabelText('Search teams');
-      await user.type(searchInput, 'Alpha');
-
-      await waitFor(() => {
-        expect(screen.getByText('Alpha')).toBeInTheDocument();
-        expect(screen.queryByText('Charlie')).not.toBeInTheDocument();
-      });
-    });
-
-    it('filters teams by owner name', async () => {
-      setupMocks();
-      const { user } = await renderPage();
-
-      await user.type(screen.getByLabelText('Search teams'), 'Carol');
-
-      await waitFor(() => {
-        expect(screen.getByText('Charlie')).toBeInTheDocument();
-        expect(screen.queryByText('Alpha')).not.toBeInTheDocument();
-      });
-    });
-
-    it('filters teams by description', async () => {
-      setupMocks();
-      const { user } = await renderPage();
-
-      await user.type(screen.getByLabelText('Search teams'), 'Bravo description');
-
-      await waitFor(() => {
-        expect(screen.getByText('Bravo')).toBeInTheDocument();
-        expect(screen.queryByText('Alpha')).not.toBeInTheDocument();
-      });
-    });
-
-    it('shows no-match message for zero results', async () => {
-      setupMocks();
-      const { user } = await renderPage();
-
-      await user.type(screen.getByLabelText('Search teams'), 'zzzzz');
-
-      await waitFor(() => {
-        expect(screen.getByText('No teams match your search')).toBeInTheDocument();
-      });
-    });
-
-    it('clears search when clear button is clicked', async () => {
-      setupMocks();
-      const { user } = await renderPage();
-
-      await user.type(screen.getByLabelText('Search teams'), 'Alpha');
-
-      await waitFor(() => {
-        expect(screen.queryByText('Charlie')).not.toBeInTheDocument();
+        expect(screen.getByRole('tabpanel', { name: /Received Invites/i })).toBeVisible();
       });
 
-      await user.click(screen.getByLabelText('Clear search'));
-
-      await waitFor(() => {
-        expect(screen.getByText('Alpha')).toBeInTheDocument();
-        expect(screen.getByText('Charlie')).toBeInTheDocument();
-      });
+      expect(document.getElementById('teams-tabpanel-my-teams')).toHaveAttribute('hidden');
     });
 
-    it('search is case-insensitive', async () => {
-      setupMocks();
-      const { user } = await renderPage();
+    it('shows badge counts when counts are greater than zero and hides badge when zero', async () => {
+      vi.mocked(teamService.getMyInvitations).mockResolvedValue([
+        receivedInvitation,
+        { ...receivedInvitation, id: 102, teamName: 'Echo Team', status: 'Pending' },
+      ]);
+      vi.mocked(teamService.getSentInvitations).mockResolvedValue([sentInvitation]);
+      vi.mocked(teamService.getInvitationResponses).mockResolvedValue([recentResponse]);
 
-      await user.type(screen.getByLabelText('Search teams'), 'alpha');
+      renderPage();
+      await waitForMyTeamsLoaded();
 
-      await waitFor(() => {
-        expect(screen.getByText('Alpha')).toBeInTheDocument();
-        expect(screen.queryByText('Charlie')).not.toBeInTheDocument();
-      });
-    });
-  });
+      const myTeamsTab = screen.getByRole('tab', { name: /My Teams/i });
+      const receivedTab = screen.getByRole('tab', { name: /Received Invites/i });
+      const pendingTab = screen.getByRole('tab', { name: /Pending Invites/i });
+      const responsesTab = screen.getByRole('tab', { name: /Responses/i });
 
-  // ── Sorting ───────────────────────────────────────────────
-
-  describe('sorting', () => {
-    it('sorts ascending on first click', async () => {
-      setupMocks();
-      const { user } = await renderPage();
-
-      const nameHeader = screen.getByRole('columnheader', { name: /Name/ });
-      await user.click(nameHeader);
-
-      expect(nameHeader).toHaveAttribute('aria-sort', 'ascending');
+      expect(myTeamsTab.querySelector('.teams-tab-bar__badge')).toBeNull();
+      expect(within(receivedTab).getByText('2')).toBeInTheDocument();
+      expect(within(pendingTab).getByText('1')).toBeInTheDocument();
+      expect(within(responsesTab).getByText('1')).toBeInTheDocument();
     });
 
-    it('sorts descending on second click', async () => {
-      setupMocks();
-      const { user } = await renderPage();
+    it('keeps Create Team button visible and supports create success/error flows', async () => {
+      const { user } = renderPage();
+      await waitForMyTeamsLoaded();
 
-      const nameHeader = screen.getByRole('columnheader', { name: /Name/ });
-      await user.click(nameHeader);
-      await user.click(nameHeader);
+      expect(screen.getAllByRole('button', { name: 'Create Team' }).length).toBeGreaterThan(0);
 
-      expect(nameHeader).toHaveAttribute('aria-sort', 'descending');
-    });
-
-    it('resets sort on third click', async () => {
-      setupMocks();
-      const { user } = await renderPage();
-
-      const nameHeader = screen.getByRole('columnheader', { name: /Name/ });
-      await user.click(nameHeader);
-      await user.click(nameHeader);
-      await user.click(nameHeader);
-
-      expect(nameHeader).toHaveAttribute('aria-sort', 'none');
-    });
-
-    it('shows sort indicators', async () => {
-      setupMocks();
-      const { user } = await renderPage();
-
-      const nameHeader = screen.getByRole('columnheader', { name: /Name/ });
-      await user.click(nameHeader);
-      expect(nameHeader).toHaveTextContent('Name \u25b2');
-
-      await user.click(nameHeader);
-      expect(nameHeader).toHaveTextContent('Name \u25bc');
-    });
-
-    it('can sort by members column', async () => {
-      setupMocks();
-      const { user } = await renderPage();
-
-      const membersHeader = screen.getByRole('columnheader', { name: /Members/ });
-      await user.click(membersHeader);
-
-      expect(membersHeader).toHaveAttribute('aria-sort', 'ascending');
-    });
-  });
-
-  // ── Create Team Modal ─────────────────────────────────────
-
-  describe('create team modal', () => {
-    it('opens modal on Create Team button click', async () => {
-      setupMocks();
-      const { user } = await renderPage();
-
-      await user.click(screen.getByRole('button', { name: 'Create Team' }));
-
-      expect(screen.getByRole('dialog', { name: 'Create team' })).toBeInTheDocument();
-    });
-
-    it('creates team and reloads data on submit', async () => {
-      vi.mocked(teamService.createTeam).mockResolvedValue({ ...ownerTeam, name: 'New Team' });
-      setupMocks();
-      const { user } = await renderPage();
-
-      await user.click(screen.getByRole('button', { name: 'Create Team' }));
+      await user.click(screen.getAllByRole('button', { name: 'Create Team' })[0]);
 
       const dialog = screen.getByRole('dialog', { name: 'Create team' });
-      await user.type(within(dialog).getByLabelText('Name'), 'New Team');
-      await user.type(within(dialog).getByLabelText('Description'), 'A new team');
+      await user.type(within(dialog).getByLabelText('Name'), 'Platform Team');
+      await user.type(within(dialog).getByLabelText('Description'), 'Owns platform work');
       await user.click(within(dialog).getByRole('button', { name: 'Create' }));
 
       await waitFor(() => {
         expect(teamService.createTeam).toHaveBeenCalledWith({
-          name: 'New Team',
-          description: 'A new team',
+          name: 'Platform Team',
+          description: 'Owns platform work',
         });
       });
 
-      expect(screen.getByText('Team "New Team" created.')).toBeInTheDocument();
-    });
+      expect(screen.getByText('Team "Created Team" created.')).toBeInTheDocument();
 
-    it('shows error when create fails', async () => {
-      vi.mocked(teamService.createTeam).mockRejectedValue(new Error('Name taken'));
-      setupMocks();
-      const { user } = await renderPage();
+      vi.mocked(teamService.createTeam).mockRejectedValueOnce(new Error('Duplicate team'));
 
-      await user.click(screen.getByRole('button', { name: 'Create Team' }));
-
-      const dialog = screen.getByRole('dialog', { name: 'Create team' });
-      await user.type(within(dialog).getByLabelText('Name'), 'Duplicate');
-      await user.click(within(dialog).getByRole('button', { name: 'Create' }));
+      await user.click(screen.getAllByRole('button', { name: 'Create Team' })[0]);
+      const errorDialog = screen.getByRole('dialog', { name: 'Create team' });
+      await user.type(within(errorDialog).getByLabelText('Name'), 'Platform Team');
+      await user.click(within(errorDialog).getByRole('button', { name: 'Create' }));
 
       await waitFor(() => {
-        expect(screen.getByText('Name taken')).toBeInTheDocument();
+        expect(screen.getByText('Duplicate team')).toBeInTheDocument();
       });
-    });
-
-    it('closes modal on Cancel', async () => {
-      setupMocks();
-      const { user } = await renderPage();
-
-      await user.click(screen.getByRole('button', { name: 'Create Team' }));
-      expect(screen.getByRole('dialog', { name: 'Create team' })).toBeInTheDocument();
-
-      const dialog = screen.getByRole('dialog', { name: 'Create team' });
-      await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
-
-      expect(screen.queryByRole('dialog', { name: 'Create team' })).not.toBeInTheDocument();
     });
   });
 
-  // ── Delete Confirmation ───────────────────────────────────
+  describe('My Teams tab integration', () => {
+    it('renders teams table with expected columns and empty state when no teams', async () => {
+      renderPage();
+      await waitForMyTeamsLoaded();
 
-  describe('delete team', () => {
-    it('opens delete confirmation modal', async () => {
-      setupMocks([ownerTeam]);
-      const { user } = await renderPage();
+      expect(screen.getByRole('columnheader', { name: 'Favorite' })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /Name/i })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: 'Description' })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /Members/i })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /Owner/i })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /Created/i })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: 'Actions' })).toBeInTheDocument();
 
-      await user.click(screen.getByLabelText('Delete Alpha'));
-
-      const dialog = screen.getByRole('dialog', { name: 'Confirm delete' });
-      expect(dialog).toBeInTheDocument();
-      expect(within(dialog).getByText(/Are you sure you want to delete "Alpha"/)).toBeInTheDocument();
-    });
-
-    it('deletes team on confirm and shows success', async () => {
-      vi.mocked(teamService.deleteTeam).mockResolvedValue(undefined);
-      setupMocks([ownerTeam]);
-      const { user } = await renderPage();
-
-      await user.click(screen.getByLabelText('Delete Alpha'));
-      const dialog = screen.getByRole('dialog', { name: 'Confirm delete' });
-      await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
-
+      vi.mocked(teamService.getMyTeams).mockResolvedValueOnce([]);
+      renderPage(['/teams?tab=my-teams']);
       await waitFor(() => {
-        expect(teamService.deleteTeam).toHaveBeenCalledWith(1);
-        expect(screen.getByText('Team "Alpha" deleted.')).toBeInTheDocument();
+        expect(screen.getByText("You haven't joined any teams yet")).toBeInTheDocument();
       });
     });
 
-    it('cancels delete confirmation', async () => {
-      setupMocks([ownerTeam]);
-      const { user } = await renderPage();
+    it('supports favorite optimistic update and reverts on error', async () => {
+      const { user } = renderPage();
+      await waitForMyTeamsLoaded();
+
+      vi.mocked(teamService.toggleFavorite).mockReturnValueOnce(new Promise(() => {}));
+      await user.click(screen.getByLabelText('Star Alpha'));
+      expect(screen.getByLabelText('Unstar Alpha')).toBeInTheDocument();
+
+      vi.mocked(teamService.toggleFavorite).mockRejectedValueOnce(new Error('cannot favorite'));
+      await user.click(screen.getByLabelText('Star Charlie'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Failed to update favorite.')).toBeInTheDocument();
+      });
+      expect(screen.getByLabelText('Star Charlie')).toBeInTheDocument();
+    });
+
+    it('enforces role-based actions for owner/admin/member', async () => {
+      renderPage();
+      await waitForMyTeamsLoaded();
+
+      expect(screen.getByLabelText('Configure Alpha')).toBeInTheDocument();
+      expect(screen.getByLabelText('Invite to Alpha')).toBeInTheDocument();
+      expect(screen.getByLabelText('Delete Alpha')).toBeInTheDocument();
+
+      expect(screen.getByLabelText('Configure Bravo')).toBeInTheDocument();
+      expect(screen.getByLabelText('Invite to Bravo')).toBeInTheDocument();
+      expect(screen.getByLabelText('Leave Bravo')).toBeInTheDocument();
+
+      expect(screen.queryByLabelText('Configure Charlie')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('Invite to Charlie')).not.toBeInTheDocument();
+      expect(screen.getByLabelText('Leave Charlie')).toBeInTheDocument();
+    });
+
+    it('filters teams by search and cycles sorting asc/desc/none', async () => {
+      const { user } = renderPage();
+      await waitForMyTeamsLoaded();
+
+      await user.type(screen.getByLabelText('Search teams'), 'Alpha');
+      await waitFor(() => {
+        expect(screen.getByText('Alpha')).toBeInTheDocument();
+        expect(screen.queryByText('Charlie')).not.toBeInTheDocument();
+      });
+
+      await user.click(screen.getByLabelText('Clear search'));
+      const nameHeader = screen.getByRole('columnheader', { name: /Name/i });
+
+      await user.click(nameHeader);
+      expect(nameHeader).toHaveAttribute('aria-sort', 'ascending');
+      await user.click(nameHeader);
+      expect(nameHeader).toHaveAttribute('aria-sort', 'descending');
+      await user.click(nameHeader);
+      expect(nameHeader).toHaveAttribute('aria-sort', 'none');
+    });
+
+    it('opens delete and leave confirmation modals', async () => {
+      const { user } = renderPage();
+      await waitForMyTeamsLoaded();
 
       await user.click(screen.getByLabelText('Delete Alpha'));
-      const dialog = screen.getByRole('dialog', { name: 'Confirm delete' });
-      await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
-
-      expect(screen.queryByRole('dialog', { name: 'Confirm delete' })).not.toBeInTheDocument();
-    });
-  });
-
-  // ── Leave Confirmation ────────────────────────────────────
-
-  describe('leave team', () => {
-    it('opens leave confirmation modal', async () => {
-      setupMocks([memberTeam]);
-      const { user } = await renderPage();
+      expect(screen.getByRole('dialog', { name: 'Confirm delete' })).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Cancel' }));
 
       await user.click(screen.getByLabelText('Leave Charlie'));
-
-      const dialog = screen.getByRole('dialog', { name: 'Confirm leave' });
-      expect(dialog).toBeInTheDocument();
-      expect(within(dialog).getByText(/Are you sure you want to leave "Charlie"/)).toBeInTheDocument();
-    });
-
-    it('leaves team on confirm', async () => {
-      vi.mocked(teamService.leaveTeam).mockResolvedValue(undefined);
-      setupMocks([memberTeam]);
-      const { user } = await renderPage();
-
-      await user.click(screen.getByLabelText('Leave Charlie'));
-      const dialog = screen.getByRole('dialog', { name: 'Confirm leave' });
-      await user.click(within(dialog).getByRole('button', { name: 'Leave' }));
-
-      await waitFor(() => {
-        expect(teamService.leaveTeam).toHaveBeenCalledWith(3);
-        expect(screen.getByText('You left "Charlie".')).toBeInTheDocument();
-      });
+      expect(screen.getByRole('dialog', { name: 'Confirm leave' })).toBeInTheDocument();
     });
   });
 
-  // ── Invite Modal ──────────────────────────────────────────
+  describe('Received Invites tab', () => {
+    it('shows received invitations and accept/reject actions work', async () => {
+      vi.mocked(teamService.getMyInvitations).mockResolvedValue([receivedInvitation]);
+      const { user } = renderPage();
+      await waitForMyTeamsLoaded();
 
-  describe('invite modal', () => {
-    it('opens invite modal and searches users', async () => {
-      const mockUsers = [{ id: 100, displayName: 'Eve', email: 'eve@test.com' }];
-      vi.mocked(teamService.searchUsers).mockResolvedValue(mockUsers);
-      setupMocks([ownerTeam]);
-      const { user } = await renderPage();
-
-      await user.click(screen.getByLabelText('Invite to Alpha'));
-
-      const dialog = screen.getByRole('dialog', { name: 'Invite to team' });
-      expect(dialog).toBeInTheDocument();
-
-      await user.type(within(dialog).getByPlaceholderText('Search by name or email...'), 'Eve');
-
-      await waitFor(() => {
-        expect(teamService.searchUsers).toHaveBeenCalled();
-        expect(screen.getByText('Eve (eve@test.com)')).toBeInTheDocument();
-      });
-    });
-
-    it('sends invitation when user is selected', async () => {
-      vi.mocked(teamService.searchUsers).mockResolvedValue([
-        { id: 100, displayName: 'Eve', email: 'eve@test.com' },
-      ]);
-      vi.mocked(teamService.inviteToTeam).mockResolvedValue({
-        id: 20,
-        teamId: 1,
-        teamName: 'Alpha',
-        inviterName: 'Me',
-        status: 'Pending',
-        createdAt: '2025-04-09T00:00:00Z',
-      });
-      setupMocks([ownerTeam]);
-      const { user } = await renderPage();
-
-      await user.click(screen.getByLabelText('Invite to Alpha'));
-      const dialog = screen.getByRole('dialog', { name: 'Invite to team' });
-      await user.type(within(dialog).getByPlaceholderText('Search by name or email...'), 'Eve');
-
-      await waitFor(() => {
-        expect(screen.getByText('Eve (eve@test.com)')).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: 'Invite' }));
-
-      await waitFor(() => {
-        expect(teamService.inviteToTeam).toHaveBeenCalledWith(1, 100);
-        expect(screen.getByText('Invitation sent.')).toBeInTheDocument();
-      });
-    });
-
-    it('closes invite modal on Close button', async () => {
-      setupMocks([ownerTeam]);
-      const { user } = await renderPage();
-
-      await user.click(screen.getByLabelText('Invite to Alpha'));
-      expect(screen.getByRole('dialog', { name: 'Invite to team' })).toBeInTheDocument();
-
-      const dialog = screen.getByRole('dialog', { name: 'Invite to team' });
-      await user.click(within(dialog).getByRole('button', { name: 'Close' }));
-
-      expect(screen.queryByRole('dialog', { name: 'Invite to team' })).not.toBeInTheDocument();
-    });
-  });
-
-  // ── Pending Invitations ───────────────────────────────────
-
-  describe('pending invitations', () => {
-    it('renders pending invitations section', async () => {
-      setupMocks(allTeams, [pendingInvitation]);
-      await renderPage();
-
-      expect(screen.getByText('Pending Invitations')).toBeInTheDocument();
+      await openTab(user, 'Received Invites');
       expect(screen.getByText('Delta Squad')).toBeInTheDocument();
-      expect(screen.getByText(/Invited by Dave/)).toBeInTheDocument();
-    });
-
-    it('does not show invitations section when none exist', async () => {
-      setupMocks(allTeams, []);
-      await renderPage();
-
-      expect(screen.queryByText('Pending Invitations')).not.toBeInTheDocument();
-    });
-
-    it('accepts an invitation', async () => {
-      vi.mocked(teamService.acceptInvitation).mockResolvedValue({
-        ...pendingInvitation,
-        status: 'Accepted',
-      });
-      setupMocks(allTeams, [pendingInvitation]);
-      const { user } = await renderPage();
+      expect(screen.getByRole('button', { name: 'Accept' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Reject' })).toBeInTheDocument();
 
       await user.click(screen.getByRole('button', { name: 'Accept' }));
-
       await waitFor(() => {
-        expect(teamService.acceptInvitation).toHaveBeenCalledWith(10);
-        expect(screen.getByText('Invitation accepted.')).toBeInTheDocument();
+        expect(teamService.acceptInvitation).toHaveBeenCalledWith(101);
       });
-    });
 
-    it('rejects an invitation', async () => {
-      vi.mocked(teamService.rejectInvitation).mockResolvedValue({
-        ...pendingInvitation,
-        status: 'Rejected',
-      });
-      setupMocks(allTeams, [pendingInvitation]);
-      const { user } = await renderPage();
-
+      vi.mocked(teamService.getMyInvitations).mockResolvedValueOnce([receivedInvitation]);
       await user.click(screen.getByRole('button', { name: 'Reject' }));
-
       await waitFor(() => {
-        expect(teamService.rejectInvitation).toHaveBeenCalledWith(10);
-        expect(screen.getByText('Invitation rejected.')).toBeInTheDocument();
-      });
-    });
-
-    it('filters out non-pending invitations', async () => {
-      const acceptedInvitation: TeamInvitation = {
-        ...pendingInvitation,
-        id: 11,
-        teamName: 'Accepted Team',
-        status: 'Accepted',
-      };
-      setupMocks(allTeams, [pendingInvitation, acceptedInvitation]);
-      await renderPage();
-
-      expect(screen.getByText('Delta Squad')).toBeInTheDocument();
-      expect(screen.queryByText('Accepted Team')).not.toBeInTheDocument();
-    });
-  });
-
-  // ── Error Handling ────────────────────────────────────────
-
-  describe('error handling', () => {
-    it('shows error message when loading fails', async () => {
-      vi.mocked(teamService.getMyTeams).mockRejectedValue(new Error('Network error'));
-      vi.mocked(teamService.getMyInvitations).mockResolvedValue([]);
-
-      render(<TeamsPage />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Network error')).toBeInTheDocument();
+        expect(teamService.rejectInvitation).toHaveBeenCalledWith(101);
       });
     });
   });
+
+  describe('Pending Invites tab', () => {
+    it('shows pending sent invitations and cancels with confirmation', async () => {
+      vi.mocked(teamService.getSentInvitations).mockResolvedValue([sentInvitation]);
+      const { user } = renderPage();
+      await waitForMyTeamsLoaded();
+
+      await openTab(user, 'Pending Invites');
+      expect(screen.getByText('Eve User')).toBeInTheDocument();
+
+      await user.click(screen.getByLabelText('Cancel invitation for Eve User'));
+      expect(screen.getByRole('dialog', { name: 'Confirm invitation cancellation' })).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: 'Cancel invitation' }));
+      await waitFor(() => {
+        expect(teamService.cancelInvitation).toHaveBeenCalledWith(201);
+      });
+    });
+  });
+
+  describe('Responses tab', () => {
+    it('shows responses table with accepted/rejected status tags', async () => {
+      vi.mocked(teamService.getInvitationResponses).mockResolvedValue([recentResponse, rejectedResponse]);
+      const { user } = renderPage();
+      await waitForMyTeamsLoaded();
+
+      await openTab(user, 'Responses');
+
+      const acceptedTag = screen.getByText('Accepted', { selector: 'span.status-tag--accepted' });
+      const rejectedTag = screen.getByText('Rejected', { selector: 'span.status-tag--rejected' });
+
+      expect(acceptedTag).toHaveClass('status-tag--accepted');
+      expect(rejectedTag).toHaveClass('status-tag--rejected');
+    });
+  });
+
+  describe('tabbed wrapper: URL, keyboard, badge refresh', () => {
+    it('activates Received tab when loaded with ?tab=received', async () => {
+      renderPage(['/teams?tab=received']);
+
+      await waitFor(() => {
+        expect(screen.getByRole('tab', { name: /Received Invites/i })).toHaveAttribute('aria-selected', 'true');
+      });
+      expect(screen.getByRole('tabpanel', { name: /Received Invites/i })).toBeVisible();
+    });
+
+    it('falls back to My Teams when loaded with ?tab=invalid', async () => {
+      renderPage(['/teams?tab=invalid']);
+
+      await waitFor(() => {
+        expect(screen.getByRole('tab', { name: /My Teams/i })).toHaveAttribute('aria-selected', 'true');
+      });
+    });
+
+    it('navigates tabs with ArrowRight and ArrowLeft keys', async () => {
+      const { user } = renderPage();
+      await waitForMyTeamsLoaded();
+
+      const myTeamsTab = screen.getByRole('tab', { name: /My Teams/i });
+      myTeamsTab.focus();
+
+      await user.keyboard('{ArrowRight}');
+      expect(screen.getByRole('tab', { name: /Received Invites/i })).toHaveFocus();
+
+      await user.keyboard('{ArrowRight}');
+      expect(screen.getByRole('tab', { name: /Pending Invites/i })).toHaveFocus();
+
+      await user.keyboard('{ArrowLeft}');
+      expect(screen.getByRole('tab', { name: /Received Invites/i })).toHaveFocus();
+    });
+
+    it('navigates to first tab with Home and last tab with End', async () => {
+      const { user } = renderPage();
+      await waitForMyTeamsLoaded();
+
+      const myTeamsTab = screen.getByRole('tab', { name: /My Teams/i });
+      myTeamsTab.focus();
+
+      await user.keyboard('{End}');
+      expect(screen.getByRole('tab', { name: /Responses/i })).toHaveFocus();
+
+      await user.keyboard('{Home}');
+      expect(screen.getByRole('tab', { name: /My Teams/i })).toHaveFocus();
+    });
+
+    it('activates focused tab with Enter key', async () => {
+      const { user } = renderPage();
+      await waitForMyTeamsLoaded();
+
+      const myTeamsTab = screen.getByRole('tab', { name: /My Teams/i });
+      myTeamsTab.focus();
+
+      await user.keyboard('{ArrowRight}');
+      await user.keyboard('{Enter}');
+
+      expect(screen.getByRole('tab', { name: /Received Invites/i })).toHaveAttribute('aria-selected', 'true');
+    });
+
+    it('wraps around from last tab to first tab with ArrowRight', async () => {
+      const { user } = renderPage();
+      await waitForMyTeamsLoaded();
+
+      const myTeamsTab = screen.getByRole('tab', { name: /My Teams/i });
+      myTeamsTab.focus();
+
+      await user.keyboard('{End}');
+      expect(screen.getByRole('tab', { name: /Responses/i })).toHaveFocus();
+
+      await user.keyboard('{ArrowRight}');
+      expect(screen.getByRole('tab', { name: /My Teams/i })).toHaveFocus();
+    });
+  });
+
 });

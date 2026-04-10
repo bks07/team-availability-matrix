@@ -173,6 +173,27 @@ export interface TeamInvitation {
   createdAt: string;
 }
 
+
+export interface SentInvitation {
+  id: number;
+  teamId: number;
+  teamName: string;
+  inviteeName: string;
+  inviteeEmail: string;
+  createdAt: string;
+}
+
+export interface InvitationResponse {
+  id: number;
+  teamId: number;
+  teamName: string;
+  inviteeName: string;
+  inviteeEmail: string;
+  status: string;
+  createdAt: string;
+  respondedAt: string;
+}
+
 export interface CreateTeamRequest {
   name: string;
   description?: string;
