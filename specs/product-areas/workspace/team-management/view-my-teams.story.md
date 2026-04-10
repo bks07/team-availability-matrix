@@ -1,5 +1,5 @@
 ---
-status: CHANGED
+status: DONE
 ---
 
 # View my teams

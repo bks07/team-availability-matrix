@@ -1,5 +1,5 @@
 ---
-status: NEW
+status: DONE
 ---
 
 # My Teams tabbed layout
