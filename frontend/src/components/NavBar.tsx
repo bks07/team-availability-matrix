@@ -6,9 +6,12 @@ import type { AvailabilityValue } from '../lib/api.models';
 import { getInitials } from '../lib/name.utils';
 import { getMatrix, updateStatus } from '../services/matrix.service';
 import BurgerMenu from './BurgerMenu';
+import NotificationBell from './NotificationBell';
+import { useNotifications } from '../hooks/useNotifications';
 
 export default function NavBar(): JSX.Element | null {
   const { currentUser, onLogout } = useContext(AuthContext);
+  const notificationState = useNotifications();
   const [open, setOpen] = useState(false);
   const [burgerOpen, setBurgerOpen] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>(
@@ -221,6 +224,7 @@ export default function NavBar(): JSX.Element | null {
         </div>
 
         <div className="navbar-right">
+          <NotificationBell notifications={notificationState} />
           <div className="navbar-user" ref={dropdownRef}>
             <button
               ref={triggerRef}
