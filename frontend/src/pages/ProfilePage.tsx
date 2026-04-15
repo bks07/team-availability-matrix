@@ -55,18 +55,18 @@ export default function ProfilePage(): JSX.Element {
 
   return (
     <main className="page-shell profile-layout">
-      <section className="profile-card profile-photo-card">
+      <section className="profile-card profile-photo-card card card-padded">
         {avatarSrc ? (
           <img
             src={avatarSrc}
             alt="Profile"
-            className="avatar-display avatar-clickable"
+            className="avatar-display avatar-clickable avatar-hover-overlay"
             onClick={handleOpenPhotoPicker}
           />
         ) : (
           <button
             type="button"
-            className="avatar-placeholder avatar-clickable"
+            className="avatar-placeholder avatar-clickable avatar-hover-overlay"
             onClick={handleOpenPhotoPicker}
             disabled={isPhotoBusy}
             aria-label="Upload profile photo"
@@ -80,14 +80,14 @@ export default function ProfilePage(): JSX.Element {
           <p className="photo-hint">Upload a clear headshot. JPEG, PNG, WEBP, or GIF up to 2MB.</p>
 
           <div aria-live="polite">
-            {photoSuccess ? <p className="message success">{photoSuccess}</p> : null}
-            {photoError ? <p className="message error">{photoError}</p> : null}
+            {photoSuccess ? <p className="alert alert-success">{photoSuccess}</p> : null}
+            {photoError ? <p className="alert alert-error">{photoError}</p> : null}
           </div>
 
           <div className="photo-actions">
             <button
               type="button"
-              className="primary-button"
+              className="btn btn-primary"
               onClick={handleOpenPhotoPicker}
               disabled={isPhotoBusy}
             >
@@ -97,7 +97,7 @@ export default function ProfilePage(): JSX.Element {
             {currentUser.photoUrl ? (
               <button
                 type="button"
-                className="danger-button"
+                className="btn btn-danger"
                 onClick={handlePhotoDelete}
                 disabled={isPhotoBusy}
               >
@@ -117,13 +117,13 @@ export default function ProfilePage(): JSX.Element {
         />
       </section>
 
-      <section className="profile-card">
+      <section className="profile-card card card-padded">
         <h2>Profile Information</h2>
         <p>{previewDisplayName}</p>
 
         <div aria-live="polite">
-          {profileSuccess ? <p className="message success">{profileSuccess}</p> : null}
-          {profileError ? <p className="message error">{profileError}</p> : null}
+          {profileSuccess ? <p className="alert alert-success">{profileSuccess}</p> : null}
+          {profileError ? <p className="alert alert-error">{profileError}</p> : null}
         </div>
 
         <form className="profile-form" onSubmit={handleProfileSubmit}>
@@ -228,7 +228,7 @@ export default function ProfilePage(): JSX.Element {
           </label>
 
           <div className="profile-actions">
-            <button type="submit" className="primary-button" disabled={isSavingProfile}>
+            <button type="submit" className="btn btn-primary" disabled={isSavingProfile}>
               Save Profile
             </button>
           </div>

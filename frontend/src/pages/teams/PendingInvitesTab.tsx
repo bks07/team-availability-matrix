@@ -93,8 +93,8 @@ export default function PendingInvitesTab({ onDataChanged }: PendingInvitesTabPr
 
   return (
     <>
-      {successMessage ? <p className="message success">{successMessage}</p> : null}
-      {errorMessage ? <p className="message error">{errorMessage}</p> : null}
+      {successMessage ? <p className="alert alert-success">{successMessage}</p> : null}
+      {errorMessage ? <p className="alert alert-error">{errorMessage}</p> : null}
 
       <div className="teams-toolbar" role="search">
         <div className="teams-search-wrapper">
@@ -198,7 +198,7 @@ export default function PendingInvitesTab({ onDataChanged }: PendingInvitesTabPr
 
       {confirmInvitation ? (
         <div
-          className="teams-modal-overlay"
+          className="ds-modal-overlay teams-modal-overlay"
           role="presentation"
           onClick={() => {
             if (pendingId === confirmInvitation.id) return;
@@ -206,7 +206,7 @@ export default function PendingInvitesTab({ onDataChanged }: PendingInvitesTabPr
           }}
         >
           <section
-            className="teams-modal"
+            className="ds-modal teams-modal"
             role="dialog"
             aria-modal="true"
             aria-label="Confirm invitation cancellation"
@@ -217,7 +217,7 @@ export default function PendingInvitesTab({ onDataChanged }: PendingInvitesTabPr
             <div className="teams-modal__actions">
               <button
                 type="button"
-                className="teams-action-btn teams-action-btn--reject"
+                className="btn btn-ghost"
                 onClick={() => setConfirmInvitation(null)}
                 disabled={pendingId === confirmInvitation.id}
               >
@@ -225,7 +225,7 @@ export default function PendingInvitesTab({ onDataChanged }: PendingInvitesTabPr
               </button>
               <button
                 type="button"
-                className="primary-button danger-button"
+                className="btn btn-danger"
                 onClick={() => void handleConfirmCancel()}
                 disabled={pendingId === confirmInvitation.id}
               >

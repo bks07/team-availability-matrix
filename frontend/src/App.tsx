@@ -85,7 +85,7 @@ export default function App(): JSX.Element {
   if (bootLoading) {
     return (
       <main className="page-shell">
-        <p className="message">Loading...</p>
+        <p className="app-loading">Loading...</p>
       </main>
     );
   }

@@ -120,7 +120,14 @@ export default function MyCalendarPage(): JSX.Element {
     [weeks]
   );
 
-  const monthLabel = useMemo(
+  const schedSummary = useMemo(() => {
+    if (!userSchedule) return 'Mon–Fri';
+    const flags = [userSchedule.monday, userSchedule.tuesday, userSchedule.wednesday, userSchedule.thursday, userSchedule.friday, userSchedule.saturday, userSchedule.sunday];
+    const names = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    return flags.map((f, i) => f ? names[i] : null).filter(Boolean).join(', ') || 'No work days';
+  }, [userSchedule]);
+
+    const monthLabel = useMemo(
     () => `${MONTH_NAMES[currentMonth.month]} ${currentMonth.year}`,
     [currentMonth]
   );
@@ -331,11 +338,12 @@ export default function MyCalendarPage(): JSX.Element {
     <main className="my-calendar-page">
       <header className="my-calendar-header">
         <h1>My Calendar</h1>
+        <p className="my-calendar-subtitle">{schedSummary}</p>
       </header>
 
-      {errorMessage ? <p className="message error">{errorMessage}</p> : null}
-      {successMessage ? <p className="message success">{successMessage}</p> : null}
-      {isLoading ? <p className="message">Loading calendar...</p> : null}
+      {errorMessage ? <p className="alert alert-error">{errorMessage}</p> : null}
+      {successMessage ? <p className="alert alert-success">{successMessage}</p> : null}
+      {isLoading ? <p className="alert">Loading calendar...</p> : null}
 
       <MonthlyCalendar
         monthLabel={monthLabel}

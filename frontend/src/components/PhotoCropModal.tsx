@@ -190,7 +190,7 @@ export default function PhotoCropModal({ imageSrc, onConfirm, onCancel }: PhotoC
             />
           </label>
 
-          {errorMessage ? <p className="message error">{errorMessage}</p> : null}
+          {errorMessage ? <p className="alert alert-error">{errorMessage}</p> : null}
 
           <div className="photo-actions">
             <button type="button" onClick={onCancel} disabled={isSubmitting}>
@@ -198,7 +198,7 @@ export default function PhotoCropModal({ imageSrc, onConfirm, onCancel }: PhotoC
             </button>
             <button
               type="button"
-              className="primary-button"
+              className="btn btn-primary"
               onClick={handleConfirm}
               disabled={isSubmitting || !hasCroppedArea}
             >

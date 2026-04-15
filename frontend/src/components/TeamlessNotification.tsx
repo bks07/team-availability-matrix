@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 
 export function TeamlessNotification() {
   return (
-    <div className="teamless-banner" role="status">
+    <div className="alert teamless-banner" role="status">
       <span className="teamless-banner-icon" aria-hidden="true">
         ℹ️
       </span>

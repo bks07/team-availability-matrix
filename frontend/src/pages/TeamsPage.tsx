@@ -218,13 +218,13 @@ export default function TeamsPage(): JSX.Element {
     <main className="teams-page">
       <header className="teams-page__header">
         <h1>My Teams</h1>
-        <button type="button" className="primary-button" onClick={openCreateModal}>
+        <button type="button" className="btn btn-primary" onClick={openCreateModal}>
           Create Team
         </button>
       </header>
 
-      {successMessage ? <p className="message success">{successMessage}</p> : null}
-      {errorMessage ? <p className="message error">{errorMessage}</p> : null}
+      {successMessage ? <p className="alert alert-success">{successMessage}</p> : null}
+      {errorMessage ? <p className="alert alert-error">{errorMessage}</p> : null}
 
       <div className="teams-tab-bar" role="tablist" aria-label="Team management tabs">
         {TAB_CONFIG.map((tab) => {
@@ -251,7 +251,7 @@ export default function TeamsPage(): JSX.Element {
               onKeyDown={(event) => handleTabKeyDown(tab.value, event)}
             >
               {tab.label}
-              {count > 0 ? <span className="teams-tab-bar__badge">{count}</span> : null}
+              {count > 0 ? <span className="badge teams-tab-bar__badge">{count}</span> : null}
             </button>
           );
         })}
@@ -298,9 +298,9 @@ export default function TeamsPage(): JSX.Element {
       </section>
 
       {isCreateOpen ? (
-        <div className="teams-modal-overlay" role="presentation" onClick={closeCreateModal}>
+        <div className="ds-modal-overlay teams-modal-overlay" role="presentation" onClick={closeCreateModal}>
           <section
-            className="teams-modal"
+            className="ds-modal teams-modal"
             role="dialog"
             aria-modal="true"
             aria-label="Create team"
@@ -330,13 +330,13 @@ export default function TeamsPage(): JSX.Element {
               <div className="teams-modal__actions">
                 <button
                   type="button"
-                  className="teams-action-btn teams-action-btn--reject"
+                  className="btn btn-ghost"
                   onClick={closeCreateModal}
                   disabled={isCreating}
                 >
                   Cancel
                 </button>
-                <button type="submit" className="primary-button" disabled={isCreating}>
+                <button type="submit" className="btn btn-primary" disabled={isCreating}>
                   {isCreating ? 'Creating...' : 'Create'}
                 </button>
               </div>

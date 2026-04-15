@@ -116,7 +116,177 @@ The previous list of hardcoded colors has been fully resolved and replaced with 
 
 ---
 
-## 6. Key Design Decisions
+## 7. Spacing Scale
+
+Based on a 4px grid system. Use these for all margin, padding, and gap values.
+
+| Token | Value | Usage |
+| --- | --- | --- |
+| `--space-1` | 4px | Tight gaps, inline spacing |
+| `--space-2` | 8px | Standard gap, button padding |
+| `--space-3` | 12px | Form group gaps, alert padding |
+| `--space-4` | 16px | Section padding, card compact |
+| `--space-5` | 20px | Modal padding |
+| `--space-6` | 24px | Card padded, section spacing |
+| `--space-7` | 32px | Large section gaps |
+| `--space-8` | 48px | Page-level spacing |
+
+---
+
+## 8. Border Radius Scale
+
+| Token | Value | Usage |
+| --- | --- | --- |
+| `--radius-sm` | 4px | Small elements, inline controls |
+| `--radius-md` | 8px | Buttons, inputs, form elements |
+| `--radius-lg` | 12px | Modals, table containers |
+| `--radius-xl` | 18px | Cards (matches existing card radius) |
+| `--radius-full` | 999px | Pills, badges, avatars |
+
+---
+
+## 9. Typography Scale
+
+| Token | Value | Usage |
+| --- | --- | --- |
+| `--font-size-xs` | 0.75rem (12px) | Badges, hints, table headers |
+| `--font-size-sm` | 0.875rem (14px) | Buttons, labels, body small |
+| `--font-size-base` | 1rem (16px) | Standard body text |
+| `--font-size-lg` | 1.125rem (18px) | Section headings |
+| `--font-size-xl` | 1.25rem (20px) | Page sub-headings |
+| `--font-size-2xl` | 1.5rem (24px) | Page titles |
+| `--font-weight-normal` | 400 | Body text |
+| `--font-weight-medium` | 500 | Labels, subtle emphasis |
+| `--font-weight-semibold` | 600 | Buttons, form labels |
+| `--font-weight-bold` | 700 | Headings, badges |
+
+---
+
+## 10. Transitions
+
+| Token | Value | Usage |
+| --- | --- | --- |
+| `--transition-fast` | 150ms ease | Hover states, focus rings, button interactions |
+| `--transition-normal` | 250ms ease | Panel animations, page transitions |
+
+Both are overridden to `0ms` when `prefers-reduced-motion: reduce` is active.
+
+---
+
+## 11. Z-Index Layers
+
+| Token | Value | Usage |
+| --- | --- | --- |
+| `--z-sticky` | 40 | Sticky table headers, fixed elements |
+| `--z-dropdown` | 50 | Dropdowns, popovers, navbar |
+| `--z-overlay` | 100 | Burger menu overlay, backdrop |
+| `--z-modal` | 1000 | Modal dialogs, crop modal |
+
+---
+
+## 12. Component Patterns
+
+Reusable CSS classes that compose design tokens into consistent UI patterns.
+
+### Buttons
+Base class `.btn` for all interactive buttons. Combine with variant classes.
+
+| Class | Purpose |
+| --- | --- |
+| `.btn` | Base: inline-flex, centered, rounded, transitions |
+| `.btn-primary` | Accent background, white text |
+| `.btn-secondary` | Neutral background, bordered |
+| `.btn-danger` | Orange border, warning text |
+| `.btn-ghost` | Transparent, no border, subtle hover |
+| `.btn-icon` | Square icon-only button (2rem) |
+| `.btn-sm` | Smaller padding and font size |
+| `.btn-full` | Full width |
+
+### Cards
+Surface containers with elevation.
+
+| Class | Purpose |
+| --- | --- |
+| `.card` | Base: background, radius, shadow, border |
+| `.card-padded` | 24px padding |
+| `.card-compact` | 16px padding |
+
+### Forms
+
+| Class | Purpose |
+| --- | --- |
+| `.form-group` | Grid container with gap for label+input pairs |
+| `.form-label` | Semibold label text |
+| `.form-input` | Styled text input with focus ring |
+| `.form-select` | Styled select dropdown |
+| `.form-hint` | Small muted helper text |
+
+### Badges
+Inline status indicators.
+
+| Class | Purpose |
+| --- | --- |
+| `.badge` | Base: pill shape, centered, small text |
+| `.badge-w` | Working status colors |
+| `.badge-v` | Vacation status colors |
+| `.badge-a` | Absence status colors |
+| `.badge-neutral` | Neutral gray |
+| `.badge-accent` | Primary accent color |
+
+### Alerts
+Feedback messages.
+
+| Class | Purpose |
+| --- | --- |
+| `.alert` | Base: padded, rounded, flex layout |
+| `.alert-success` | Success colors |
+| `.alert-error` | Error colors |
+
+### Modals (ds-modal-*)
+Dialog containers. Prefixed with ds- to avoid conflicts with existing modal classes.
+
+| Class | Purpose |
+| --- | --- |
+| `.ds-modal-backdrop` | Fixed overlay with centering |
+| `.ds-modal` | Modal container with shadow |
+| `.ds-modal-header` | Header with bottom border |
+| `.ds-modal-body` | Content area |
+| `.ds-modal-footer` | Footer with top border, right-aligned actions |
+
+### Tables (ds-table-container)
+Scrollable data table wrapper. Prefixed with ds- to avoid conflicts.
+
+| Class | Purpose |
+| --- | --- |
+| `.ds-table-container` | Overflow wrapper with border |
+| `th (inside)` | Uppercase header, secondary color, bg |
+| `td (inside)` | Standard cell padding, bottom border |
+| `tr:hover (inside)` | Row hover highlight |
+
+---
+
+## 13. Theming
+
+The application supports light and dark themes via the data-theme attribute.
+
+### How It Works
+1. Default tokens are defined in :root, [data-theme=light]
+2. Dark overrides are defined in [data-theme=dark]
+3. Components reference semantic tokens which auto-resolve based on active theme
+4. Theme switching toggles the data-theme attribute
+
+### Theme-Independent Tokens
+Spacing, border-radius, typography, transitions, and z-index tokens do not change between themes.
+
+### Adding New Theme-Aware Styles
+1. Define the light value in :root, [data-theme=light]
+2. Define the dark override in [data-theme=dark]
+3. Reference via var(--your-token) in component CSS
+4. Never use raw hex values in component styles
+
+---
+
+## 14. Key Design Decisions
 
 1. **Burger Menu Light/Dark Compliance**: Adopted standard component tokens (`--bg-card`, `--text-primary`, `--border-color`) to guarantee seamless light/dark toggle capability.
 2. **Unified Status Colors (The Canonical Pill)**: Extraneous visual styles for status (green, deep blue, Tailwind combinations) have been completely deprecated. The pale-background + heavy-text combination native to the Availability Matrix is established as the single source of truth for all status indicators across the app (Matrix, Weekly Calendar, Nav Toggles).

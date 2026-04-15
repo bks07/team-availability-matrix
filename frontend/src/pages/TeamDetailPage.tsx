@@ -374,24 +374,24 @@ export default function TeamDetailPage(): JSX.Element {
   if (!team || !hasValidTeamId) {
     return (
       <main className="team-detail-page">
-        <Link to="/teams" className="team-back-link">
+        <Link to="/teams" className="team-back-link team-breadcrumb">
           {'<- Back to Teams'}
         </Link>
-        {errorMessage ? <p className="message error">{errorMessage}</p> : <p className="message error">Team not found.</p>}
+        {errorMessage ? <p className="alert alert-error">{errorMessage}</p> : <p className="alert alert-error">Team not found.</p>}
       </main>
     );
   }
 
   return (
     <main className="team-detail-page">
-      <Link to="/teams" className="team-back-link">
+      <Link to="/teams" className="team-back-link team-breadcrumb">
         {'<- Back to Teams'}
       </Link>
 
-      {successMessage ? <p className="message success">{successMessage}</p> : null}
-      {errorMessage ? <p className="message error">{errorMessage}</p> : null}
+      {successMessage ? <p className="alert alert-success">{successMessage}</p> : null}
+      {errorMessage ? <p className="alert alert-error">{errorMessage}</p> : null}
 
-      <section className="team-detail-header-card">
+      <section className="team-detail-header-card card">
         <div>
           <h1>{team.name}</h1>
           <p>{team.description || 'No description provided.'}</p>
@@ -404,14 +404,14 @@ export default function TeamDetailPage(): JSX.Element {
                 Default Team ★
               </button>
             ) : (
-              <button type="button" className="primary-button" onClick={() => void handleSetDefaultTeam()} disabled={isMutating}>
+              <button type="button" className="btn btn-primary" onClick={() => void handleSetDefaultTeam()} disabled={isMutating}>
                 Set as Default
               </button>
             )
           ) : null}
 
           {canManage ? (
-            <button type="button" className="primary-button" onClick={openEditModal} disabled={isMutating}>
+            <button type="button" className="btn btn-primary" onClick={openEditModal} disabled={isMutating}>
               Edit
             </button>
           ) : null}
@@ -419,14 +419,14 @@ export default function TeamDetailPage(): JSX.Element {
           {isOwner ? (
             <button
               type="button"
-              className="danger-button"
+              className="btn btn-danger"
               onClick={() => setIsDeleteOpen(true)}
               disabled={isMutating}
             >
               Delete
             </button>
           ) : (
-            <button type="button" className="teams-action-btn teams-action-btn--reject" onClick={() => void handleLeaveTeam()} disabled={isMutating}>
+            <button type="button" className="btn btn-ghost" onClick={() => void handleLeaveTeam()} disabled={isMutating}>
               Leave
             </button>
           )}
@@ -437,13 +437,13 @@ export default function TeamDetailPage(): JSX.Element {
         <header className="team-members-header">
           <h2>Members</h2>
           {canManage ? (
-            <button type="button" className="primary-button" onClick={() => setIsInviteOpen(true)} disabled={isMutating}>
+            <button type="button" className="btn btn-primary" onClick={() => setIsInviteOpen(true)} disabled={isMutating}>
               Invite Member
             </button>
           ) : null}
         </header>
 
-        <div className="team-members-card">
+        <div className="team-members-card card">
           <ul className="team-members-list">
             {team.members.map((member) => {
               const memberRole = normalizeRole(member.role);
@@ -531,9 +531,9 @@ export default function TeamDetailPage(): JSX.Element {
       </section>
 
       {isEditOpen ? (
-        <div className="teams-modal-overlay" role="presentation" onClick={() => !isMutating && setIsEditOpen(false)}>
+        <div className="ds-modal-overlay teams-modal-overlay" role="presentation" onClick={() => !isMutating && setIsEditOpen(false)}>
           <section
-            className="teams-modal"
+            className="ds-modal teams-modal"
             role="dialog"
             aria-modal="true"
             aria-label="Edit team"
@@ -571,13 +571,13 @@ export default function TeamDetailPage(): JSX.Element {
               <div className="teams-modal__actions">
                 <button
                   type="button"
-                  className="teams-action-btn teams-action-btn--reject"
+                  className="btn btn-ghost"
                   onClick={() => setIsEditOpen(false)}
                   disabled={isMutating}
                 >
                   Cancel
                 </button>
-                <button type="submit" className="primary-button" disabled={isMutating}>
+                <button type="submit" className="btn btn-primary" disabled={isMutating}>
                   Save
                 </button>
               </div>
@@ -587,9 +587,9 @@ export default function TeamDetailPage(): JSX.Element {
       ) : null}
 
       {isInviteOpen ? (
-        <div className="teams-modal-overlay" role="presentation" onClick={() => setIsInviteOpen(false)}>
+        <div className="ds-modal-overlay teams-modal-overlay" role="presentation" onClick={() => setIsInviteOpen(false)}>
           <section
-            className="teams-modal team-invite-modal"
+            className="ds-modal teams-modal team-invite-modal"
             role="dialog"
             aria-modal="true"
             aria-label="Invite member"
@@ -607,7 +607,7 @@ export default function TeamDetailPage(): JSX.Element {
               />
             </label>
 
-            {inviteError ? <p className="message error">{inviteError}</p> : null}
+            {inviteError ? <p className="alert alert-error">{inviteError}</p> : null}
 
             <div className="team-invite-results">
               {debouncedInviteQuery.length < 2 ? <p>Type at least 2 characters to search.</p> : null}
@@ -626,7 +626,7 @@ export default function TeamDetailPage(): JSX.Element {
                       </div>
                       <button
                         type="button"
-                        className="primary-button"
+                        className="btn btn-primary"
                         disabled={invitingUserId === result.id}
                         onClick={() => void handleInvite(result.id)}
                       >
@@ -639,7 +639,7 @@ export default function TeamDetailPage(): JSX.Element {
             </div>
 
             <div className="teams-modal__actions">
-              <button type="button" className="teams-action-btn teams-action-btn--reject" onClick={() => setIsInviteOpen(false)}>
+              <button type="button" className="btn btn-ghost" onClick={() => setIsInviteOpen(false)}>
                 Close
               </button>
             </div>
@@ -648,9 +648,9 @@ export default function TeamDetailPage(): JSX.Element {
       ) : null}
 
       {isTransferOpen ? (
-        <div className="teams-modal-overlay" role="presentation" onClick={() => !isMutating && setIsTransferOpen(false)}>
+        <div className="ds-modal-overlay teams-modal-overlay" role="presentation" onClick={() => !isMutating && setIsTransferOpen(false)}>
           <section
-            className="teams-modal"
+            className="ds-modal teams-modal"
             role="dialog"
             aria-modal="true"
             aria-label="Transfer ownership"
@@ -680,7 +680,7 @@ export default function TeamDetailPage(): JSX.Element {
             <div className="teams-modal__actions">
               <button
                 type="button"
-                className="teams-action-btn teams-action-btn--reject"
+                className="btn btn-ghost"
                 onClick={() => setIsTransferOpen(false)}
                 disabled={isMutating}
               >
@@ -688,7 +688,7 @@ export default function TeamDetailPage(): JSX.Element {
               </button>
               <button
                 type="button"
-                className="primary-button"
+                className="btn btn-primary"
                 onClick={() => void handleTransferOwnership()}
                 disabled={isMutating || transferUserId == null}
               >
@@ -700,9 +700,9 @@ export default function TeamDetailPage(): JSX.Element {
       ) : null}
 
       {isDeleteOpen ? (
-        <div className="teams-modal-overlay" role="presentation" onClick={() => !isMutating && setIsDeleteOpen(false)}>
+        <div className="ds-modal-overlay teams-modal-overlay" role="presentation" onClick={() => !isMutating && setIsDeleteOpen(false)}>
           <section
-            className="teams-modal"
+            className="ds-modal teams-modal"
             role="dialog"
             aria-modal="true"
             aria-label="Delete team"
@@ -715,13 +715,13 @@ export default function TeamDetailPage(): JSX.Element {
             <div className="teams-modal__actions">
               <button
                 type="button"
-                className="teams-action-btn teams-action-btn--reject"
+                className="btn btn-ghost"
                 onClick={() => setIsDeleteOpen(false)}
                 disabled={isMutating}
               >
                 Cancel
               </button>
-              <button type="button" className="danger-button" onClick={() => void handleDeleteTeam()} disabled={isMutating}>
+              <button type="button" className="btn btn-danger" onClick={() => void handleDeleteTeam()} disabled={isMutating}>
                 Delete
               </button>
             </div>

@@ -76,8 +76,8 @@ export default function AuthCard({ onAuthSuccess }: AuthCardProps): JSX.Element 
   };
 
   return (
-    <section className="auth-card">
-      <div className="auth-tabs">
+    <section className="auth-card card card-padded">
+      <div className="auth-tabs auth-segmented">
         <button type="button" className={authMode === 'login' ? 'active' : ''} onClick={() => setAuthMode('login')}>
           Log in
         </button>
@@ -147,13 +147,13 @@ export default function AuthCard({ onAuthSuccess }: AuthCardProps): JSX.Element 
           />
         </label>
 
-        <button type="submit" className="primary-button" disabled={submitting}>
-          {submitting ? 'Please wait...' : authMode === 'login' ? 'Log in' : 'Create account'}
+        <button type="submit" className="btn btn-primary btn-full" disabled={submitting}>
+          {submitting ? 'Please wait…' : authMode === 'login' ? 'Log in' : 'Create account'}
         </button>
       </form>
 
-      {errorMessage && <p className="message error">{errorMessage}</p>}
-      {successMessage && <p className="message success">{successMessage}</p>}
+      {errorMessage && <p className="alert alert-error">{errorMessage}</p>}
+      {successMessage && <p className="alert alert-success">{successMessage}</p>}
     </section>
   );
 }

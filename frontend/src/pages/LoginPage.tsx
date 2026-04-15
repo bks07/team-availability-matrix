@@ -25,11 +25,14 @@ export default function LoginPage({ onAuthSuccess }: LoginPageProps): JSX.Elemen
 
   return (
     <main className="login-screen">
-      <div className="login-branding">
+      <div className="login-branding login-entrance">
         <img src={logo} alt="Availability Matrix" className="login-logo" />
         <h1 className="login-title">Team Availability Matrix</h1>
+        <p className="login-tagline">Your team’s availability at a glance</p>
       </div>
-      <AuthCard onAuthSuccess={handleAuthSuccess} />
+      <div className="login-entrance login-entrance-delay">
+        <AuthCard onAuthSuccess={handleAuthSuccess} />
+      </div>
     </main>
   );
 }

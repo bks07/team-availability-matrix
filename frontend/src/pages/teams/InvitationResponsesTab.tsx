@@ -90,7 +90,7 @@ export default function InvitationResponsesTab(): JSX.Element {
 
   return (
     <>
-      {errorMessage ? <p className="message error">{errorMessage}</p> : null}
+      {errorMessage ? <p className="alert alert-error">{errorMessage}</p> : null}
 
       <div className="teams-toolbar" role="search">
         <div className="teams-search-wrapper">
@@ -126,7 +126,7 @@ export default function InvitationResponsesTab(): JSX.Element {
 
         <button
           type="button"
-          className="teams-action-btn teams-action-btn--reject"
+          className="btn btn-ghost"
           onClick={resetFilters}
           disabled={!searchQuery && statusFilter === 'all'}
         >
@@ -163,8 +163,8 @@ export default function InvitationResponsesTab(): JSX.Element {
                     <td>
                       <span
                         className={response.status.toLowerCase() === 'accepted'
-                          ? 'status-tag status-tag--accepted'
-                          : 'status-tag status-tag--rejected'}
+                          ? 'badge status-tag status-tag--accepted'
+                          : 'badge status-tag status-tag--rejected'}
                       >
                         {formatStatus(response.status)}
                       </span>

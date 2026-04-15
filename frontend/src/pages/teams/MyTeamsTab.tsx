@@ -284,20 +284,20 @@ export default function MyTeamsTab({ onDataChanged, onOpenCreateModal }: MyTeams
     <>
       <header className="teams-page__header">
         <h1>My Teams</h1>
-        <button type="button" className="primary-button" onClick={onOpenCreateModal}>
+        <button type="button" className="btn btn-primary" onClick={onOpenCreateModal}>
           Create Team
         </button>
       </header>
 
-      {successMessage ? <p className="message success">{successMessage}</p> : null}
-      {errorMessage ? <p className="message error">{errorMessage}</p> : null}
+      {successMessage ? <p className="alert alert-success">{successMessage}</p> : null}
+      {errorMessage ? <p className="alert alert-error">{errorMessage}</p> : null}
 
       {isLoading ? <p className="teams-page__loading">Loading teams...</p> : null}
 
       {!isLoading && teams.length === 0 ? (
         <section className="teams-empty-state">
           <p>You haven't joined any teams yet</p>
-          <button type="button" className="primary-button" onClick={onOpenCreateModal}>
+          <button type="button" className="btn btn-primary" onClick={onOpenCreateModal}>
             Create your first team
           </button>
         </section>
@@ -465,9 +465,9 @@ export default function MyTeamsTab({ onDataChanged, onOpenCreateModal }: MyTeams
       ) : null}
 
       {confirmAction ? (
-        <div className="teams-modal-overlay" role="presentation" onClick={() => !isConfirming && setConfirmAction(null)}>
+        <div className="ds-modal-overlay teams-modal-overlay" role="presentation" onClick={() => !isConfirming && setConfirmAction(null)}>
           <section
-            className="teams-modal"
+            className="ds-modal teams-modal"
             role="dialog"
             aria-modal="true"
             aria-label={confirmAction.type === 'delete' ? 'Confirm delete' : 'Confirm leave'}
@@ -482,7 +482,7 @@ export default function MyTeamsTab({ onDataChanged, onOpenCreateModal }: MyTeams
             <div className="teams-modal__actions">
               <button
                 type="button"
-                className="teams-action-btn teams-action-btn--reject"
+                className="btn btn-ghost"
                 onClick={() => setConfirmAction(null)}
                 disabled={isConfirming}
               >
@@ -490,7 +490,7 @@ export default function MyTeamsTab({ onDataChanged, onOpenCreateModal }: MyTeams
               </button>
               <button
                 type="button"
-                className="primary-button danger-button"
+                className="btn btn-danger"
                 onClick={() => void handleConfirmAction()}
                 disabled={isConfirming}
               >
@@ -502,9 +502,9 @@ export default function MyTeamsTab({ onDataChanged, onOpenCreateModal }: MyTeams
       ) : null}
 
       {inviteTeamId !== null ? (
-        <div className="teams-modal-overlay" role="presentation" onClick={closeInviteModal}>
+        <div className="ds-modal-overlay teams-modal-overlay" role="presentation" onClick={closeInviteModal}>
           <section
-            className="teams-modal"
+            className="ds-modal teams-modal"
             role="dialog"
             aria-modal="true"
             aria-label="Invite to team"
@@ -528,7 +528,7 @@ export default function MyTeamsTab({ onDataChanged, onOpenCreateModal }: MyTeams
                     <span>{user.displayName} ({user.email})</span>
                     <button
                       type="button"
-                      className="primary-button"
+                      className="btn btn-primary"
                       onClick={() => void handleInviteUser(user.id)}
                       disabled={isInviting}
                     >
@@ -539,7 +539,7 @@ export default function MyTeamsTab({ onDataChanged, onOpenCreateModal }: MyTeams
               </ul>
             ) : null}
             <div className="teams-modal__actions">
-              <button type="button" className="teams-action-btn teams-action-btn--reject" onClick={closeInviteModal}>
+              <button type="button" className="btn btn-ghost" onClick={closeInviteModal}>
                 Close
               </button>
             </div>

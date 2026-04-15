@@ -93,17 +93,17 @@ export default function MonthlyCalendar({
   return (
     <section aria-label="Monthly calendar">
       <div className="my-calendar-nav my-calendar-nav-monthly">
-        <button type="button" onClick={onShowLegend} className="my-calendar-nav-today">
+        <button type="button" onClick={onShowLegend} className="btn btn-ghost my-calendar-nav-today">
           Legend
         </button>
-        <button type="button" onClick={onPreviousMonth} aria-label="Previous month">
+        <button type="button" className="btn btn-ghost" onClick={onPreviousMonth} aria-label="Previous month">
           {'<'}
         </button>
         <h2>{monthLabel}</h2>
-        <button type="button" onClick={onNextMonth} aria-label="Next month">
+        <button type="button" className="btn btn-ghost" onClick={onNextMonth} aria-label="Next month">
           {'>'}
         </button>
-        <button type="button" onClick={onToday} className="my-calendar-nav-today">
+        <button type="button" onClick={onToday} className="btn btn-secondary my-calendar-nav-today">
           Today
         </button>
       </div>

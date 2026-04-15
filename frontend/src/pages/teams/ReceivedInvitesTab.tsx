@@ -87,8 +87,8 @@ export default function ReceivedInvitesTab({ onDataChanged }: ReceivedInvitesTab
 
   return (
     <>
-      {successMessage ? <p className="message success">{successMessage}</p> : null}
-      {errorMessage ? <p className="message error">{errorMessage}</p> : null}
+      {successMessage ? <p className="alert alert-success">{successMessage}</p> : null}
+      {errorMessage ? <p className="alert alert-error">{errorMessage}</p> : null}
 
       <div className="teams-toolbar" role="search">
         <div className="teams-search-wrapper">
@@ -125,8 +125,8 @@ export default function ReceivedInvitesTab({ onDataChanged }: ReceivedInvitesTab
                     <td>{formatDate(inv.createdAt)}</td>
                     <td>
                       <div className="entity-actions">
-                        <button type="button" className="teams-action-btn teams-action-btn--accept" disabled={pendingId === inv.id} onClick={() => void handleAction(inv.id, 'accept')}>Accept</button>
-                        <button type="button" className="teams-action-btn teams-action-btn--reject" disabled={pendingId === inv.id} onClick={() => void handleAction(inv.id, 'reject')}>Reject</button>
+                        <button type="button" className="btn btn-primary btn-sm" disabled={pendingId === inv.id} onClick={() => void handleAction(inv.id, 'accept')}>Accept</button>
+                        <button type="button" className="btn btn-danger btn-sm" disabled={pendingId === inv.id} onClick={() => void handleAction(inv.id, 'reject')}>Reject</button>
                       </div>
                     </td>
                   </tr>
