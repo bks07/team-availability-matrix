@@ -81,7 +81,7 @@ export default function UsersPage(): JSX.Element {
       <div className="users-toolbar">
         <button
           type="button"
-          className="primary-button"
+          className="btn btn-primary"
           onClick={() => setIsCreateModalOpen(true)}
           disabled={isMutating}
         >
@@ -389,7 +389,7 @@ export default function UsersPage(): JSX.Element {
                 >
                   Cancel
                 </button>
-                <button type="submit" className="primary-button" disabled={isMutating}>
+                <button type="submit" className="btn btn-primary" disabled={isMutating}>
                   {isMutating ? 'Creating...' : 'Create'}
                 </button>
               </div>
@@ -598,7 +598,7 @@ export default function UsersPage(): JSX.Element {
                 >
                   Cancel
                 </button>
-                <button type="submit" className="primary-button" disabled={isMutating}>
+                <button type="submit" className="btn btn-primary" disabled={isMutating}>
                   {isMutating ? 'Saving...' : 'Save'}
                 </button>
               </div>
@@ -675,7 +675,7 @@ export default function UsersPage(): JSX.Element {
                 >
                   Cancel
                 </button>
-                <button type="submit" className="primary-button" disabled={isMutating}>
+                <button type="submit" className="btn btn-primary" disabled={isMutating}>
                   {isMutating ? 'Changing...' : 'Change Password'}
                 </button>
               </div>

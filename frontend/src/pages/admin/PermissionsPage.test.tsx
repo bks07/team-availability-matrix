@@ -134,3 +134,29 @@ describe('PermissionsPage icon buttons', () => {
     });
   });
 });
+
+describe('PermissionsPage primary button consolidation', () => {
+  it('renders New Profile button with btn btn-primary classes', async () => {
+    renderPage();
+    await waitForLoaded();
+    const btn = screen.getByRole('button', { name: 'New Profile' });
+    expect(btn).toHaveClass('btn', 'btn-primary');
+    expect(btn).not.toHaveClass('primary-button');
+  });
+
+  it('renders Create button in profile modal with btn btn-primary classes', async () => {
+    renderPage();
+    await waitForLoaded();
+    await userEvent.click(screen.getByRole('button', { name: 'New Profile' }));
+    const btn = screen.getByRole('button', { name: 'Create' });
+    expect(btn).toHaveClass('btn', 'btn-primary');
+    expect(btn).not.toHaveClass('primary-button');
+  });
+
+  it('does not render any element with primary-button class', async () => {
+    renderPage();
+    await waitForLoaded();
+    const elements = document.querySelectorAll('.primary-button');
+    expect(elements.length).toBe(0);
+  });
+});

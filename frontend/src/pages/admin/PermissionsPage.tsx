@@ -318,7 +318,7 @@ export default function PermissionsPage(): JSX.Element {
           <h2>{isEditing ? 'Edit Permission Profile' : 'Create Permission Profile'}</h2>
 
           <div className="permission-modal-top-actions">
-            <button type="button" className="primary-button" onClick={() => void handleSaveProfile()} disabled={isMutating}>
+            <button type="button" className="btn btn-primary" onClick={() => void handleSaveProfile()} disabled={isMutating}>
               {isMutating ? 'Saving...' : isEditing ? 'Update' : 'Create'}
             </button>
             <button type="button" className="teams-action-btn teams-action-btn--reject" onClick={handleCloseProfileModal} disabled={isMutating}>
@@ -381,7 +381,7 @@ export default function PermissionsPage(): JSX.Element {
   const renderProfilesTab = () => (
     <div className="profiles-tab">
       <div className="tab-header">
-        <button type="button" className="primary-button" onClick={handleOpenCreateModal} disabled={showProfileModal}>
+        <button type="button" className="btn btn-primary" onClick={handleOpenCreateModal} disabled={showProfileModal}>
           New Profile
         </button>
       </div>

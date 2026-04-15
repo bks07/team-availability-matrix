@@ -305,7 +305,7 @@ export default function TeamsAdminPage(): JSX.Element {
       <div className="form-actions" style={{ marginBottom: '1rem' }}>
         <button
           type="button"
-          className="primary-button"
+          className="btn btn-primary"
           onClick={() => {
             closeMemberModal();
             setIsCreateModalOpen(true);
@@ -533,7 +533,7 @@ export default function TeamsAdminPage(): JSX.Element {
                 >
                   Cancel
                 </button>
-                <button type="submit" className="primary-button" disabled={isMutating}>
+                <button type="submit" className="btn btn-primary" disabled={isMutating}>
                   {isMutating ? 'Creating...' : 'Create'}
                 </button>
               </div>
@@ -576,7 +576,7 @@ export default function TeamsAdminPage(): JSX.Element {
               />
               <button
                 type="button"
-                className="primary-button"
+                className="btn btn-primary"
                 onClick={() => void handleSearchUsers()}
                 disabled={isMutating || membersLoading || searching}
               >
