@@ -1,5 +1,5 @@
 ---
-status: NEW
+status: DONE
 ---
 
 # Rebrush My Teams Tabs and Headline
