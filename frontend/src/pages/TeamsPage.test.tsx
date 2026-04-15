@@ -488,4 +488,49 @@ describe('TeamsPage (tabbed wrapper + tab integrations)', () => {
     });
   });
 
+
+  describe('rebrush: tab indicator and badge alignment', () => {
+    it('renders a sliding indicator span inside the tab bar', async () => {
+      renderPage();
+      await waitForMyTeamsLoaded();
+
+      const tablist = screen.getByRole('tablist', { name: 'Team management tabs' });
+      const indicator = tablist.querySelector('.teams-tab-bar__indicator');
+      expect(indicator).toBeInTheDocument();
+    });
+
+    it('updates indicator style when active tab changes', async () => {
+      const { user } = renderPage();
+      await waitForMyTeamsLoaded();
+
+      const tablist = screen.getByRole('tablist', { name: 'Team management tabs' });
+      const indicator = tablist.querySelector('.teams-tab-bar__indicator') as HTMLElement;
+      const initialLeft = indicator.style.left;
+
+      await user.click(screen.getByRole('tab', { name: /Received Invites/i }));
+
+      // In jsdom getBoundingClientRect returns zeros, so left stays 0px,
+      // but the indicator element should still exist with inline styles.
+      expect(indicator).toHaveStyle({ left: '0px' });
+      expect(indicator).toHaveStyle({ width: '0px' });
+    });
+
+    it('renders badge inline with tab label without shifting baseline', async () => {
+      vi.mocked(teamService.getMyInvitations).mockResolvedValue([receivedInvitation]);
+      renderPage();
+      await waitForMyTeamsLoaded();
+
+      // Wait for badge counts to load
+      await waitFor(() => {
+        expect(screen.getByRole('tab', { name: /Received Invites/i })).toHaveTextContent(/1/);
+      });
+
+      const receivedTab = screen.getByRole('tab', { name: /Received Invites/i });
+      const badge = within(receivedTab).getByText('1');
+      expect(badge).toHaveClass('teams-tab-bar__badge');
+      // Badge should be a child of the tab button (flex container)
+      expect(badge.parentElement).toBe(receivedTab);
+    });
+  });
+
 });

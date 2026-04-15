@@ -1,4 +1,4 @@
-import { FormEvent, KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { FormEvent, KeyboardEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { InvitationResponse, TeamInvitation } from '../lib/api.models';
 import { teamService } from '../services/team.service';
@@ -77,6 +77,9 @@ export default function TeamsPage(): JSX.Element {
     responses: null,
   });
 
+  const tabBarRef = useRef<HTMLDivElement>(null);
+  const [indicatorStyle, setIndicatorStyle] = useState<{ left: number; width: number }>({ left: 0, width: 0 });
+
   const setActiveTab = useCallback((nextTab: TabValue) => {
     const nextParams = new URLSearchParams(searchParams);
     nextParams.set('tab', nextTab);
@@ -121,6 +124,19 @@ export default function TeamsPage(): JSX.Element {
   useEffect(() => {
     void loadBadgeCounts();
   }, [loadBadgeCounts]);
+
+  useLayoutEffect(() => {
+    const activeEl = tabRefs.current[activeTab];
+    const barEl = tabBarRef.current;
+    if (activeEl && barEl) {
+      const tabRect = activeEl.getBoundingClientRect();
+      const barRect = barEl.getBoundingClientRect();
+      setIndicatorStyle({
+        left: tabRect.left - barRect.left,
+        width: tabRect.width,
+      });
+    }
+  }, [activeTab]);
 
   const openCreateModal = () => {
     setName('');
@@ -226,7 +242,7 @@ export default function TeamsPage(): JSX.Element {
       {successMessage ? <p className="alert alert-success">{successMessage}</p> : null}
       {errorMessage ? <p className="alert alert-error">{errorMessage}</p> : null}
 
-      <div className="teams-tab-bar" role="tablist" aria-label="Team management tabs">
+      <div ref={tabBarRef} className="teams-tab-bar" role="tablist" aria-label="Team management tabs">
         {TAB_CONFIG.map((tab) => {
           const count = getBadgeCount(tab.value);
           const isActive = activeTab === tab.value;
@@ -255,6 +271,10 @@ export default function TeamsPage(): JSX.Element {
             </button>
           );
         })}
+        <span
+          className="teams-tab-bar__indicator"
+          style={{ left: indicatorStyle.left, width: indicatorStyle.width }}
+        />
       </div>
 
       <section
