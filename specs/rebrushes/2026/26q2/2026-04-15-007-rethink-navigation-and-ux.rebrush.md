@@ -1,5 +1,5 @@
 ---
-status: NEW
+status: DONE
 ---
 
 # Rethink Navigation & Overall UX

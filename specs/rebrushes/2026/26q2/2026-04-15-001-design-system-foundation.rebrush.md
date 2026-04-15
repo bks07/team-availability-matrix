@@ -1,5 +1,5 @@
 ---
-status: NEW
+status: DONE
 ---
 
 # Design System Foundation

@@ -1,5 +1,5 @@
 ---
-status: NEW
+status: DONE
 ---
 
 # Standardize Page Elements Across All Pages
