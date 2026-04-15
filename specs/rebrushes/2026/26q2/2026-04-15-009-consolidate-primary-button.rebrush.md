@@ -1,5 +1,5 @@
 ---
-status: NEW
+status: DONE
 ---
 
 # Consolidate Primary Button to .btn.btn-primary
