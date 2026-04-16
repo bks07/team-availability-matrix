@@ -505,7 +505,6 @@ describe('TeamsPage (tabbed wrapper + tab integrations)', () => {
 
       const tablist = screen.getByRole('tablist', { name: 'Team management tabs' });
       const indicator = tablist.querySelector('.teams-tab-bar__indicator') as HTMLElement;
-      const initialLeft = indicator.style.left;
 
       await user.click(screen.getByRole('tab', { name: /Received Invites/i }));
 
