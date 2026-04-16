@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Team } from '../../lib/api.models';
 import { teamService } from '../../services/team.service';
+import PaginationBar from '../../components/PaginationBar';
 
 type SortField = 'name' | 'memberCount' | 'ownerName' | 'createdAt';
 type SortDirection = 'asc' | 'desc' | null;
@@ -22,7 +23,7 @@ interface MyTeamsTabProps {
   onOpenCreateModal: () => void;
 }
 
-const PAGE_SIZES = [10, 25, 50] as const;
+const PAGE_SIZES = [10, 25, 50, 100] as const;
 
 function formatDate(value: string): string {
   const date = new Date(value);
@@ -326,6 +327,16 @@ export default function MyTeamsTab({ onDataChanged, onOpenCreateModal }: MyTeams
                 </button>
               ) : null}
             </div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}>
+              Rows per page:
+              <select
+                value={pageSize}
+                onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
+                aria-label="Rows per page"
+              >
+                {PAGE_SIZES.map((size) => <option key={size} value={size}>{size}</option>)}
+              </select>
+            </label>
             <p ref={liveRegionRef} className="sr-only" aria-live="polite" />
           </div>
 
@@ -333,6 +344,7 @@ export default function MyTeamsTab({ onDataChanged, onOpenCreateModal }: MyTeams
             <p className="empty-state">No teams match your search</p>
           ) : (
             <>
+              <PaginationBar currentPage={safePage} totalPages={totalPages} totalItems={processedTeams.length} onPageChange={setCurrentPage} />
               <div className="matrix-wrapper">
                 <table className="permission-table teams-table">
                   <thead>
@@ -441,25 +453,8 @@ export default function MyTeamsTab({ onDataChanged, onOpenCreateModal }: MyTeams
                 </table>
               </div>
 
-              <div className="pagination-bar">
-                <div className="pagination-bar__info">
-                  Page {safePage} of {totalPages} ({processedTeams.length} total)
-                </div>
-                <div className="pagination-bar__controls">
-                  <button type="button" disabled={safePage <= 1} onClick={() => setCurrentPage(1)} aria-label="First page">«</button>
-                  <button type="button" disabled={safePage <= 1} onClick={() => setCurrentPage((p) => p - 1)} aria-label="Previous page">‹</button>
-                  <button type="button" disabled={safePage >= totalPages} onClick={() => setCurrentPage((p) => p + 1)} aria-label="Next page">›</button>
-                  <button type="button" disabled={safePage >= totalPages} onClick={() => setCurrentPage(totalPages)} aria-label="Last page">»</button>
-                </div>
-                <div className="pagination-bar__size">
-                  <label>Rows per page:
-                    <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}>
-                      {PAGE_SIZES.map((size) => <option key={size} value={size}>{size}</option>)}
-                    </select>
-                  </label>
-                </div>
-              </div>
-            </>
+              <PaginationBar currentPage={safePage} totalPages={totalPages} totalItems={processedTeams.length} onPageChange={setCurrentPage} />
+              </>
           )}
         </>
       ) : null}

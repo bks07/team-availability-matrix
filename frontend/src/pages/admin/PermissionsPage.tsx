@@ -11,6 +11,7 @@ import type {
   UserWithPermissions,
 } from '../../lib/api.models';
 import { currentToken } from '../../lib/storage';
+import PaginationBar from '../../components/PaginationBar';
 import {
   getUsageReport,
   getUsageReportCsvUrl,
@@ -62,7 +63,7 @@ export default function PermissionsPage(): JSX.Element {
   const [auditEntries, setAuditEntries] = useState<AuditLogEntry[]>([]);
   const [auditTotal, setAuditTotal] = useState(0);
   const [auditPage, setAuditPage] = useState(1);
-  const [auditPageSize] = useState(25);
+  const [auditPageSize, setAuditPageSize] = useState(25);
   const [auditLoading, setAuditLoading] = useState(false);
   const [auditEventType, setAuditEventType] = useState('');
   const [auditDateFrom, setAuditDateFrom] = useState('');
@@ -507,6 +508,7 @@ export default function PermissionsPage(): JSX.Element {
           </div>
         </div>
 
+        <PaginationBar currentPage={userPage} totalPages={userTotalPages} totalItems={filteredUsers.length} onPageChange={setUserPage} />
         <div className="matrix-wrapper">
           <table className="permission-table">
             <thead>
@@ -557,18 +559,8 @@ export default function PermissionsPage(): JSX.Element {
           </table>
         </div>
 
-        {userTotalPages > 1 && (
-          <div className="pagination-row">
-            <button type="button" disabled={userPage <= 1} onClick={() => setUserPage((p) => p - 1)}>
-              Previous
-            </button>
-            <span>Page {userPage} of {userTotalPages} ({filteredUsers.length} users)</span>
-            <button type="button" disabled={userPage >= userTotalPages} onClick={() => setUserPage((p) => p + 1)}>
-              Next
-            </button>
-          </div>
-        )}
-      </div>
+        <PaginationBar currentPage={userPage} totalPages={userTotalPages} totalItems={filteredUsers.length} onPageChange={setUserPage} />
+        </div>
     );
   };
 
@@ -759,6 +751,21 @@ export default function PermissionsPage(): JSX.Element {
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3l10 10M13 3L3 13" /></svg>
           </button>
         </div>
+        <div className="permission-filter-row">
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}>
+            Show
+            <select
+              value={auditPageSize}
+              onChange={(e) => { setAuditPageSize(Number(e.target.value)); setAuditPage(1); void loadAuditLog(1); }}
+              aria-label="Page size"
+            >
+              {PAGE_SIZES.map((size) => (
+                <option key={size} value={size}>{size}</option>
+              ))}
+            </select>
+            per page
+          </label>
+        </div>
         <button
           type="button"
           className="icon-btn"
@@ -771,6 +778,7 @@ export default function PermissionsPage(): JSX.Element {
         </button>
       </div>
 
+      <PaginationBar currentPage={auditPage} totalPages={totalPages} totalItems={auditTotal} onPageChange={(p) => { setAuditPage(p); void loadAuditLog(p); }} />
       <div className="matrix-wrapper">
         <table className="permission-table">
           <thead>
@@ -811,18 +819,8 @@ export default function PermissionsPage(): JSX.Element {
         </table>
       </div>
 
-      {totalPages > 1 && (
-        <div className="pagination-row">
-          <button type="button" disabled={auditPage <= 1 || auditLoading} onClick={() => { setAuditPage(p => p - 1); void loadAuditLog(auditPage - 1); }}>
-            Previous
-          </button>
-          <span>Page {auditPage} of {totalPages} ({auditTotal} entries)</span>
-          <button type="button" disabled={auditPage >= totalPages || auditLoading} onClick={() => { setAuditPage(p => p + 1); void loadAuditLog(auditPage + 1); }}>
-            Next
-          </button>
-        </div>
-      )}
-    </div>
+      <PaginationBar currentPage={auditPage} totalPages={totalPages} totalItems={auditTotal} onPageChange={(p) => { setAuditPage(p); void loadAuditLog(p); }} />
+      </div>
   );
 
   return (

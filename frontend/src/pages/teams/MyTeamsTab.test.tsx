@@ -154,17 +154,17 @@ describe('MyTeamsTab', () => {
     expect(screen.getByText(date)).toBeInTheDocument();
   });
 
-  it('renders pagination bar with First/Previous/Next/Last buttons', async () => {
+  it('renders pagination bars above and below table with First/Previous/Next/Last buttons', async () => {
     renderTab();
     await waitForLoaded();
 
-    expect(screen.getByLabelText('First page')).toBeInTheDocument();
-    expect(screen.getByLabelText('Previous page')).toBeInTheDocument();
-    expect(screen.getByLabelText('Next page')).toBeInTheDocument();
-    expect(screen.getByLabelText('Last page')).toBeInTheDocument();
+    expect(screen.getAllByLabelText('First page')).toHaveLength(2);
+    expect(screen.getAllByLabelText('Previous page')).toHaveLength(2);
+    expect(screen.getAllByLabelText('Next page')).toHaveLength(2);
+    expect(screen.getAllByLabelText('Last page')).toHaveLength(2);
   });
 
-  it('has page-size dropdown defaulting to 25 with 10/25/50 options', async () => {
+  it('has page-size dropdown defaulting to 25 with 10/25/50/100 options', async () => {
     renderTab();
     await waitForLoaded();
 
@@ -172,7 +172,7 @@ describe('MyTeamsTab', () => {
     expect(select).toHaveValue('25');
 
     const options = Array.from(select.querySelectorAll('option')).map((o: Element) => o.textContent);
-    expect(options).toEqual(['10', '25', '50']);
+    expect(options).toEqual(['10', '25', '50', '100']);
   });
 
   it('deletes team with confirmation dialog and shows success', async () => {

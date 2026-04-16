@@ -160,22 +160,22 @@ describe('InvitationResponsesTab', () => {
     });
   });
 
-  it('renders pagination bar with First/Previous/Next/Last buttons', async () => {
+  it('renders pagination bars above and below table with First/Previous/Next/Last buttons', async () => {
     renderTab();
     await waitForLoaded();
 
-    expect(screen.getByLabelText('First page')).toBeInTheDocument();
-    expect(screen.getByLabelText('Previous page')).toBeInTheDocument();
-    expect(screen.getByLabelText('Next page')).toBeInTheDocument();
-    expect(screen.getByLabelText('Last page')).toBeInTheDocument();
+    expect(screen.getAllByLabelText('First page')).toHaveLength(2);
+    expect(screen.getAllByLabelText('Previous page')).toHaveLength(2);
+    expect(screen.getAllByLabelText('Next page')).toHaveLength(2);
+    expect(screen.getAllByLabelText('Last page')).toHaveLength(2);
   });
 
   it('has page-size dropdown defaulting to 25', async () => {
     renderTab();
     await waitForLoaded();
 
-    const paginationBar = document.querySelector('.pagination-bar__size select') as HTMLSelectElement;
-    expect(paginationBar).toHaveValue('25');
+    const select = screen.getByLabelText('Rows per page');
+    expect(select).toHaveValue('25');
   });
 
   it('shows error message when data load fails', async () => {

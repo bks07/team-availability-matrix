@@ -160,3 +160,40 @@ describe('PermissionsPage primary button consolidation', () => {
     expect(elements.length).toBe(0);
   });
 });
+
+
+describe('PermissionsPage audit log page-size selector', () => {
+  beforeEach(async () => {
+    renderPage();
+    await waitForLoaded();
+    await userEvent.click(screen.getByRole('button', { name: 'Audit Log' }));
+  });
+
+  it('renders a page-size select with all PAGE_SIZES options', () => {
+    const select = screen.getByRole('combobox', { name: 'Page size' });
+    expect(select).toBeInTheDocument();
+    const options = Array.from(select.querySelectorAll('option')).map(o => o.textContent);
+    expect(options).toEqual(['10', '25', '50', '100']);
+  });
+
+  it('defaults to 25', () => {
+    const select = screen.getByRole('combobox', { name: 'Page size' }) as HTMLSelectElement;
+    expect(select.value).toBe('25');
+  });
+
+  it('calls loadAuditLog when page size is changed', async () => {
+    const { getAuditLog } = await import('../../services/permission.service');
+    const mockGetAuditLog = getAuditLog as ReturnType<typeof vi.fn>;
+    const callCountBefore = mockGetAuditLog.mock.calls.length;
+
+    const select = screen.getByRole('combobox', { name: 'Page size' });
+    await userEvent.selectOptions(select, '50');
+
+    await waitFor(() => {
+      expect(mockGetAuditLog.mock.calls.length).toBeGreaterThan(callCountBefore);
+    });
+
+    const lastCall = mockGetAuditLog.mock.calls[mockGetAuditLog.mock.calls.length - 1][0];
+    expect(lastCall.page).toBe(1);
+  });
+});

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { TeamInvitation } from '../../lib/api.models';
 import { teamService } from '../../services/team.service';
+import PaginationBar from '../../components/PaginationBar';
 
-const PAGE_SIZES = [10, 25, 50] as const;
+const PAGE_SIZES = [10, 25, 50, 100] as const;
 
 function formatDate(value: string): string {
   const date = new Date(value);
@@ -97,6 +98,17 @@ export default function ReceivedInvitesTab({ onDataChanged }: ReceivedInvitesTab
             <button type="button" className="teams-search-clear" onClick={() => setSearchQuery('')} aria-label="Clear search">&times;</button>
           ) : null}
         </div>
+      
+        <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}>
+          Rows per page:
+          <select
+            value={pageSize}
+            onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
+            aria-label="Rows per page"
+          >
+            {PAGE_SIZES.map((size) => <option key={size} value={size}>{size}</option>)}
+          </select>
+        </label>
       </div>
 
       {processedData.length === 0 && !isLoading ? (
@@ -107,6 +119,7 @@ export default function ReceivedInvitesTab({ onDataChanged }: ReceivedInvitesTab
 
       {processedData.length > 0 ? (
         <>
+          <PaginationBar currentPage={safePage} totalPages={totalPages} totalItems={processedData.length} onPageChange={setCurrentPage} />
           <div className="matrix-wrapper">
             <table className="permission-table teams-table">
               <thead>
@@ -135,25 +148,8 @@ export default function ReceivedInvitesTab({ onDataChanged }: ReceivedInvitesTab
             </table>
           </div>
 
-          <div className="pagination-bar">
-            <div className="pagination-bar__info">
-              Page {safePage} of {totalPages} ({processedData.length} total)
-            </div>
-            <div className="pagination-bar__controls">
-              <button type="button" disabled={safePage <= 1} onClick={() => setCurrentPage(1)} aria-label="First page">«</button>
-              <button type="button" disabled={safePage <= 1} onClick={() => setCurrentPage((p) => p - 1)} aria-label="Previous page">‹</button>
-              <button type="button" disabled={safePage >= totalPages} onClick={() => setCurrentPage((p) => p + 1)} aria-label="Next page">›</button>
-              <button type="button" disabled={safePage >= totalPages} onClick={() => setCurrentPage(totalPages)} aria-label="Last page">»</button>
-            </div>
-            <div className="pagination-bar__size">
-              <label>Rows per page:
-                <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}>
-                  {PAGE_SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </label>
-            </div>
-          </div>
-        </>
+          <PaginationBar currentPage={safePage} totalPages={totalPages} totalItems={processedData.length} onPageChange={setCurrentPage} />
+          </>
       ) : null}
     </>
   );
