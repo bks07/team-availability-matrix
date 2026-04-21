@@ -77,7 +77,7 @@ pub(crate) struct PublicHolidayResponse {
     pub(crate) id: i64,
     pub(crate) holiday_date: String,
     pub(crate) name: String,
-    pub(crate) location_id: i64,
+    pub(crate) location_ids: Vec<i64>,
 }
 
 #[derive(Debug, Serialize)]

@@ -1,5 +1,6 @@
 use sqlx::PgPool;
 use crate::auth::{KNOWN_PERMISSIONS, SUPER_ADMIN_PROFILE_NAME};
+use crate::helpers::column_exists;
 
 pub(crate) async fn initialize_database(db: &PgPool) -> Result<(), sqlx::Error> {
     sqlx::query(
@@ -138,11 +139,22 @@ pub(crate) async fn initialize_database(db: &PgPool) -> Result<(), sqlx::Error> 
     sqlx::query(
         r#"
         CREATE TABLE IF NOT EXISTS public_holidays (
-            id BIGSERIAL PRIMARY KEY,
+            id           BIGSERIAL PRIMARY KEY,
             holiday_date DATE NOT NULL,
-            name TEXT NOT NULL,
-            location_id BIGINT NOT NULL REFERENCES locations(id) ON DELETE CASCADE,
-            UNIQUE(holiday_date, location_id)
+            name         TEXT NOT NULL,
+            UNIQUE(holiday_date, name)
+        );
+        "#,
+    )
+    .execute(db)
+    .await?;
+
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS public_holiday_locations (
+            holiday_id  BIGINT NOT NULL REFERENCES public_holidays(id) ON DELETE CASCADE,
+            location_id BIGINT NOT NULL REFERENCES locations(id)       ON DELETE CASCADE,
+            PRIMARY KEY (holiday_id, location_id)
         );
         "#,
     )
@@ -442,6 +454,36 @@ pub(crate) async fn initialize_database(db: &PgPool) -> Result<(), sqlx::Error> 
             .await?;
         }
     }
+
+        // ── ASD-17 migration: move location_id from public_holidays to junction table ──
+        if column_exists(db, "public_holidays", "location_id").await? {
+                sqlx::query(
+                        "INSERT INTO public_holiday_locations (holiday_id, location_id) \
+                         SELECT id, location_id FROM public_holidays WHERE location_id IS NOT NULL \
+                         ON CONFLICT DO NOTHING"
+                )
+                .execute(db)
+                .await?;
+
+                sqlx::query("ALTER TABLE public_holidays DROP COLUMN location_id")
+                        .execute(db)
+                        .await?;
+        }
+
+        // Add unique constraint on (holiday_date, name) if it doesn't exist yet
+        sqlx::query(
+                r#"DO $$ BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM pg_constraint
+                        WHERE conname = 'public_holidays_holiday_date_name_key'
+                            AND conrelid = 'public_holidays'::regclass
+                    ) THEN
+                        ALTER TABLE public_holidays ADD CONSTRAINT public_holidays_holiday_date_name_key UNIQUE (holiday_date, name);
+                    END IF;
+                END $$"#
+        )
+        .execute(db)
+        .await?;
 
     Ok(())
 }

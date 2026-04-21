@@ -3,9 +3,11 @@ import type { Dispatch, FormEvent, SetStateAction } from 'react';
 import type { Location, PublicHoliday } from '../lib/api.models';
 import { getLocations } from '../services/location.service';
 import {
+  addLocationToHoliday,
   createPublicHoliday,
   deletePublicHoliday,
   getPublicHolidays,
+  removeLocationFromHoliday,
   updatePublicHoliday
 } from '../services/public-holiday.service';
 
@@ -39,15 +41,14 @@ export interface UseHolidaysPageResult {
   setNewDate: Dispatch<SetStateAction<string>>;
   newName: string;
   setNewName: Dispatch<SetStateAction<string>>;
-  newLocationId: number | null;
-  setNewLocationId: Dispatch<SetStateAction<number | null>>;
   editingId: number | null;
   editDate: string;
   setEditDate: Dispatch<SetStateAction<string>>;
   editName: string;
   setEditName: Dispatch<SetStateAction<string>>;
-  editLocationId: number | null;
-  setEditLocationId: Dispatch<SetStateAction<number | null>>;
+  addingLocationToId: number | null;
+  addLocationId: number | null;
+  setAddLocationId: Dispatch<SetStateAction<number | null>>;
   loading: boolean;
   error: string;
   success: string;
@@ -57,6 +58,10 @@ export interface UseHolidaysPageResult {
   startEditing: (holiday: PublicHoliday) => void;
   cancelEditing: () => void;
   handleSaveEdit: (id: number) => Promise<void>;
+  handleOpenAddLocation: (holidayId: number) => void;
+  handleCancelAddLocation: () => void;
+  handleAddLocation: (holidayId: number, locationId: number) => Promise<void>;
+  handleRemoveLocation: (holidayId: number, locationId: number) => Promise<void>;
   handleDelete: (holiday: PublicHoliday) => Promise<void>;
   formatHolidayDate: (value: string) => string;
 }
@@ -68,12 +73,12 @@ export function useHolidaysPage(): UseHolidaysPageResult {
 
   const [newDate, setNewDate] = useState('');
   const [newName, setNewName] = useState('');
-  const [newLocationId, setNewLocationId] = useState<number | null>(null);
 
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editDate, setEditDate] = useState('');
   const [editName, setEditName] = useState('');
-  const [editLocationId, setEditLocationId] = useState<number | null>(null);
+  const [addingLocationToId, setAddingLocationToId] = useState<number | null>(null);
+  const [addLocationId, setAddLocationId] = useState<number | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -141,22 +146,15 @@ export function useHolidaysPage(): UseHolidaysPageResult {
       return;
     }
 
-    if (newLocationId === null) {
-      setError('Location is required.');
-      setSuccess('');
-      return;
-    }
-
     setIsMutating(true);
     setError('');
     setSuccess('');
 
     try {
-      await createPublicHoliday(newDate, name, newLocationId);
+      await createPublicHoliday(newDate, name);
       await refreshHolidays();
       setNewDate('');
       setNewName('');
-      setNewLocationId(null);
       setSuccess('Public holiday created successfully.');
     } catch (createError) {
       setError(getErrorMessage(createError));
@@ -169,7 +167,6 @@ export function useHolidaysPage(): UseHolidaysPageResult {
     setEditingId(holiday.id);
     setEditDate(holiday.holidayDate);
     setEditName(holiday.name);
-    setEditLocationId(holiday.locationId);
     setError('');
     setSuccess('');
   };
@@ -178,7 +175,6 @@ export function useHolidaysPage(): UseHolidaysPageResult {
     setEditingId(null);
     setEditDate('');
     setEditName('');
-    setEditLocationId(null);
   };
 
   const handleSaveEdit = async (id: number) => {
@@ -196,23 +192,16 @@ export function useHolidaysPage(): UseHolidaysPageResult {
       return;
     }
 
-    if (editLocationId === null) {
-      setError('Location is required.');
-      setSuccess('');
-      return;
-    }
-
     setIsMutating(true);
     setError('');
     setSuccess('');
 
     try {
-      await updatePublicHoliday(id, editDate, name, editLocationId);
+      await updatePublicHoliday(id, editDate, name);
       await refreshHolidays();
       setEditingId(null);
       setEditDate('');
       setEditName('');
-      setEditLocationId(null);
       setSuccess('Public holiday updated successfully.');
     } catch (updateError) {
       setError(getErrorMessage(updateError));
@@ -247,6 +236,54 @@ export function useHolidaysPage(): UseHolidaysPageResult {
     }
   };
 
+  const handleOpenAddLocation = (holidayId: number) => {
+    setAddingLocationToId(holidayId);
+    setAddLocationId(null);
+  };
+
+  const handleCancelAddLocation = () => {
+    setAddingLocationToId(null);
+    setAddLocationId(null);
+  };
+
+  const handleAddLocation = async (holidayId: number, locationId: number) => {
+    setIsMutating(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await addLocationToHoliday(holidayId, locationId);
+      await refreshHolidays();
+      handleCancelAddLocation();
+    } catch (addError) {
+      setError(getErrorMessage(addError));
+    } finally {
+      setIsMutating(false);
+    }
+  };
+
+  const handleRemoveLocation = async (holidayId: number, locationId: number) => {
+    const holidayName = holidays.find((holiday) => holiday.id === holidayId)?.name ?? 'this holiday';
+    const locationName = locationNameById.get(locationId) ?? `Location #${locationId}`;
+    const confirmed = window.confirm(`Remove ${locationName} from ${holidayName}?`);
+    if (!confirmed) {
+      return;
+    }
+
+    setIsMutating(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await removeLocationFromHoliday(holidayId, locationId);
+      await refreshHolidays();
+    } catch (removeError) {
+      setError(getErrorMessage(removeError));
+    } finally {
+      setIsMutating(false);
+    }
+  };
+
   return {
     holidays,
     locations,
@@ -256,15 +293,14 @@ export function useHolidaysPage(): UseHolidaysPageResult {
     setNewDate,
     newName,
     setNewName,
-    newLocationId,
-    setNewLocationId,
     editingId,
     editDate,
     setEditDate,
     editName,
     setEditName,
-    editLocationId,
-    setEditLocationId,
+    addingLocationToId,
+    addLocationId,
+    setAddLocationId,
     loading,
     error,
     success,
@@ -274,6 +310,10 @@ export function useHolidaysPage(): UseHolidaysPageResult {
     startEditing,
     cancelEditing,
     handleSaveEdit,
+    handleOpenAddLocation,
+    handleCancelAddLocation,
+    handleAddLocation,
+    handleRemoveLocation,
     handleDelete,
     formatHolidayDate
   };

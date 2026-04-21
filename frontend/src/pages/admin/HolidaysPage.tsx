@@ -10,15 +10,14 @@ export default function HolidaysPage(): JSX.Element {
     setNewDate,
     newName,
     setNewName,
-    newLocationId,
-    setNewLocationId,
     editingId,
     editDate,
     setEditDate,
     editName,
     setEditName,
-    editLocationId,
-    setEditLocationId,
+    addingLocationToId,
+    addLocationId,
+    setAddLocationId,
     loading,
     error,
     success,
@@ -29,6 +28,10 @@ export default function HolidaysPage(): JSX.Element {
     cancelEditing,
     handleSaveEdit,
     handleDelete,
+    handleOpenAddLocation,
+    handleCancelAddLocation,
+    handleAddLocation,
+    handleRemoveLocation,
     formatHolidayDate
   } = useHolidaysPage();
 
@@ -58,22 +61,6 @@ export default function HolidaysPage(): JSX.Element {
             disabled={isMutating}
             aria-label="Holiday name"
           />
-          <select
-            value={newLocationId ?? ''}
-            onChange={(event) => {
-              const value = event.target.value;
-              setNewLocationId(value ? Number(value) : null);
-            }}
-            disabled={isMutating}
-            aria-label="Holiday location"
-          >
-            <option value="">Select location</option>
-            {locations.map((location) => (
-              <option key={location.id} value={location.id}>
-                {location.name}
-              </option>
-            ))}
-          </select>
           <button type="submit" className="primary" disabled={isMutating}>
             Add
           </button>
@@ -110,14 +97,13 @@ export default function HolidaysPage(): JSX.Element {
               <tr>
                 <th>Date</th>
                 <th>Name</th>
-                <th>Location</th>
+                <th>Locations</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {holidays.map((holiday) => {
                 const isEditing = editingId === holiday.id;
-                const locationName = locationNameById.get(holiday.locationId) ?? `Location #${holiday.locationId}`;
 
                 return (
                   <tr key={holiday.id}>
@@ -144,23 +130,16 @@ export default function HolidaysPage(): JSX.Element {
                           />
                         </td>
                         <td>
-                          <select
-                            className="edit-input"
-                            value={editLocationId ?? ''}
-                            onChange={(event) => {
-                              const value = event.target.value;
-                              setEditLocationId(value ? Number(value) : null);
-                            }}
-                            disabled={isMutating}
-                            aria-label={`Edit location for ${holiday.name}`}
-                          >
-                            <option value="">Select location</option>
-                            {locations.map((location) => (
-                              <option key={location.id} value={location.id}>
-                                {location.name}
-                              </option>
-                            ))}
-                          </select>
+                          {holiday.locationIds.length === 0 ? (
+                            <span className="empty-state-inline">No locations</span>
+                          ) : (
+                            <ul className="location-chips">
+                              {holiday.locationIds.map((locId) => {
+                                const chipName = locationNameById.get(locId) ?? `Location #${locId}`;
+                                return <li key={locId}>{chipName}</li>;
+                              })}
+                            </ul>
+                          )}
                         </td>
                         <td>
                           <div className="entity-actions">
@@ -195,9 +174,47 @@ export default function HolidaysPage(): JSX.Element {
                       <>
                         <td>{formatHolidayDate(holiday.holidayDate)}</td>
                         <td>{holiday.name}</td>
-                        <td>{locationName}</td>
+                        <td>
+                          {holiday.locationIds.length === 0 ? (
+                            <span className="empty-state-inline">No locations</span>
+                          ) : (
+                            <ul className="location-chips">
+                              {holiday.locationIds.map((locId) => {
+                                const chipName = locationNameById.get(locId) ?? `Location #${locId}`;
+                                return (
+                                  <li key={locId}>
+                                    {chipName}
+                                    <button
+                                      type="button"
+                                      className="icon-btn"
+                                      onClick={() => void handleRemoveLocation(holiday.id, locId)}
+                                      disabled={isMutating}
+                                      aria-label={`Remove ${chipName} from ${holiday.name}`}
+                                    >
+                                      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M3 3l10 10M13 3L3 13" />
+                                      </svg>
+                                    </button>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          )}
+                        </td>
                         <td>
                           <div className="entity-actions">
+                            <button
+                              type="button"
+                              className="icon-btn"
+                              onClick={() => handleOpenAddLocation(holiday.id)}
+                              disabled={isMutating}
+                              title="Add location"
+                              aria-label={`Add location to ${holiday.name}`}
+                            >
+                              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M8 2v12M2 8h12" />
+                              </svg>
+                            </button>
                             <button
                               type="button"
                               className="icon-btn"
@@ -222,6 +239,43 @@ export default function HolidaysPage(): JSX.Element {
                                 <path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 011.334-1.334h2.666a1.333 1.333 0 011.334 1.334V4m2 0v9.333a1.333 1.333 0 01-1.334 1.334H4.667a1.333 1.333 0 01-1.334-1.334V4h9.334z" />
                               </svg>
                             </button>
+                            {addingLocationToId === holiday.id ? (
+                              <div className="add-form" style={{ marginTop: '0.5rem' }}>
+                                <select
+                                  value={addLocationId ?? ''}
+                                  onChange={(event) => setAddLocationId(event.target.value ? Number(event.target.value) : null)}
+                                  disabled={isMutating}
+                                  aria-label="Select location to add"
+                                >
+                                  <option value="">Select location</option>
+                                  {locations
+                                    .filter((loc) => !holiday.locationIds.includes(loc.id))
+                                    .map((loc) => (
+                                      <option key={loc.id} value={loc.id}>
+                                        {loc.name}
+                                      </option>
+                                    ))}
+                                </select>
+                                <button
+                                  type="button"
+                                  className="primary"
+                                  onClick={() => (addLocationId !== null ? void handleAddLocation(holiday.id, addLocationId) : undefined)}
+                                  disabled={addLocationId === null || isMutating}
+                                  aria-label="Assign location"
+                                >
+                                  Assign
+                                </button>
+                                <button
+                                  type="button"
+                                  className="icon-btn"
+                                  onClick={handleCancelAddLocation}
+                                  disabled={isMutating}
+                                  aria-label="Cancel adding location"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : null}
                           </div>
                         </td>
                       </>

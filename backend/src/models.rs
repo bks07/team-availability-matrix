@@ -98,6 +98,11 @@ pub(crate) struct PublicHolidayRow {
     pub(crate) id: i64,
     pub(crate) holiday_date: NaiveDate,
     pub(crate) name: String,
+}
+
+#[derive(Debug, FromRow)]
+pub(crate) struct HolidayLocationRow {
+    pub(crate) holiday_id: i64,
     pub(crate) location_id: i64,
 }
 

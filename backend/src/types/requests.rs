@@ -50,7 +50,6 @@ pub(crate) struct UpdateLocationRequest {
 pub(crate) struct CreatePublicHolidayRequest {
     pub(crate) holiday_date: String,
     pub(crate) name: String,
-    pub(crate) location_id: i64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -58,6 +57,11 @@ pub(crate) struct CreatePublicHolidayRequest {
 pub(crate) struct UpdatePublicHolidayRequest {
     pub(crate) holiday_date: String,
     pub(crate) name: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct AddLocationToHolidayRequest {
     pub(crate) location_id: i64,
 }
 

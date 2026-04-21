@@ -7,9 +7,10 @@ use tower_http::{cors::CorsLayer, services::ServeDir};
 use crate::handlers;
 use crate::handlers::admin_teams;
 use crate::handlers::teams::{
-    accept_invitation, cancel_invitation, create_team, delete_team, get_team_detail, list_invitation_responses,
-    invite_to_team, leave_team, list_my_invitations, list_my_teams, list_sent_invitations, reject_invitation,
-    remove_member, search_users, toggle_favorite, transfer_ownership, update_member_role, update_team,
+    accept_invitation, cancel_invitation, create_team, delete_team, get_team_detail,
+    invite_to_team, leave_team, list_invitation_responses, list_my_invitations, list_my_teams,
+    list_sent_invitations, reject_invitation, remove_member, search_users, toggle_favorite,
+    transfer_ownership, update_member_role, update_team,
 };
 use crate::state::AppState;
 
@@ -34,41 +35,41 @@ pub(crate) fn build_router(state: AppState, cors: CorsLayer, upload_dir: &str) -
                 .delete(handlers::profile::delete_profile_photo),
         )
         .route("/api/matrix", get(handlers::matrix::get_matrix))
-        .route("/api/matrix/export", get(handlers::matrix::export_matrix_csv))
+        .route(
+            "/api/matrix/export",
+            get(handlers::matrix::export_matrix_csv),
+        )
         .route("/api/statuses/bulk", post(handlers::matrix::bulk_status))
         .route(
             "/api/statuses/:date",
             put(handlers::matrix::update_status).delete(handlers::matrix::delete_status),
         )
         .route("/api/teams", get(list_my_teams).post(create_team))
-            .route("/api/teams/invitations", get(list_my_invitations))
-            .route("/api/teams/invitations/sent", get(list_sent_invitations))
-            .route("/api/teams/invitations/responses", get(list_invitation_responses))
-            .route(
-                "/api/teams/invitations/:id/accept",
-                post(accept_invitation),
-            )
-            .route(
-                "/api/teams/invitations/:id/reject",
-                post(reject_invitation),
-            )
-            .route("/api/teams/invitations/:id", delete(cancel_invitation))
+        .route("/api/teams/invitations", get(list_my_invitations))
+        .route("/api/teams/invitations/sent", get(list_sent_invitations))
+        .route(
+            "/api/teams/invitations/responses",
+            get(list_invitation_responses),
+        )
+        .route("/api/teams/invitations/:id/accept", post(accept_invitation))
+        .route("/api/teams/invitations/:id/reject", post(reject_invitation))
+        .route("/api/teams/invitations/:id", delete(cancel_invitation))
         .route(
             "/api/teams/:id",
             get(get_team_detail).put(update_team).delete(delete_team),
         )
-            .route("/api/teams/:id/invitations", post(invite_to_team))
-            .route(
-                "/api/teams/:id/members/:user_id/role",
-                put(update_member_role),
-            )
-            .route("/api/teams/:id/members/:user_id", delete(remove_member))
-            .route("/api/teams/:id/leave", post(leave_team))
-            .route(
-                "/api/teams/:id/transfer-ownership",
-                post(transfer_ownership),
-            )
-            .route("/api/teams/:id/favorite", put(toggle_favorite))
+        .route("/api/teams/:id/invitations", post(invite_to_team))
+        .route(
+            "/api/teams/:id/members/:user_id/role",
+            put(update_member_role),
+        )
+        .route("/api/teams/:id/members/:user_id", delete(remove_member))
+        .route("/api/teams/:id/leave", post(leave_team))
+        .route(
+            "/api/teams/:id/transfer-ownership",
+            post(transfer_ownership),
+        )
+        .route("/api/teams/:id/favorite", put(toggle_favorite))
         .route("/api/users/search", get(search_users))
         .route(
             "/api/admin/locations",
@@ -96,8 +97,17 @@ pub(crate) fn build_router(state: AppState, cors: CorsLayer, upload_dir: &str) -
             delete(handlers::holidays::delete_public_holiday),
         )
         .route(
+            "/api/admin/public-holidays/:id/locations",
+            post(handlers::holidays::add_location_to_holiday),
+        )
+        .route(
+            "/api/admin/public-holidays/:id/locations/:location_id",
+            delete(handlers::holidays::remove_location_from_holiday),
+        )
+        .route(
             "/api/admin/users",
-            get(handlers::admin_users::list_admin_users).post(handlers::admin_users::admin_create_user),
+            get(handlers::admin_users::list_admin_users)
+                .post(handlers::admin_users::admin_create_user),
         )
         .route(
             "/api/admin/users/bulk-location",

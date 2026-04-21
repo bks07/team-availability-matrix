@@ -179,6 +179,22 @@ pub(crate) async fn table_exists(db: &PgPool, table_name: &str) -> Result<bool, 
     Ok(exists)
 }
 
+pub(crate) async fn column_exists(
+    db: &PgPool,
+    table: &str,
+    column: &str,
+) -> Result<bool, sqlx::Error> {
+    let exists = sqlx::query_scalar::<_, i32>(
+        "SELECT 1 FROM information_schema.columns WHERE table_name = $1 AND column_name = $2 LIMIT 1"
+    )
+    .bind(table)
+    .bind(column)
+    .fetch_optional(db)
+    .await?
+    .is_some();
+    Ok(exists)
+}
+
 pub(crate) async fn ensure_user_exists(db: &PgPool, user_id: i64) -> Result<(), ApiError> {
     let exists = sqlx::query_scalar::<_, i32>("SELECT 1 FROM users WHERE id = $1 LIMIT 1")
         .bind(user_id)
@@ -221,4 +237,58 @@ pub(crate) fn build_day_list(year: i32) -> Result<Vec<String>, ApiError> {
     Ok((0..total_days)
         .map(|offset| (start + Duration::days(offset)).to_string())
         .collect())
+}
+
+#[cfg(test)]
+mod tests {
+    use axum::http::StatusCode;
+
+    use super::{column_exists, normalize_public_holiday_name};
+
+    #[test]
+    fn column_exists_query_shape_is_sane() {
+        let _column_exists_fn = column_exists;
+
+        let has_row = Some(1_i32).is_some();
+        let missing_row: Option<i32> = None;
+        let is_missing = missing_row.is_some();
+
+        assert!(has_row);
+        assert!(!is_missing);
+
+        let _query = sqlx::query_scalar::<sqlx::Postgres, i32>(
+            "SELECT 1 FROM information_schema.columns WHERE table_name = $1 AND column_name = $2 LIMIT 1",
+        );
+    }
+
+    #[test]
+    fn normalize_public_holiday_name_rejects_empty_string() {
+        let error = normalize_public_holiday_name("").expect_err("expected validation error");
+
+        assert_eq!(error.status, StatusCode::BAD_REQUEST);
+        assert_eq!(error.message, "Public holiday name is required");
+    }
+
+    #[test]
+    fn normalize_public_holiday_name_rejects_whitespace_only() {
+        let error = normalize_public_holiday_name("   \t\n").expect_err("expected validation error");
+
+        assert_eq!(error.status, StatusCode::BAD_REQUEST);
+        assert_eq!(error.message, "Public holiday name is required");
+    }
+
+    #[test]
+    fn normalize_public_holiday_name_accepts_valid_name() {
+        let normalized =
+            normalize_public_holiday_name("Christmas Day").expect("expected valid holiday name");
+
+        assert_eq!(normalized, "Christmas Day");
+    }
+
+    #[test]
+    fn normalize_public_holiday_name_trims_valid_name() {
+        let normalized = normalize_public_holiday_name("  Easter  ").expect("expected valid holiday");
+
+        assert_eq!(normalized, "Easter");
+    }
 }

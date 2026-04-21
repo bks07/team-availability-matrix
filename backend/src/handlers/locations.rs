@@ -223,9 +223,9 @@ pub(crate) async fn delete_location(
         ));
     }
 
-    if table_exists(&state.db, "public_holidays").await? {
+    if table_exists(&state.db, "public_holiday_locations").await? {
         let holidays_using_location = sqlx::query_scalar::<_, i64>(
-            "SELECT COUNT(*) FROM public_holidays WHERE location_id = $1",
+            "SELECT COUNT(*) FROM public_holiday_locations WHERE location_id = $1",
         )
         .bind(id)
         .fetch_one(&state.db)

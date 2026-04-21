@@ -9,7 +9,9 @@ use std::collections::HashMap;
 use crate::auth::{authorize, get_user_permissions, get_user_profile_name};
 use crate::error::ApiError;
 use crate::helpers::build_day_list;
-use crate::models::{EmployeeRow, PublicHolidayRow, StatusRow, StatusValue, WorkScheduleRow};
+use crate::models::{
+    EmployeeRow, HolidayLocationRow, PublicHolidayRow, StatusRow, StatusValue, WorkScheduleRow,
+};
 use crate::state::AppState;
 use crate::types::requests::{BulkStatusRequest, UpdateStatusRequest, YearQuery};
 use crate::types::responses::{
@@ -124,15 +126,17 @@ pub(crate) async fn get_matrix(
         .into_iter()
         .collect();
 
-    let public_holiday_rows = if location_ids.is_empty() {
-        Vec::new()
+    let public_holidays: Vec<PublicHolidayResponse> = if location_ids.is_empty() {
+        vec![]
     } else {
-        sqlx::query_as::<_, PublicHolidayRow>(
+        let holiday_rows = sqlx::query_as::<_, PublicHolidayRow>(
             r#"
-            SELECT id, holiday_date, name, location_id
-            FROM public_holidays
-            WHERE holiday_date >= $1 AND holiday_date < $2 AND location_id = ANY($3::BIGINT[])
-            ORDER BY holiday_date ASC
+            SELECT DISTINCT ph.id, ph.holiday_date, ph.name
+            FROM public_holidays ph
+            INNER JOIN public_holiday_locations phl ON phl.holiday_id = ph.id
+            WHERE ph.holiday_date >= $1 AND ph.holiday_date < $2
+              AND phl.location_id = ANY($3::BIGINT[])
+            ORDER BY ph.holiday_date ASC
             "#,
         )
         .bind(start)
@@ -145,18 +149,41 @@ pub(crate) async fn get_matrix(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("Failed to load public holidays for matrix: {error}"),
             )
-        })?
-    };
+        })?;
 
-    let public_holidays = public_holiday_rows
-        .into_iter()
-        .map(|holiday| PublicHolidayResponse {
-            id: holiday.id,
-            holiday_date: holiday.holiday_date.to_string(),
-            name: holiday.name,
-            location_id: holiday.location_id,
-        })
-        .collect();
+        let holiday_location_rows = if holiday_rows.is_empty() {
+            vec![]
+        } else {
+            let holiday_ids: Vec<i64> = holiday_rows.iter().map(|holiday| holiday.id).collect();
+            sqlx::query_as::<_, HolidayLocationRow>(
+                "SELECT holiday_id, location_id FROM public_holiday_locations WHERE holiday_id = ANY($1::BIGINT[])",
+            )
+            .bind(&holiday_ids[..])
+            .fetch_all(&state.db)
+            .await
+            .map_err(|error| {
+                ApiError::new(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Failed to load holiday location assignments: {error}"),
+                )
+            })?
+        };
+
+        let mut loc_map: HashMap<i64, Vec<i64>> = HashMap::new();
+        for row in &holiday_location_rows {
+            loc_map.entry(row.holiday_id).or_default().push(row.location_id);
+        }
+
+        holiday_rows
+            .into_iter()
+            .map(|holiday| PublicHolidayResponse {
+                id: holiday.id,
+                holiday_date: holiday.holiday_date.to_string(),
+                name: holiday.name,
+                location_ids: loc_map.remove(&holiday.id).unwrap_or_default(),
+            })
+            .collect()
+    };
 
     let schedule_rows = if employee_ids.is_empty() {
         Vec::new()
@@ -320,11 +347,26 @@ pub(crate) async fn bulk_status(
         .ok_or_else(|| ApiError::new(StatusCode::UNAUTHORIZED, "Current user no longer exists"))?;
 
         if let Some(location_id) = location_id {
+            let min_date = filtered_dates.iter().min().copied().ok_or_else(|| {
+                ApiError::new(StatusCode::BAD_REQUEST, "No dates available to update")
+            })?;
+            let max_date = filtered_dates.iter().max().copied().ok_or_else(|| {
+                ApiError::new(StatusCode::BAD_REQUEST, "No dates available to update")
+            })?;
+
             let holiday_dates = sqlx::query_scalar::<_, NaiveDate>(
-                "SELECT holiday_date FROM public_holidays WHERE location_id = $1 AND holiday_date = ANY($2::date[])",
+                r#"
+                SELECT DISTINCT ph.holiday_date
+                FROM public_holidays ph
+                INNER JOIN public_holiday_locations phl ON phl.holiday_id = ph.id
+                WHERE phl.location_id = $1
+                  AND ph.holiday_date >= $2
+                  AND ph.holiday_date <= $3
+                "#,
             )
             .bind(location_id)
-            .bind(&filtered_dates[..])
+            .bind(min_date)
+            .bind(max_date)
             .fetch_all(&state.db)
             .await
             .map_err(|error| {

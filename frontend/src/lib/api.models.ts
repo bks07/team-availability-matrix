@@ -26,7 +26,7 @@ export interface PublicHoliday {
   id: number;
   holidayDate: string;
   name: string;
-  locationId: number;
+  locationIds: number[];
 }
 
 export interface UserWithPermissions {

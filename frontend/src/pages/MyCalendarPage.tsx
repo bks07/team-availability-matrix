@@ -176,7 +176,7 @@ export default function MyCalendarPage(): JSX.Element {
             ? []
             : matrices
                 .flatMap((matrix) => matrix.publicHolidays)
-                .filter((holiday) => holiday.locationId === locationId && visibleDateSet.has(holiday.holidayDate));
+                .filter((holiday) => holiday.locationIds.includes(locationId) && visibleDateSet.has(holiday.holidayDate));
 
         const nextHolidayMap = new Map<string, string>();
         holidays.forEach((holiday: PublicHoliday) => {

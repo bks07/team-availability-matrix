@@ -279,9 +279,11 @@ export default function WorkspaceLayout(): JSX.Element {
       matrixResults
         .flatMap((result) => result.publicHolidays)
         .forEach((holiday) => {
-          const byLocation = nextHolidayLookup.get(holiday.locationId) ?? new Set<string>();
-          byLocation.add(holiday.holidayDate);
-          nextHolidayLookup.set(holiday.locationId, byLocation);
+          for (const locId of holiday.locationIds) {
+            const byLocation = nextHolidayLookup.get(locId) ?? new Set<string>();
+            byLocation.add(holiday.holidayDate);
+            nextHolidayLookup.set(locId, byLocation);
+          }
         });
 
       setHolidayLookup(nextHolidayLookup);
