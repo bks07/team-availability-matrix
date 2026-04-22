@@ -1,5 +1,5 @@
 ---
-status: NEW
+status: DONE
 ---
 
 # Docker Compose Fails Due to Duplicate public_holidays Rows Blocking UNIQUE Constraint Creation
