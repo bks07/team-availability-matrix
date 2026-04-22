@@ -1,8 +1,8 @@
-import type { APIRequestContext, APIResponse } from '@playwright/test';
-import { adminCredentials } from './auth';
+import type { APIRequestContext, APIResponse } from "@playwright/test";
+import { adminCredentials } from "./auth";
 
-const APP_BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:4200';
-const API_BASE_URL = `${APP_BASE_URL.replace(/\/$/, '')}/api`;
+const APP_BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:4200";
+const API_BASE_URL = `${APP_BASE_URL.replace(/\/$/, "")}/api`;
 
 interface AuthResponse {
   token: string;
@@ -48,11 +48,13 @@ async function ensureAdminToken(request: APIRequestContext): Promise<string> {
 
   const { email, password } = adminCredentials();
   const loginResponse = await request.post(`${API_BASE_URL}/auth/login`, {
-    data: { email, password }
+    data: { email, password },
   });
 
   if (!loginResponse.ok()) {
-    throw new Error(`Admin API login failed: ${await parseError(loginResponse)}`);
+    throw new Error(
+      `Admin API login failed: ${await parseError(loginResponse)}`,
+    );
   }
 
   const payload = (await loginResponse.json()) as AuthResponse;
@@ -62,19 +64,19 @@ async function ensureAdminToken(request: APIRequestContext): Promise<string> {
 
 async function adminApiRequest(
   request: APIRequestContext,
-  method: 'get' | 'post' | 'delete',
+  method: "get" | "post" | "delete",
   path: string,
-  body?: unknown
+  body?: unknown,
 ): Promise<APIResponse> {
   const token = await ensureAdminToken(request);
   const url = `${API_BASE_URL}${path}`;
   const headers = { Authorization: `Bearer ${token}` };
 
-  if (method === 'get') {
+  if (method === "get") {
     return request.get(url, { headers });
   }
 
-  if (method === 'post') {
+  if (method === "post") {
     return request.post(url, { headers, data: body });
   }
 
@@ -84,15 +86,22 @@ async function adminApiRequest(
 export async function createHoliday(
   request: APIRequestContext,
   date: string,
-  name: string
+  name: string,
 ): Promise<PublicHoliday> {
-  const response = await adminApiRequest(request, 'post', '/admin/public-holidays', {
-    holidayDate: date,
-    name
-  });
+  const response = await adminApiRequest(
+    request,
+    "post",
+    "/admin/public-holidays",
+    {
+      holidayDate: date,
+      name,
+    },
+  );
 
   if (!response.ok()) {
-    throw new Error(`Failed to create holiday "${name}": ${await parseError(response)}`);
+    throw new Error(
+      `Failed to create holiday "${name}": ${await parseError(response)}`,
+    );
   }
 
   return (await response.json()) as PublicHoliday;
@@ -100,33 +109,49 @@ export async function createHoliday(
 
 export async function deleteHolidayByName(
   request: APIRequestContext,
-  name: string
+  name: string,
 ): Promise<void> {
-  const listResponse = await adminApiRequest(request, 'get', '/admin/public-holidays');
+  const listResponse = await adminApiRequest(
+    request,
+    "get",
+    "/admin/public-holidays",
+  );
 
   if (!listResponse.ok()) {
-    throw new Error(`Failed to list holidays for cleanup: ${await parseError(listResponse)}`);
+    throw new Error(
+      `Failed to list holidays for cleanup: ${await parseError(listResponse)}`,
+    );
   }
 
   const holidays = (await listResponse.json()) as PublicHoliday[];
   const matches = holidays.filter((holiday) => holiday.name === name);
 
   for (const holiday of matches) {
-    const deleteResponse = await adminApiRequest(request, 'delete', `/admin/public-holidays/${holiday.id}`);
+    const deleteResponse = await adminApiRequest(
+      request,
+      "delete",
+      `/admin/public-holidays/${holiday.id}`,
+    );
     if (!deleteResponse.ok()) {
-      throw new Error(`Failed to delete holiday "${name}": ${await parseError(deleteResponse)}`);
+      throw new Error(
+        `Failed to delete holiday "${name}": ${await parseError(deleteResponse)}`,
+      );
     }
   }
 }
 
 export async function createLocation(
   request: APIRequestContext,
-  name: string
+  name: string,
 ): Promise<Location> {
-  const response = await adminApiRequest(request, 'post', '/admin/locations', { name });
+  const response = await adminApiRequest(request, "post", "/admin/locations", {
+    name,
+  });
 
   if (!response.ok()) {
-    throw new Error(`Failed to create location "${name}": ${await parseError(response)}`);
+    throw new Error(
+      `Failed to create location "${name}": ${await parseError(response)}`,
+    );
   }
 
   return (await response.json()) as Location;
@@ -134,21 +159,33 @@ export async function createLocation(
 
 export async function deleteLocationByName(
   request: APIRequestContext,
-  name: string
+  name: string,
 ): Promise<void> {
-  const listResponse = await adminApiRequest(request, 'get', '/admin/locations');
+  const listResponse = await adminApiRequest(
+    request,
+    "get",
+    "/admin/locations",
+  );
 
   if (!listResponse.ok()) {
-    throw new Error(`Failed to list locations for cleanup: ${await parseError(listResponse)}`);
+    throw new Error(
+      `Failed to list locations for cleanup: ${await parseError(listResponse)}`,
+    );
   }
 
   const locations = (await listResponse.json()) as Location[];
   const matches = locations.filter((location) => location.name === name);
 
   for (const location of matches) {
-    const deleteResponse = await adminApiRequest(request, 'delete', `/admin/locations/${location.id}`);
+    const deleteResponse = await adminApiRequest(
+      request,
+      "delete",
+      `/admin/locations/${location.id}`,
+    );
     if (!deleteResponse.ok()) {
-      throw new Error(`Failed to delete location "${name}": ${await parseError(deleteResponse)}`);
+      throw new Error(
+        `Failed to delete location "${name}": ${await parseError(deleteResponse)}`,
+      );
     }
   }
 }
@@ -156,17 +193,19 @@ export async function deleteLocationByName(
 export async function addLocationToHoliday(
   request: APIRequestContext,
   holidayId: number,
-  locationId: number
+  locationId: number,
 ): Promise<PublicHoliday> {
   const response = await adminApiRequest(
     request,
-    'post',
+    "post",
     `/admin/public-holidays/${holidayId}/locations`,
-    { locationId }
+    { locationId },
   );
 
   if (!response.ok()) {
-    throw new Error(`Failed to assign location to holiday: ${await parseError(response)}`);
+    throw new Error(
+      `Failed to assign location to holiday: ${await parseError(response)}`,
+    );
   }
 
   return (await response.json()) as PublicHoliday;
