@@ -396,13 +396,12 @@ pub(crate) async fn assign_user_to_team(
         return Err(ApiError::new(StatusCode::NOT_FOUND, "User not found"));
     }
 
-    let insert_result = sqlx::query(
-        "INSERT INTO team_members (team_id, user_id, role) VALUES ($1, $2, 'member')",
-    )
-    .bind(id)
-    .bind(payload.user_id)
-    .execute(&state.db)
-    .await;
+    let insert_result =
+        sqlx::query("INSERT INTO team_members (team_id, user_id, role) VALUES ($1, $2, 'member')")
+            .bind(id)
+            .bind(payload.user_id)
+            .execute(&state.db)
+            .await;
 
     if let Err(error) = insert_result {
         if is_unique_violation(&error) {
@@ -489,7 +488,10 @@ pub(crate) async fn remove_user_from_team(
         })?;
 
     if delete_result.rows_affected() == 0 {
-        return Err(ApiError::new(StatusCode::NOT_FOUND, "Team member not found"));
+        return Err(ApiError::new(
+            StatusCode::NOT_FOUND,
+            "Team member not found",
+        ));
     }
 
     sqlx::query("UPDATE users SET default_team_id = NULL WHERE id = $1 AND default_team_id = $2")

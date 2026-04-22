@@ -73,29 +73,121 @@ pub(crate) struct PermissionCatalogEntry {
 }
 
 pub(crate) const PERMISSION_CATALOG: [PermissionCatalogEntry; 23] = [
-    PermissionCatalogEntry { key: "users.list", description: "View list of all users in admin area", category: "User Administration" },
-    PermissionCatalogEntry { key: "users.create", description: "Create new user accounts via admin", category: "User Administration" },
-    PermissionCatalogEntry { key: "users.edit", description: "Edit user details, work schedules, bulk-assign locations", category: "User Administration" },
-    PermissionCatalogEntry { key: "users.delete", description: "Delete user accounts", category: "User Administration" },
-    PermissionCatalogEntry { key: "locations.view", description: "View list of locations", category: "Location Management" },
-    PermissionCatalogEntry { key: "locations.create", description: "Create new locations", category: "Location Management" },
-    PermissionCatalogEntry { key: "locations.edit", description: "Edit existing locations", category: "Location Management" },
-    PermissionCatalogEntry { key: "locations.delete", description: "Delete locations", category: "Location Management" },
-    PermissionCatalogEntry { key: "public_holidays.view", description: "View public holidays", category: "Public Holiday Management" },
-    PermissionCatalogEntry { key: "public_holidays.create", description: "Create public holidays", category: "Public Holiday Management" },
-    PermissionCatalogEntry { key: "public_holidays.edit", description: "Edit existing public holidays", category: "Public Holiday Management" },
-    PermissionCatalogEntry { key: "public_holidays.delete", description: "Delete public holidays", category: "Public Holiday Management" },
-    PermissionCatalogEntry { key: "permission_profiles.view", description: "View permission profiles and user assignments", category: "Permission Management" },
-    PermissionCatalogEntry { key: "permission_profiles.create", description: "Create new permission profiles", category: "Permission Management" },
-    PermissionCatalogEntry { key: "permission_profiles.edit", description: "Edit permission profile name and permissions", category: "Permission Management" },
-    PermissionCatalogEntry { key: "permission_profiles.delete", description: "Delete permission profiles", category: "Permission Management" },
-    PermissionCatalogEntry { key: "permission_profiles.assign", description: "Assign or unassign profiles to/from users", category: "Permission Management" },
-    PermissionCatalogEntry { key: "settings.manage", description: "Manage system settings", category: "System Settings" },
-    PermissionCatalogEntry { key: "teams.view", description: "View all teams and their members", category: "Team Administration" },
-    PermissionCatalogEntry { key: "teams.create", description: "Create new teams", category: "Team Administration" },
-    PermissionCatalogEntry { key: "teams.edit", description: "Edit team details", category: "Team Administration" },
-    PermissionCatalogEntry { key: "teams.delete", description: "Delete teams", category: "Team Administration" },
-    PermissionCatalogEntry { key: "teams.assign", description: "Assign or remove users from teams", category: "Team Administration" },
+    PermissionCatalogEntry {
+        key: "users.list",
+        description: "View list of all users in admin area",
+        category: "User Administration",
+    },
+    PermissionCatalogEntry {
+        key: "users.create",
+        description: "Create new user accounts via admin",
+        category: "User Administration",
+    },
+    PermissionCatalogEntry {
+        key: "users.edit",
+        description: "Edit user details, work schedules, bulk-assign locations",
+        category: "User Administration",
+    },
+    PermissionCatalogEntry {
+        key: "users.delete",
+        description: "Delete user accounts",
+        category: "User Administration",
+    },
+    PermissionCatalogEntry {
+        key: "locations.view",
+        description: "View list of locations",
+        category: "Location Management",
+    },
+    PermissionCatalogEntry {
+        key: "locations.create",
+        description: "Create new locations",
+        category: "Location Management",
+    },
+    PermissionCatalogEntry {
+        key: "locations.edit",
+        description: "Edit existing locations",
+        category: "Location Management",
+    },
+    PermissionCatalogEntry {
+        key: "locations.delete",
+        description: "Delete locations",
+        category: "Location Management",
+    },
+    PermissionCatalogEntry {
+        key: "public_holidays.view",
+        description: "View public holidays",
+        category: "Public Holiday Management",
+    },
+    PermissionCatalogEntry {
+        key: "public_holidays.create",
+        description: "Create public holidays",
+        category: "Public Holiday Management",
+    },
+    PermissionCatalogEntry {
+        key: "public_holidays.edit",
+        description: "Edit existing public holidays",
+        category: "Public Holiday Management",
+    },
+    PermissionCatalogEntry {
+        key: "public_holidays.delete",
+        description: "Delete public holidays",
+        category: "Public Holiday Management",
+    },
+    PermissionCatalogEntry {
+        key: "permission_profiles.view",
+        description: "View permission profiles and user assignments",
+        category: "Permission Management",
+    },
+    PermissionCatalogEntry {
+        key: "permission_profiles.create",
+        description: "Create new permission profiles",
+        category: "Permission Management",
+    },
+    PermissionCatalogEntry {
+        key: "permission_profiles.edit",
+        description: "Edit permission profile name and permissions",
+        category: "Permission Management",
+    },
+    PermissionCatalogEntry {
+        key: "permission_profiles.delete",
+        description: "Delete permission profiles",
+        category: "Permission Management",
+    },
+    PermissionCatalogEntry {
+        key: "permission_profiles.assign",
+        description: "Assign or unassign profiles to/from users",
+        category: "Permission Management",
+    },
+    PermissionCatalogEntry {
+        key: "settings.manage",
+        description: "Manage system settings",
+        category: "System Settings",
+    },
+    PermissionCatalogEntry {
+        key: "teams.view",
+        description: "View all teams and their members",
+        category: "Team Administration",
+    },
+    PermissionCatalogEntry {
+        key: "teams.create",
+        description: "Create new teams",
+        category: "Team Administration",
+    },
+    PermissionCatalogEntry {
+        key: "teams.edit",
+        description: "Edit team details",
+        category: "Team Administration",
+    },
+    PermissionCatalogEntry {
+        key: "teams.delete",
+        description: "Delete teams",
+        category: "Team Administration",
+    },
+    PermissionCatalogEntry {
+        key: "teams.assign",
+        description: "Assign or remove users from teams",
+        category: "Team Administration",
+    },
 ];
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -104,7 +196,10 @@ pub(crate) struct Claims {
     pub(crate) exp: usize,
 }
 
-pub(crate) async fn get_user_permissions(db: &PgPool, user_id: i64) -> Result<Vec<String>, ApiError> {
+pub(crate) async fn get_user_permissions(
+    db: &PgPool,
+    user_id: i64,
+) -> Result<Vec<String>, ApiError> {
     sqlx::query_scalar::<_, String>(
         r#"
         SELECT pp.permission_key
@@ -125,7 +220,10 @@ pub(crate) async fn get_user_permissions(db: &PgPool, user_id: i64) -> Result<Ve
     })
 }
 
-pub(crate) async fn get_user_profile_name(db: &PgPool, user_id: i64) -> Result<Option<String>, ApiError> {
+pub(crate) async fn get_user_profile_name(
+    db: &PgPool,
+    user_id: i64,
+) -> Result<Option<String>, ApiError> {
     sqlx::query_scalar::<_, String>(
         r#"
         SELECT p.name
@@ -247,9 +345,12 @@ pub(crate) fn authorize(headers: &HeaderMap, jwt_secret: &str) -> Result<Claims,
         .and_then(|value| value.to_str().ok())
         .ok_or_else(|| ApiError::new(StatusCode::UNAUTHORIZED, "Missing Authorization header"))?;
 
-    let token = bearer
-        .strip_prefix("Bearer ")
-        .ok_or_else(|| ApiError::new(StatusCode::UNAUTHORIZED, "Authorization header must use Bearer token"))?;
+    let token = bearer.strip_prefix("Bearer ").ok_or_else(|| {
+        ApiError::new(
+            StatusCode::UNAUTHORIZED,
+            "Authorization header must use Bearer token",
+        )
+    })?;
 
     decode::<Claims>(
         token,
@@ -257,5 +358,10 @@ pub(crate) fn authorize(headers: &HeaderMap, jwt_secret: &str) -> Result<Claims,
         &Validation::default(),
     )
     .map(|data| data.claims)
-    .map_err(|_| ApiError::new(StatusCode::UNAUTHORIZED, "Authentication token is invalid or expired"))
+    .map_err(|_| {
+        ApiError::new(
+            StatusCode::UNAUTHORIZED,
+            "Authentication token is invalid or expired",
+        )
+    })
 }

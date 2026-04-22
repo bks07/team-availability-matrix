@@ -5,12 +5,10 @@ use axum::{
 };
 
 use crate::auth::{
-    Claims,
-    get_user_permissions, get_user_profile_name, require_permission,
-    PERMISSION_CATALOG, SUPER_ADMIN_PROFILE_NAME,
-    PERM_PERMISSION_PROFILES_ASSIGN, PERM_PERMISSION_PROFILES_CREATE,
-    PERM_PERMISSION_PROFILES_DELETE, PERM_PERMISSION_PROFILES_EDIT,
-    PERM_PERMISSION_PROFILES_VIEW, PermissionCatalogEntry,
+    get_user_permissions, get_user_profile_name, require_permission, Claims,
+    PermissionCatalogEntry, PERMISSION_CATALOG, PERM_PERMISSION_PROFILES_ASSIGN,
+    PERM_PERMISSION_PROFILES_CREATE, PERM_PERMISSION_PROFILES_DELETE,
+    PERM_PERMISSION_PROFILES_EDIT, PERM_PERMISSION_PROFILES_VIEW, SUPER_ADMIN_PROFILE_NAME,
 };
 use crate::error::ApiError;
 use crate::helpers::{ensure_user_exists, is_known_permission};
@@ -174,19 +172,17 @@ pub(crate) async fn create_permission_profile(
     }
 
     for perm in &unique_perms {
-        sqlx::query(
-            "INSERT INTO profile_permissions (profile_id, permission_key) VALUES ($1, $2)",
-        )
-        .bind(profile_id)
-        .bind(perm)
-        .execute(&mut *tx)
-        .await
-        .map_err(|error| {
-            ApiError::new(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to save profile permission: {error}"),
-            )
-        })?;
+        sqlx::query("INSERT INTO profile_permissions (profile_id, permission_key) VALUES ($1, $2)")
+            .bind(profile_id)
+            .bind(perm)
+            .execute(&mut *tx)
+            .await
+            .map_err(|error| {
+                ApiError::new(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Failed to save profile permission: {error}"),
+                )
+            })?;
     }
 
     tx.commit().await.map_err(|error| {
@@ -366,13 +362,12 @@ pub(crate) async fn update_permission_profile(
         )
     })?;
 
-    let update_result = sqlx::query(
-        "UPDATE permission_profiles SET name = $1, updated_at = NOW() WHERE id = $2",
-    )
-    .bind(&name)
-    .bind(id)
-    .execute(&mut *tx)
-    .await;
+    let update_result =
+        sqlx::query("UPDATE permission_profiles SET name = $1, updated_at = NOW() WHERE id = $2")
+            .bind(&name)
+            .bind(id)
+            .execute(&mut *tx)
+            .await;
 
     if let Err(error) = update_result {
         if error
@@ -402,19 +397,17 @@ pub(crate) async fn update_permission_profile(
         })?;
 
     for perm in &unique_perms {
-        sqlx::query(
-            "INSERT INTO profile_permissions (profile_id, permission_key) VALUES ($1, $2)",
-        )
-        .bind(id)
-        .bind(perm)
-        .execute(&mut *tx)
-        .await
-        .map_err(|error| {
-            ApiError::new(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to save profile permission: {error}"),
-            )
-        })?;
+        sqlx::query("INSERT INTO profile_permissions (profile_id, permission_key) VALUES ($1, $2)")
+            .bind(id)
+            .bind(perm)
+            .execute(&mut *tx)
+            .await
+            .map_err(|error| {
+                ApiError::new(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Failed to save profile permission: {error}"),
+                )
+            })?;
     }
 
     tx.commit().await.map_err(|error| {
@@ -563,21 +556,20 @@ pub(crate) async fn assign_user_profile(
 
     if let Some(profile_id) = payload.profile_id {
         // Verify profile exists
-        let profile_name = sqlx::query_scalar::<_, String>(
-            "SELECT name FROM permission_profiles WHERE id = $1",
-        )
-        .bind(profile_id)
-        .fetch_optional(&state.db)
-        .await
-        .map_err(|error| {
-            ApiError::new(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to check permission profile: {error}"),
-            )
-        })?
-        .ok_or_else(|| {
-            ApiError::new(StatusCode::BAD_REQUEST, "Permission profile not found")
-        })?;
+        let profile_name =
+            sqlx::query_scalar::<_, String>("SELECT name FROM permission_profiles WHERE id = $1")
+                .bind(profile_id)
+                .fetch_optional(&state.db)
+                .await
+                .map_err(|error| {
+                    ApiError::new(
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        format!("Failed to check permission profile: {error}"),
+                    )
+                })?
+                .ok_or_else(|| {
+                    ApiError::new(StatusCode::BAD_REQUEST, "Permission profile not found")
+                })?;
 
         // Prevent removing Super Admin from yourself
         if claims.sub == user_id && profile_name != SUPER_ADMIN_PROFILE_NAME {
@@ -604,18 +596,17 @@ pub(crate) async fn assign_user_profile(
             )
         })?;
 
-        let target_user_name = sqlx::query_scalar::<_, String>(
-            "SELECT display_name FROM users WHERE id = $1",
-        )
-        .bind(user_id)
-        .fetch_one(&state.db)
-        .await
-        .map_err(|error| {
-            ApiError::new(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to load user name: {error}"),
-            )
-        })?;
+        let target_user_name =
+            sqlx::query_scalar::<_, String>("SELECT display_name FROM users WHERE id = $1")
+                .bind(user_id)
+                .fetch_one(&state.db)
+                .await
+                .map_err(|error| {
+                    ApiError::new(
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        format!("Failed to load user name: {error}"),
+                    )
+                })?;
 
         insert_audit_log(
             &state.db,
@@ -665,18 +656,17 @@ pub(crate) async fn assign_user_profile(
             })?;
 
         if let Some((old_profile_id, old_profile_name)) = old_profile_info {
-            let target_user_name = sqlx::query_scalar::<_, String>(
-                "SELECT display_name FROM users WHERE id = $1",
-            )
-            .bind(user_id)
-            .fetch_one(&state.db)
-            .await
-            .map_err(|error| {
-                ApiError::new(
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    format!("Failed to load user name: {error}"),
-                )
-            })?;
+            let target_user_name =
+                sqlx::query_scalar::<_, String>("SELECT display_name FROM users WHERE id = $1")
+                    .bind(user_id)
+                    .fetch_one(&state.db)
+                    .await
+                    .map_err(|error| {
+                        ApiError::new(
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            format!("Failed to load user name: {error}"),
+                        )
+                    })?;
 
             insert_audit_log(
                 &state.db,
@@ -1149,6 +1139,7 @@ pub(crate) async fn get_user_profile(
     }))
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn insert_audit_log(
     db: &sqlx::PgPool,
     admin_id: i64,

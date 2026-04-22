@@ -30,7 +30,10 @@ fn aggregate_location_ids(rows: &[HolidayLocationRow]) -> std::collections::Hash
     map
 }
 
-async fn fetch_public_holiday_response(state: &AppState, holiday_id: i64) -> Result<PublicHolidayResponse, ApiError> {
+async fn fetch_public_holiday_response(
+    state: &AppState,
+    holiday_id: i64,
+) -> Result<PublicHolidayResponse, ApiError> {
     let holiday = sqlx::query_as::<_, PublicHolidayRow>(
         "SELECT id, holiday_date, name FROM public_holidays WHERE id = $1",
     )
@@ -145,8 +148,6 @@ pub(crate) async fn list_public_holidays(
     ))
 }
 
-
-
 pub(crate) async fn create_public_holiday(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -203,8 +204,6 @@ pub(crate) async fn create_public_holiday(
     ))
 }
 
-
-
 pub(crate) async fn update_public_holiday(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -225,29 +224,31 @@ pub(crate) async fn update_public_holiday(
 
     let exists =
         sqlx::query_scalar::<_, i32>("SELECT 1 FROM public_holidays WHERE id = $1 LIMIT 1")
-        .bind(id)
-        .fetch_optional(&state.db)
-        .await
-        .map_err(|error| {
-            ApiError::new(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to check public holiday: {error}"),
-            )
-        })?
-        .is_some();
+            .bind(id)
+            .fetch_optional(&state.db)
+            .await
+            .map_err(|error| {
+                ApiError::new(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Failed to check public holiday: {error}"),
+                )
+            })?
+            .is_some();
 
     if !exists {
-        return Err(ApiError::new(StatusCode::NOT_FOUND, "Public holiday not found"));
+        return Err(ApiError::new(
+            StatusCode::NOT_FOUND,
+            "Public holiday not found",
+        ));
     }
 
-    let update_result = sqlx::query(
-        "UPDATE public_holidays SET holiday_date = $1, name = $2 WHERE id = $3",
-    )
-    .bind(parsed_date)
-    .bind(&name)
-    .bind(id)
-    .execute(&state.db)
-    .await;
+    let update_result =
+        sqlx::query("UPDATE public_holidays SET holiday_date = $1, name = $2 WHERE id = $3")
+            .bind(parsed_date)
+            .bind(&name)
+            .bind(id)
+            .execute(&state.db)
+            .await;
 
     if let Err(error) = update_result {
         if error
@@ -290,8 +291,6 @@ pub(crate) async fn update_public_holiday(
     }))
 }
 
-
-
 pub(crate) async fn delete_public_holiday(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -317,7 +316,10 @@ pub(crate) async fn delete_public_holiday(
         })?;
 
     if delete_result.rows_affected() == 0 {
-        return Err(ApiError::new(StatusCode::NOT_FOUND, "Public holiday not found"));
+        return Err(ApiError::new(
+            StatusCode::NOT_FOUND,
+            "Public holiday not found",
+        ));
     }
 
     Ok(StatusCode::NO_CONTENT)
@@ -351,7 +353,10 @@ pub(crate) async fn add_location_to_holiday(
             .is_some();
 
     if !holiday_exists {
-        return Err(ApiError::new(StatusCode::NOT_FOUND, "Public holiday not found"));
+        return Err(ApiError::new(
+            StatusCode::NOT_FOUND,
+            "Public holiday not found",
+        ));
     }
 
     ensure_location_exists(&state.db, payload.location_id).await?;
@@ -479,4 +484,3 @@ mod tests {
         );
     }
 }
-

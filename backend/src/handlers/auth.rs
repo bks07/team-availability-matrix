@@ -95,18 +95,17 @@ pub(crate) async fn register(
     })?;
 
     if inserted_id == 1 {
-        let super_admin_profile_id = sqlx::query_scalar::<_, i64>(
-            "SELECT id FROM permission_profiles WHERE name = $1",
-        )
-        .bind(SUPER_ADMIN_PROFILE_NAME)
-        .fetch_optional(&state.db)
-        .await
-        .map_err(|error| {
-            ApiError::new(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to find Super Admin profile: {error}"),
-            )
-        })?;
+        let super_admin_profile_id =
+            sqlx::query_scalar::<_, i64>("SELECT id FROM permission_profiles WHERE name = $1")
+                .bind(SUPER_ADMIN_PROFILE_NAME)
+                .fetch_optional(&state.db)
+                .await
+                .map_err(|error| {
+                    ApiError::new(
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        format!("Failed to find Super Admin profile: {error}"),
+                    )
+                })?;
 
         if let Some(profile_id) = super_admin_profile_id {
             sqlx::query(
@@ -150,8 +149,6 @@ pub(crate) async fn register(
         permissions,
     }))
 }
-
-
 
 pub(crate) async fn login(
     State(state): State<AppState>,
@@ -211,8 +208,6 @@ pub(crate) async fn login(
     }))
 }
 
-
-
 pub(crate) async fn me(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -221,4 +216,3 @@ pub(crate) async fn me(
     let user = find_public_user(&state.db, claims.sub).await?;
     Ok(Json(user))
 }
-

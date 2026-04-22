@@ -271,7 +271,8 @@ mod tests {
 
     #[test]
     fn normalize_public_holiday_name_rejects_whitespace_only() {
-        let error = normalize_public_holiday_name("   \t\n").expect_err("expected validation error");
+        let error =
+            normalize_public_holiday_name("   \t\n").expect_err("expected validation error");
 
         assert_eq!(error.status, StatusCode::BAD_REQUEST);
         assert_eq!(error.message, "Public holiday name is required");
@@ -287,7 +288,8 @@ mod tests {
 
     #[test]
     fn normalize_public_holiday_name_trims_valid_name() {
-        let normalized = normalize_public_holiday_name("  Easter  ").expect("expected valid holiday");
+        let normalized =
+            normalize_public_holiday_name("  Easter  ").expect("expected valid holiday");
 
         assert_eq!(normalized, "Easter");
     }

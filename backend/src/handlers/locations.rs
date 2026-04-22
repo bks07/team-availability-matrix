@@ -26,13 +26,7 @@ pub(crate) async fn list_locations(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Result<Json<Vec<LocationResponse>>, ApiError> {
-    require_permission(
-        &headers,
-        &state.db,
-        &state.jwt_secret,
-        PERM_LOCATIONS_VIEW,
-    )
-    .await?;
+    require_permission(&headers, &state.db, &state.jwt_secret, PERM_LOCATIONS_VIEW).await?;
 
     let locations = sqlx::query_as::<_, LocationRowWithCount>(
         "SELECT l.id, l.name, \
@@ -60,8 +54,6 @@ pub(crate) async fn list_locations(
             .collect(),
     ))
 }
-
-
 
 pub(crate) async fn create_location(
     State(state): State<AppState>,
@@ -115,21 +107,13 @@ pub(crate) async fn create_location(
     ))
 }
 
-
-
 pub(crate) async fn update_location(
     State(state): State<AppState>,
     headers: HeaderMap,
     Path(id): Path<i64>,
     Json(payload): Json<UpdateLocationRequest>,
 ) -> Result<Json<LocationResponse>, ApiError> {
-    require_permission(
-        &headers,
-        &state.db,
-        &state.jwt_secret,
-        PERM_LOCATIONS_EDIT,
-    )
-    .await?;
+    require_permission(&headers, &state.db, &state.jwt_secret, PERM_LOCATIONS_EDIT).await?;
 
     let name = normalize_location_name(&payload.name)?;
 
@@ -172,13 +156,12 @@ pub(crate) async fn update_location(
         ));
     }
 
-    let user_count = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM users WHERE location_id = $1",
-    )
-    .bind(id)
-    .fetch_one(&state.db)
-    .await
-    .unwrap_or(0);
+    let user_count =
+        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM users WHERE location_id = $1")
+            .bind(id)
+            .fetch_one(&state.db)
+            .await
+            .unwrap_or(0);
 
     Ok(Json(LocationResponse {
         id,
@@ -186,8 +169,6 @@ pub(crate) async fn update_location(
         user_count,
     }))
 }
-
-
 
 pub(crate) async fn delete_location(
     State(state): State<AppState>,
@@ -203,18 +184,17 @@ pub(crate) async fn delete_location(
     )
     .await?;
 
-    let users_using_location = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM users WHERE location_id = $1",
-    )
-    .bind(id)
-    .fetch_one(&state.db)
-    .await
-    .map_err(|error| {
-        ApiError::new(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to check users for location usage: {error}"),
-        )
-    })?;
+    let users_using_location =
+        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM users WHERE location_id = $1")
+            .bind(id)
+            .fetch_one(&state.db)
+            .await
+            .map_err(|error| {
+                ApiError::new(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Failed to check users for location usage: {error}"),
+                )
+            })?;
 
     if users_using_location > 0 && !query.force {
         return Err(ApiError::new(

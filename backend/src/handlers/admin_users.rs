@@ -10,8 +10,8 @@ use crate::auth::{
 };
 use crate::error::ApiError;
 use crate::helpers::{
-    delete_photo_file_best_effort, ensure_location_exists, ensure_user_exists,
-    derive_display_name, normalize_email, normalize_name_fields,
+    delete_photo_file_best_effort, derive_display_name, ensure_location_exists, ensure_user_exists,
+    normalize_email, normalize_name_fields,
 };
 use crate::models::EmployeeRow;
 use crate::state::AppState;
@@ -24,13 +24,7 @@ pub(crate) async fn list_admin_users(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Result<Json<Vec<AdminUserResponse>>, ApiError> {
-    require_permission(
-        &headers,
-        &state.db,
-        &state.jwt_secret,
-        PERM_USERS_LIST,
-    )
-    .await?;
+    require_permission(&headers, &state.db, &state.jwt_secret, PERM_USERS_LIST).await?;
 
     let users = sqlx::query_as::<_, EmployeeRow>(
         "SELECT u.id, u.email, u.display_name, u.title, u.first_name, u.middle_name, u.last_name, u.default_team_id, u.location_id, u.photo_url, l.name AS location_name FROM users u LEFT JOIN locations l ON u.location_id = l.id ORDER BY LOWER(u.display_name) ASC",
@@ -66,8 +60,6 @@ pub(crate) async fn list_admin_users(
 
     Ok(Json(response))
 }
-
-
 
 pub(crate) async fn admin_create_user(
     State(state): State<AppState>,
@@ -157,8 +149,6 @@ pub(crate) async fn admin_create_user(
     ))
 }
 
-
-
 pub(crate) async fn admin_update_user(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -170,13 +160,12 @@ pub(crate) async fn admin_update_user(
     ensure_user_exists(&state.db, id).await?;
 
     let email = normalize_email(&payload.email)?;
-    let (title, first_name, middle_name, last_name) =
-        normalize_name_fields(
-            payload.title.as_deref().unwrap_or(""),
-            &payload.first_name,
-            payload.middle_name.as_deref().unwrap_or(""),
-            &payload.last_name,
-        )?;
+    let (title, first_name, middle_name, last_name) = normalize_name_fields(
+        payload.title.as_deref().unwrap_or(""),
+        &payload.first_name,
+        payload.middle_name.as_deref().unwrap_or(""),
+        &payload.last_name,
+    )?;
     let display_name = derive_display_name(&title, &first_name, &middle_name, &last_name);
 
     if let Some(location_id) = payload.location_id {
@@ -280,8 +269,6 @@ pub(crate) async fn admin_update_user(
     }))
 }
 
-
-
 pub(crate) async fn admin_delete_user(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -297,19 +284,18 @@ pub(crate) async fn admin_delete_user(
         ));
     }
 
-    let existing_photo_url = sqlx::query_scalar::<_, Option<String>>(
-        "SELECT photo_url FROM users WHERE id = $1",
-    )
-    .bind(id)
-    .fetch_optional(&state.db)
-    .await
-    .map_err(|error| {
-        ApiError::new(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to load user photo for cleanup: {error}"),
-        )
-    })?
-    .ok_or_else(|| ApiError::new(StatusCode::NOT_FOUND, "User not found"))?;
+    let existing_photo_url =
+        sqlx::query_scalar::<_, Option<String>>("SELECT photo_url FROM users WHERE id = $1")
+            .bind(id)
+            .fetch_optional(&state.db)
+            .await
+            .map_err(|error| {
+                ApiError::new(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Failed to load user photo for cleanup: {error}"),
+                )
+            })?
+            .ok_or_else(|| ApiError::new(StatusCode::NOT_FOUND, "User not found"))?;
 
     sqlx::query("DELETE FROM availability_statuses WHERE user_id = $1")
         .bind(id)
@@ -355,8 +341,6 @@ pub(crate) async fn admin_delete_user(
     Ok(StatusCode::NO_CONTENT)
 }
 
-
-
 pub(crate) async fn bulk_assign_location(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -389,4 +373,3 @@ pub(crate) async fn bulk_assign_location(
         updated_count: update_result.rows_affected() as i64,
     }))
 }
-

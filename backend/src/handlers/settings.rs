@@ -34,20 +34,12 @@ pub(crate) async fn get_self_registration_setting(
     Ok(Json(SelfRegistrationSettingResponse { enabled }))
 }
 
-
-
 pub(crate) async fn update_self_registration_setting(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(payload): Json<UpdateSelfRegistrationRequest>,
 ) -> Result<Json<SelfRegistrationSettingResponse>, ApiError> {
-    require_permission(
-        &headers,
-        &state.db,
-        &state.jwt_secret,
-        PERM_SETTINGS_MANAGE,
-    )
-    .await?;
+    require_permission(&headers, &state.db, &state.jwt_secret, PERM_SETTINGS_MANAGE).await?;
 
     let value = if payload.enabled { "true" } else { "false" };
 
@@ -68,4 +60,3 @@ pub(crate) async fn update_self_registration_setting(
         enabled: payload.enabled,
     }))
 }
-

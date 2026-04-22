@@ -256,19 +256,17 @@ pub(crate) async fn create_team(
         }
     };
 
-    sqlx::query(
-        "INSERT INTO team_members (team_id, user_id, role) VALUES ($1, $2, 'owner')",
-    )
-    .bind(team.id)
-    .bind(claims.sub)
-    .execute(&mut *tx)
-    .await
-    .map_err(|error| {
-        ApiError::new(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to add owner membership: {error}"),
-        )
-    })?;
+    sqlx::query("INSERT INTO team_members (team_id, user_id, role) VALUES ($1, $2, 'owner')")
+        .bind(team.id)
+        .bind(claims.sub)
+        .execute(&mut *tx)
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to add owner membership: {error}"),
+            )
+        })?;
 
     sqlx::query("UPDATE users SET default_team_id = $1 WHERE id = $2 AND default_team_id IS NULL")
         .bind(team.id)
@@ -289,18 +287,17 @@ pub(crate) async fn create_team(
         )
     })?;
 
-    let caller_name = sqlx::query_scalar::<_, String>(
-        "SELECT display_name FROM users WHERE id = $1",
-    )
-    .bind(claims.sub)
-    .fetch_one(&state.db)
-    .await
-    .map_err(|error| {
-        ApiError::new(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to load user: {error}"),
-        )
-    })?;
+    let caller_name =
+        sqlx::query_scalar::<_, String>("SELECT display_name FROM users WHERE id = $1")
+            .bind(claims.sub)
+            .fetch_one(&state.db)
+            .await
+            .map_err(|error| {
+                ApiError::new(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Failed to load user: {error}"),
+                )
+            })?;
 
     let created_at = sqlx::query_scalar::<_, chrono::DateTime<chrono::Utc>>(
         "SELECT created_at FROM teams WHERE id = $1",
@@ -1104,13 +1101,12 @@ pub(crate) async fn accept_invitation(
         ));
     }
 
-    let membership_insert = sqlx::query(
-        "INSERT INTO team_members (team_id, user_id, role) VALUES ($1, $2, 'member')",
-    )
-    .bind(invitation.team_id)
-    .bind(claims.sub)
-    .execute(&mut *tx)
-    .await;
+    let membership_insert =
+        sqlx::query("INSERT INTO team_members (team_id, user_id, role) VALUES ($1, $2, 'member')")
+            .bind(invitation.team_id)
+            .bind(claims.sub)
+            .execute(&mut *tx)
+            .await;
 
     if let Err(error) = membership_insert {
         if is_unique_violation(&error) {

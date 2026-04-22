@@ -171,7 +171,10 @@ pub(crate) async fn get_matrix(
 
         let mut loc_map: HashMap<i64, Vec<i64>> = HashMap::new();
         for row in &holiday_location_rows {
-            loc_map.entry(row.holiday_id).or_default().push(row.location_id);
+            loc_map
+                .entry(row.holiday_id)
+                .or_default()
+                .push(row.location_id);
         }
 
         holiday_rows
@@ -271,8 +274,6 @@ pub(crate) async fn get_matrix(
     }))
 }
 
-
-
 pub(crate) async fn update_status(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -328,23 +329,25 @@ pub(crate) async fn bulk_status(
 
     let mut filtered_dates = parsed_dates;
     if body.skip_weekends {
-        filtered_dates.retain(|date| date.weekday() != Weekday::Sat && date.weekday() != Weekday::Sun);
+        filtered_dates
+            .retain(|date| date.weekday() != Weekday::Sat && date.weekday() != Weekday::Sun);
     }
 
     if body.skip_public_holidays && !filtered_dates.is_empty() {
-        let location_id = sqlx::query_scalar::<_, Option<i64>>(
-            "SELECT location_id FROM users WHERE id = $1",
-        )
-        .bind(claims.sub)
-        .fetch_optional(&state.db)
-        .await
-        .map_err(|error| {
-            ApiError::new(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to load user location for bulk status update: {error}"),
-            )
-        })?
-        .ok_or_else(|| ApiError::new(StatusCode::UNAUTHORIZED, "Current user no longer exists"))?;
+        let location_id =
+            sqlx::query_scalar::<_, Option<i64>>("SELECT location_id FROM users WHERE id = $1")
+                .bind(claims.sub)
+                .fetch_optional(&state.db)
+                .await
+                .map_err(|error| {
+                    ApiError::new(
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        format!("Failed to load user location for bulk status update: {error}"),
+                    )
+                })?
+                .ok_or_else(|| {
+                    ApiError::new(StatusCode::UNAUTHORIZED, "Current user no longer exists")
+                })?;
 
         if let Some(location_id) = location_id {
             let min_date = filtered_dates.iter().min().copied().ok_or_else(|| {
@@ -376,7 +379,8 @@ pub(crate) async fn bulk_status(
                 )
             })?;
 
-            let holiday_dates: std::collections::HashSet<NaiveDate> = holiday_dates.into_iter().collect();
+            let holiday_dates: std::collections::HashSet<NaiveDate> =
+                holiday_dates.into_iter().collect();
             filtered_dates.retain(|date| !holiday_dates.contains(date));
         }
     }
@@ -558,7 +562,10 @@ pub(crate) async fn export_matrix_csv(
 
     let mut status_map: HashMap<(i64, String), String> = HashMap::new();
     for row in &status_rows {
-        status_map.insert((row.user_id, row.status_date.to_string()), row.status.clone());
+        status_map.insert(
+            (row.user_id, row.status_date.to_string()),
+            row.status.clone(),
+        );
     }
 
     let days = build_day_list(year)?;
@@ -604,4 +611,3 @@ fn escape_csv_field(field: &str) -> String {
         field.to_string()
     }
 }
-

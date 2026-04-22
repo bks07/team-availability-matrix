@@ -8,13 +8,13 @@ mod models;
 mod router;
 mod state;
 mod types;
+use crate::db::initialize_database;
+use crate::router::build_router;
+use crate::state::AppState;
 use axum::http::Method;
 use sqlx::postgres::PgPoolOptions;
 use tower_http::cors::CorsLayer;
 use tracing::info;
-use crate::db::initialize_database;
-use crate::router::build_router;
-use crate::state::AppState;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -42,8 +42,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cors = CorsLayer::new()
         .allow_origin(frontend_origin.parse::<axum::http::HeaderValue>()?)
         .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE])
-        .allow_headers([axum::http::header::AUTHORIZATION, axum::http::header::CONTENT_TYPE]);
-    let state = AppState { db, jwt_secret, upload_dir: "uploads".to_string() };
+        .allow_headers([
+            axum::http::header::AUTHORIZATION,
+            axum::http::header::CONTENT_TYPE,
+        ]);
+    let state = AppState {
+        db,
+        jwt_secret,
+        upload_dir: "uploads".to_string(),
+    };
     let upload_dir = state.upload_dir.clone();
     let app = build_router(state, cors, &upload_dir);
     let addr: SocketAddr = format!("{host}:{port}").parse()?;
