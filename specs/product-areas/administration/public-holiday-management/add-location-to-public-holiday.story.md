@@ -1,5 +1,5 @@
 ---
-status: NEW
+status: DONE
 ---
 
 # Add location to public holiday

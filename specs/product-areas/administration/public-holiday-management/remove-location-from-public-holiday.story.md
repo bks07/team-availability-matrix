@@ -1,5 +1,5 @@
 ---
-status: NEW
+status: DONE
 ---
 
 # Remove location from public holiday

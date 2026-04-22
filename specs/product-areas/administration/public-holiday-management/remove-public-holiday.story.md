@@ -1,5 +1,5 @@
 ---
-status: CHANGED
+status: DONE
 ---
 
 # Remove public holiday
